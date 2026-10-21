@@ -4,6 +4,7 @@ import { BrowserRouter, Route, Routes } from "react-router";
 
 import { openSession } from "./api/client";
 import { Button, LoadingScreen } from "./components/ui/controls";
+import { EdgeSwipe } from "./components/ui/EdgeSwipe";
 import { HelpPage, PaySupportPage, PremiumPage, SettingsPage, TermsPage } from "./pages/InfoPages";
 import { ChartPage } from "./pages/ChartPage";
 import { HomePage } from "./pages/HomePage";
@@ -52,7 +53,9 @@ function AuthedApp({ initData }: { initData: string }) {
   }
   const profile = session.data;
   return (
-    <Routes>
+    <>
+      <EdgeSwipe />
+      <Routes>
       <Route
         path="/"
         element={
@@ -68,5 +71,6 @@ function AuthedApp({ initData }: { initData: string }) {
       <Route path="/paysupport" element={<PaySupportPage />} />
       <Route path="*" element={<OpenAppPage />} />
     </Routes>
+    </>
   );
 }

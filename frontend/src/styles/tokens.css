@@ -54,7 +54,7 @@ body {
   color: var(--color-text);
   font: 400 16px/24px var(--font-family);
   padding:
-    var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px))
+    max(52px, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px)))
     var(--tg-content-safe-area-inset-right, env(safe-area-inset-right, 0px))
     var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))
     var(--tg-content-safe-area-inset-left, env(safe-area-inset-left, 0px));
@@ -133,6 +133,25 @@ h1 {
   cursor: default;
 }
 
+.button.button-danger {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-text);
+}
+
+.button.button-danger:hover:not(:disabled),
+.button.button-danger:active:not(:disabled) {
+  background: var(--color-text);
+  color: var(--color-button-label);
+}
+
+.button.button-danger:disabled {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-text);
+  cursor: default;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -174,6 +193,42 @@ h1 {
   margin-top: 0;
 }
 
+.screen-fill {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(
+    100dvh - max(52px, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px))) -
+      var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))
+  );
+  padding-bottom: var(--space-4);
+}
+
+.profile-tray {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 52px;
+  padding: 4px 4px 4px 14px;
+  border-radius: 999px;
+  background: var(--color-text-secondary);
+}
+
+.profile-tray:not([data-sign="true"]) {
+  padding-left: 4px;
+}
+
+.sign-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+}
+
+.sign-mark .emoji {
+  font-size: 22px;
+}
+
 .profile-chip {
   width: 44px;
   height: 44px;
@@ -188,6 +243,63 @@ h1 {
   padding: 0;
   cursor: pointer;
   font: 500 16px/24px var(--font-family);
+}
+
+.home-note {
+  margin: auto 0 0;
+  padding-top: var(--space-4);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font: 400 12px/16px var(--font-family);
+}
+
+.screen-fill .button-danger {
+  margin-top: auto;
+}
+
+.edge-swipe {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  width: 0;
+  background: var(--color-text);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.edge-swipe[data-active="true"] {
+  opacity: 0.28;
+}
+
+.home-phrase {
+  margin: var(--space-6) 0 var(--space-5);
+  min-height: 56px;
+  text-align: center;
+  font: 500 22px/28px var(--font-family);
+  transition: opacity 450ms ease, transform 450ms ease;
+}
+
+.home-phrase[data-shown="true"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.home-phrase[data-shown="false"] {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.emoji {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.sign-chip .emoji {
+  font-size: 24px;
 }
 
 .profile-chip svg,
@@ -244,6 +356,22 @@ h1 {
 
 .loading-label {
   margin: 0;
+  min-width: 11ch;
+  text-align: left;
+}
+
+.loading-screen .logo-slot {
+  animation: logo-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes logo-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
 }
 
 .choice {

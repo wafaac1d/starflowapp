@@ -22,13 +22,11 @@ export function ProfilePage({ profile }: ProfilePageProps) {
   const [name, setName] = useState(profile.display_name ?? "");
   const [birthDate, setBirthDate] = useState(profile.birth_date ?? "");
   const [birthTime, setBirthTime] = useState(profile.birth_time ?? "");
-  const [unknownTime, setUnknownTime] = useState(profile.birth_time_unknown);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [confirming, setConfirming] = useState(false);
   const dirty =
     name !== (profile.display_name ?? "") ||
     birthDate !== (profile.birth_date ?? "") ||
-    unknownTime !== profile.birth_time_unknown ||
     birthTime !== (profile.birth_time ?? "");
 
   useEffect(() => {
@@ -50,7 +48,6 @@ export function ProfilePage({ profile }: ProfilePageProps) {
     setName(profile.display_name ?? "");
     setBirthDate(profile.birth_date ?? "");
     setBirthTime(profile.birth_time ?? "");
-    setUnknownTime(profile.birth_time_unknown);
   }, [profile]);
 
   const save = useMutation<ProfileResponse, Error, DraftPayload>({
@@ -92,7 +89,7 @@ export function ProfilePage({ profile }: ProfilePageProps) {
   }
 
   return (
-    <main className="shell">
+    <main className="shell screen-fill">
       <section className="surface">
         <h1>{text("ui.profile.title")}</h1>
         <Field
@@ -113,14 +110,6 @@ export function ProfilePage({ profile }: ProfilePageProps) {
           onChange={setBirthTime}
           {...(fields.birth_time !== undefined ? { error: fields.birth_time } : {})}
         />
-        <button
-          type="button"
-          className="choice"
-          aria-pressed={unknownTime}
-          onClick={() => setUnknownTime((value) => !value)}
-        >
-          {text("ui.onboarding.time_unknown")}
-        </button>
         {save.isError && Object.keys(fields).length === 0 ? (
           <p role="alert">{text("ui.common.error")}</p>
         ) : null}
@@ -129,48 +118,45 @@ export function ProfilePage({ profile }: ProfilePageProps) {
             label={text("ui.profile.save")}
             loading={save.isPending}
             onClick={() => {
-              void save.mutateAsync(profileEdits(name, birthDate, birthTime, unknownTime));
+              void save.mutateAsync(profileEdits(name, birthDate, birthTime));
             }}
           />
           {save.isError && Object.keys(fields).length === 0 ? (
             <Button
               label={text("ui.common.retry")}
               onClick={() => {
-                void save.mutateAsync(profileEdits(name, birthDate, birthTime, unknownTime));
+                void save.mutateAsync(profileEdits(name, birthDate, birthTime));
               }}
             />
           ) : null}
-          <Button
-            label={confirming ? text("ui.profile.delete_confirm") : text("ui.profile.delete")}
-            disabled={remove.isPending}
-            onClick={() => {
-              if (!confirming) {
-                setConfirming(true);
-                return;
-              }
-              void remove.mutateAsync();
-            }}
-          />
           <BackHome />
         </div>
       </section>
+      <Button
+        tone="danger"
+        label={confirming ? text("ui.profile.delete_confirm") : text("ui.profile.delete")}
+        disabled={remove.isPending}
+        onClick={() => {
+          if (!confirming) {
+            setConfirming(true);
+            return;
+          }
+          void remove.mutateAsync();
+        }}
+      />
     </main>
   );
 }
 
-function profileEdits(
-  name: string,
-  birthDate: string,
-  birthTime: string,
-  unknownTime: boolean,
-): DraftPayload {
+function profileEdits(name: string, birthDate: string, birthTime: string): DraftPayload {
+  const unknown = birthTime.trim().length === 0;
   const body: DraftPayload = {
     display_name: name,
     birth_date: birthDate,
-    birth_time_unknown: unknownTime,
+    birth_time_unknown: unknown,
   };
-  if (!unknownTime) {
-    body.birth_time = birthTime;
+  if (!unknown) {
+    body.birth_time = birthTime.trim();
   }
   return body;
 }

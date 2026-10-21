@@ -75,6 +75,7 @@ describe("chart page", () => {
     expect(screen.getByText(text("ui.chart.houses_unknown"))).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: text("ui.paywall.title") })).toBeInTheDocument();
     expect(screen.getByText(text("ui.paywall.lead"))).toBeInTheDocument();
+    expect(screen.queryByText(text("ui.home.disclaimer"))).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 

@@ -57,7 +57,6 @@ export function ChartPage({ fetchImpl = fetch }: ChartPageProps) {
             </p>
           </>
         ) : null}
-        <p className="disclaimer">{text("ui.home.disclaimer")}</p>
         <div className="actions">
           <BackHome />
         </div>
