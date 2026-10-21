@@ -1,0 +1,46 @@
+services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://starflow:${POSTGRES_PASSWORD:-starflow}@postgres:5432/starflow
+      HOST: 0.0.0.0
+      PORT: "8000"
+      WEB_CONCURRENCY: "1"
+      APP_ENV: local
+      RESOURCES_DIR: /app/resources
+      FRONTEND_DIST: /app/frontend/dist
+      LOGO_PATH: /app/static/logo.png
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: starflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-starflow}
+      POSTGRES_DB: starflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U starflow -d starflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

@@ -1,0 +1,26 @@
+premium:
+  code: premium
+  price_stars: 250
+  period_days: 30
+  assistant_questions: 20
+  grace_days: 3
+free:
+  compatibility_per_week: 1
+  favorites_limit: 3
+  related_profiles_limit: 3
+features:
+  day: {gate: open}
+  week: {gate: open}
+  advice: {gate: open}
+  moon: {gate: open}
+  compatibility: {gate: metered, limit: 1, window: user_week}
+  favorite: {gate: capacity, limit: 3}
+  related_profile: {gate: capacity, limit: 3}
+  personal_day: {gate: premium}
+  personal_week: {gate: premium}
+  topics: {gate: premium}
+  natal: {gate: premium}
+  calendar: {gate: premium}
+  synastry: {gate: premium}
+  retrospective: {gate: premium}
+  assistant: {gate: metered, limit: 20, window: paid_period, requires_entitlement: true}

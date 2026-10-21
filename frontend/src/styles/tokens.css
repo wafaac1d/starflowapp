@@ -1,0 +1,200 @@
+@font-face {
+  font-family: "Google Sans";
+  src: url("../../../static/font/GoogleSans-VariableFont_GRAD,opsz,wght.ttf") format("truetype");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Google Sans";
+  src: url("../../../static/font/GoogleSans-Italic-VariableFont_GRAD,opsz,wght.ttf") format("truetype");
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: block;
+}
+
+:root {
+  --color-text: #9b2d30;
+  --color-text-secondary: #b8b8b8;
+  --color-bg: #f5f0f0;
+  --color-surface: #ffffff;
+  --color-button-label: #f5f0f0;
+  --color-border: color-mix(in srgb, #9b2d30 14%, transparent);
+  --shadow-surface: 0 10px 28px color-mix(in srgb, #9b2d30 6%, transparent);
+  --font-family: "Google Sans", sans-serif;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --radius-control: 999px;
+  --radius-surface: 20px;
+  --size-touch: 44px;
+  --motion-duration: 180ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: var(--tg-viewport-stable-height, 100dvh);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: 400 16px/24px var(--font-family);
+  padding:
+    var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px))
+    var(--tg-content-safe-area-inset-right, env(safe-area-inset-right, 0px))
+    var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))
+    var(--tg-content-safe-area-inset-left, env(safe-area-inset-left, 0px));
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+.shell {
+  max-width: 440px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-7);
+}
+
+.surface {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-surface);
+  box-shadow: var(--shadow-surface);
+  padding: var(--space-5);
+}
+
+.logo-slot {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  object-fit: cover;
+  background: var(--color-bg);
+}
+
+h1 {
+  margin: var(--space-4) 0 var(--space-2);
+  font: 500 28px/34px var(--font-family);
+  font-weight: 500;
+}
+
+.lead,
+.disclaimer,
+.status {
+  margin: 0 0 var(--space-4);
+}
+
+.meta {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-secondary);
+  font: 400 13px/18px var(--font-family);
+}
+
+.button {
+  min-height: var(--size-touch);
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0 20px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-text);
+  color: var(--color-button-label);
+  cursor: pointer;
+}
+
+.button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.button:disabled {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  cursor: default;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+}
+
+.field input {
+  min-height: var(--size-touch);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-bg);
+  padding: 0 var(--space-4);
+}
+
+.field input:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.field-error {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.link-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.link-row a {
+  min-height: var(--size-touch);
+  display: flex;
+  align-items: center;
+  color: var(--color-text);
+}
+
+.choice {
+  min-height: var(--size-touch);
+  width: 100%;
+  margin: 0 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  text-align: left;
+  padding: 0 var(--space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none;
+    animation: none;
+  }
+}

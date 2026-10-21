@@ -1,0 +1,77 @@
+home:
+  title: starflow
+  lead: "персональный разбор по дате рождения"
+  disclaimer: "развлекательный материал, без обещания точных событий"
+  action: "проверить связь"
+  status_ready: "сервис отвечает"
+  status_failed: "сервис недоступен"
+  logo_label: "логотип starflow"
+  price_label: "premium, звёзд"
+open:
+  title: "откройте starflow в telegram"
+  lead: "приложение работает внутри telegram. найдите бота и нажмите кнопку меню или «открыть starflow»."
+common:
+  back: "назад"
+  next: "далее"
+  cancel: "отмена"
+  retry: "повторить"
+  loading: "загрузка"
+  error: "не удалось сохранить"
+onboarding:
+  welcome_title: "добро пожаловать"
+  welcome_lead: "имя и дата рождения нужны для разбора. черновик сохранится, если закрыть приложение."
+  name_title: "как к вам обращаться"
+  date_title: "дата рождения"
+  time_title: "время рождения"
+  time_unknown: "не знаю"
+  timezone_title: "часовой пояс"
+  place_title: "место рождения"
+  sign_title: "ваш знак"
+  sign_named: "{name}, ваш знак"
+profile:
+  title: "профиль"
+  save: "сохранить"
+  delete: "удалить данные"
+  delete_confirm: "подтвердить удаление"
+settings:
+  title: "настройки"
+premium:
+  title: "premium"
+  questions:
+    one: "{count} вопрос помощника в периоде"
+    few: "{count} вопроса помощника в периоде"
+    many: "{count} вопросов помощника в периоде"
+terms:
+  title: "условия"
+help:
+  title: "справка"
+paysupport:
+  title: "поддержка платежей"
+chart:
+  title: "карта"
+  sun: "солнечный знак"
+  calendar_source: "по дате, без точного времени и места"
+  ephemeris_source: "по времени и месту рождения"
+  moon_unknown: "точный лунный знак не определён"
+  asc_unknown: "асцендент не определён"
+  houses_unknown: "дома не определены"
+  time_unknown: "время рождения неизвестно: светила показаны на местный полдень, дома и точная луна скрыты"
+  place_missing: "место рождения не подтверждено: дома и точный лунный знак скрыты"
+  local_time_ambiguous: "это местное время случается дважды из-за перевода часов"
+  local_time_gap: "этого местного времени нет: часы переведены вперёд"
+  timezone_missing: "часовой пояс не указан: показан только календарный знак"
+  birth_date_missing: "дата рождения не указана"
+  houses_unavailable: "для этих координат дома не рассчитаны"
+  lunar_day: "лунный день"
+  phase: "фаза луны"
+  planets: "светила"
+  transits: "транзиты дня"
+  retrograde: "ретро"
+paywall:
+  title: "этот разбор в premium"
+  lead: "дома, асцендент и точный лунный знак открываются на оплаченном периоде. дата рождения по-прежнему показывает календарный знак."
+place:
+  attribution: "© openstreetmap contributors"
+sky:
+  title: "небо дня"
+  lead: "положение светил на 12:00 utc. это общее небо даты, не личная карта."

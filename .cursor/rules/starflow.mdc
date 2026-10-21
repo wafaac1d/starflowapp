@@ -1,0 +1,32 @@
+---
+description: StarFlow Mini App — документы перед правками, границы слоёв, безопасность и визуальный контракт
+alwaysApply: true
+---
+
+# StarFlow
+
+Перед любым изменением прочитай `idea.md`, `conventions.md`, `rules.md`, `workflow.md`, `docs/DECISIONS.md` и `docs/PROGRESS.md`. Новую развилку записывай в `docs/DECISIONS.md`. Фактические команды и их результат записывай в `docs/PROGRESS.md`.
+
+Приложение — Telegram Mini App. В compose только `app` и `postgres`. Один ASGI worker и одна реплика отдают API, статику и `AsyncIOScheduler`. Бот по умолчанию на polling; webhook только при паре `WEBHOOK_URL` и `WEBHOOK_SECRET`. Имена моделей DeepSeek живут в конфиге. Redis, брокер и отдельный frontend запрещены.
+
+Слои не смешиваются. Роутер, хендлер бота и задание планировщика вызывают сценарий. SQL и решение об оплате, квоте или карте живут в сценарии, репозитории или порте.
+
+```python
+# плохо: SQL и решение о premium в роутере
+@router.post("/premium")
+async def grant(session: AsyncSession) -> None:
+    session.add(Subscription(active=True))
+
+# хорошо: транспорт только вызывает сценарий
+@router.post("/invoices")
+async def create_invoice(use_case: CreateInvoice) -> InvoiceResponse:
+    return await use_case()
+```
+
+Оплату подтверждает только проверенный `successful_payment`. Подпись `initData` проверяется HMAC. Безусловный успешный результат проверки запрещён.
+
+Рабочий код не содержит `TODO`, `FIXME`, `pass` незавершённого тела и кнопок без действия. Авторские строки лежат в ресурсах строчными буквами. `text-transform: lowercase` на документ не вешается. Регистр имён, кодов, URL и email сохраняется. Emoji нет в текстах страниц, кнопках и ответах помощника. Иконки — SVG со штрихом 1.5.
+
+Палитра: текст `#9b2d30`, вторичный `#b8b8b8`, фон `#f5f0f0`. Вторичный цвет не несёт единственную критичную надпись: его контраст на фоне 1.757:1. Палитру не менять. WCAG не заявлять. Шрифт — `"Google Sans"` из `static/font` по OFL, без подмены на Flex, Text, Code или Product Sans. Без этих файлов в сборке требование к шрифту не выполнено. Логотип — только `static/logo.png`; отсутствующий файл не заменяется сгенерированным знаком и не даёт сломанный `img`.
+
+Кнопки с радиусом `999px`, касание от 44px, safe area Telegram и `prefers-reduced-motion`. Астрология в текстах — развлекательный материал, без обещания точных событий.
