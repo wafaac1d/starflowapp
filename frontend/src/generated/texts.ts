@@ -1,7 +1,7 @@
 /* generated from resources/texts/ru — do not edit */
 export const texts = {
   "bot.start": "starflow составляет персональный разбор по дате рождения. откройте приложение, чтобы продолжить.",
-  "bot.start_without_app": "адрес приложения ещё не задан. напишите позже.",
+  "bot.start_without_app": "приложение открывается кнопкой «открыть starflow» под сообщением и кнопкой слева от поля ввода. сейчас адрес не указан, поэтому этих кнопок нет.",
   "bot.open": "открыть starflow",
   "bot.start_missing_user": "не вижу отправителя сообщения.",
   "bot.digest": "новый разбор готов. откройте starflow, чтобы прочитать его.",

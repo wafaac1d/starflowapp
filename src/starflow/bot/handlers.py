@@ -74,6 +74,15 @@ def register_handlers(
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[[button]]),
         )
 
+    @router.message(F.text)
+    async def on_text(message: Message) -> None:
+        user = message.from_user
+        if user is None:
+            await message.answer(catalog.text("bot.start_missing_user"))
+            return
+        structlog.contextvars.bind_contextvars(user_id=user.id)
+        await _open(message, catalog, mini_app_url, "", "bot.start", "bot.start_without_app")
+
     @router.callback_query(F.data == "delete_me")
     async def on_delete_confirmed(query: CallbackQuery) -> None:
         user = query.from_user
