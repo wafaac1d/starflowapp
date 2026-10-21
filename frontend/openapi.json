@@ -959,6 +959,279 @@
         }
       }
     },
+    "/api/v1/billing": {
+      "get": {
+        "summary": "Read Billing",
+        "operationId": "read_billing_api_v1_billing_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/orders": {
+      "post": {
+        "summary": "Create Order",
+        "operationId": "create_order_api_v1_billing_orders_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/orders/{order_id}/client-status": {
+      "post": {
+        "summary": "Note Client Status",
+        "operationId": "note_client_status_api_v1_billing_orders__order_id__client_status_post",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientStatusBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/subscription": {
+      "post": {
+        "summary": "Edit Subscription",
+        "operationId": "edit_subscription_api_v1_billing_subscription_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/trial": {
+      "post": {
+        "summary": "Start Trial",
+        "operationId": "start_trial_api_v1_billing_trial_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/gifts/redeem": {
+      "post": {
+        "summary": "Redeem Gift",
+        "operationId": "redeem_gift_api_v1_billing_gifts_redeem_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/refunds": {
+      "post": {
+        "summary": "Refund Charge",
+        "operationId": "refund_charge_api_v1_billing_refunds_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/admin-grants": {
+      "post": {
+        "summary": "Grant Admin",
+        "operationId": "grant_admin_api_v1_billing_admin_grants_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminGrantBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/telegram/webhook": {
       "post": {
         "summary": "Telegram Webhook",
@@ -1007,6 +1280,207 @@
           "decision"
         ],
         "title": "AccessBody"
+      },
+      "AdminGrantBody": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "days",
+          "reason"
+        ],
+        "title": "AdminGrantBody"
+      },
+      "BillingBody": {
+        "properties": {
+          "premium": {
+            "type": "boolean",
+            "title": "Premium"
+          },
+          "access_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Until"
+          },
+          "price_stars": {
+            "type": "integer",
+            "title": "Price Stars"
+          },
+          "period_days": {
+            "type": "integer",
+            "title": "Period Days"
+          },
+          "gift_days": {
+            "type": "integer",
+            "title": "Gift Days"
+          },
+          "trial_days": {
+            "type": "integer",
+            "title": "Trial Days"
+          },
+          "assistant_questions": {
+            "type": "integer",
+            "title": "Assistant Questions"
+          },
+          "subscription_payment_state": {
+            "type": "string",
+            "title": "Subscription Payment State"
+          },
+          "gift_payment_state": {
+            "type": "string",
+            "title": "Gift Payment State"
+          },
+          "subscription_state": {
+            "type": "string",
+            "title": "Subscription State"
+          },
+          "auto_renew": {
+            "type": "boolean",
+            "title": "Auto Renew"
+          },
+          "subscription_order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subscription Order Id"
+          },
+          "subscription_invoice_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subscription Invoice Link"
+          },
+          "gift_order_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gift Order Id"
+          },
+          "gift_invoice_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gift Invoice Link"
+          },
+          "gift_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gift Code"
+          },
+          "gift_link": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gift Link"
+          },
+          "trial_available": {
+            "type": "boolean",
+            "title": "Trial Available"
+          },
+          "period_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "premium",
+          "access_until",
+          "price_stars",
+          "period_days",
+          "gift_days",
+          "trial_days",
+          "assistant_questions",
+          "subscription_payment_state",
+          "gift_payment_state",
+          "subscription_state",
+          "auto_renew",
+          "subscription_order_id",
+          "subscription_invoice_link",
+          "gift_order_id",
+          "gift_invoice_link",
+          "gift_code",
+          "gift_link",
+          "trial_available",
+          "period_end"
+        ],
+        "title": "BillingBody"
+      },
+      "CancelBody": {
+        "properties": {
+          "is_canceled": {
+            "type": "boolean",
+            "title": "Is Canceled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "is_canceled"
+        ],
+        "title": "CancelBody"
       },
       "ChartBody": {
         "properties": {
@@ -1132,6 +1606,19 @@
           "natal_access"
         ],
         "title": "ChartBody"
+      },
+      "ClientStatusBody": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "ClientStatusBody"
       },
       "CompatibilityResult": {
         "properties": {
@@ -1373,6 +1860,19 @@
           "mini_app_configured"
         ],
         "title": "MetaResponse"
+      },
+      "OrderBody": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "OrderBody"
       },
       "PlaceBody": {
         "properties": {
@@ -1776,6 +2276,20 @@
         ],
         "title": "ReadingBody"
       },
+      "RedeemBody": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "RedeemBody"
+      },
       "ReferralBody": {
         "properties": {
           "code": {
@@ -1793,6 +2307,32 @@
           "link"
         ],
         "title": "ReferralBody"
+      },
+      "RefundBody": {
+        "properties": {
+          "telegram_payment_charge_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Telegram Payment Charge Id"
+          },
+          "confirm": {
+            "type": "boolean",
+            "title": "Confirm"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "telegram_payment_charge_id",
+          "confirm",
+          "reason"
+        ],
+        "title": "RefundBody"
       },
       "RelatedBody": {
         "properties": {

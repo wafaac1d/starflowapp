@@ -11,6 +11,7 @@ from starflow.api.actor import (
     clear_session_cookie,
     require_intent,
 )
+from starflow.api.billing_http import register_billing_routes
 from starflow.api.chart_http import register_chart_routes
 from starflow.api.forecast_http import register_forecast_routes
 from starflow.api.http import (
@@ -150,6 +151,7 @@ def _api_router(container: Container) -> APIRouter:
     register_profile_routes(router, container)
     register_chart_routes(router, container)
     register_forecast_routes(router, container)
+    register_billing_routes(router, container)
     return router
 
 

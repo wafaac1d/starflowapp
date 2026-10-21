@@ -103,8 +103,10 @@ class Settings(BaseSettings):
             raise ValueError("DeepSeek model names are required")
         if self.deepseek_timeout_sec < 1 or self.deepseek_max_retries < 0:
             raise ValueError("DeepSeek timeout and retries are invalid")
-        if self.premium_price_stars < 1 or self.memory_cache_size < 1:
-            raise ValueError("price and cache size must be positive")
+        if self.premium_price_stars < 1 or self.premium_price_stars > 10000:
+            raise ValueError("PREMIUM_PRICE_STARS must be from 1 to 10000")
+        if self.memory_cache_size < 1:
+            raise ValueError("cache size must be positive")
         if self.outbox_interval_sec < 1 or self.auth_max_age_sec < 1 or self.bot_retry_sec <= 0:
             raise ValueError("intervals must be positive")
         if self.session_ttl_sec < 60 or self.auth_future_skew_sec < 0:

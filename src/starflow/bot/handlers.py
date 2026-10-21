@@ -10,12 +10,14 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
+    PreCheckoutQuery,
     TelegramObject,
     WebAppInfo,
 )
 
 from starflow.bot.screens import SCREENS, screen_url
 from starflow.i18n.catalog import Catalog
+from starflow.services.billing import BillingService
 from starflow.services.session import SessionService
 
 
@@ -41,7 +43,37 @@ def register_handlers(
     session_service: SessionService,
     catalog: Catalog,
     mini_app_url: str,
+    billing: BillingService,
 ) -> None:
+    @router.pre_checkout_query()
+    async def on_pre_checkout(query: PreCheckoutQuery) -> None:
+        await billing.pre_checkout(
+            query.id,
+            query.from_user.id,
+            query.currency,
+            query.total_amount,
+            query.invoice_payload,
+        )
+
+    @router.message(F.successful_payment)
+    async def on_paid(message: Message) -> None:
+        payment = message.successful_payment
+        user = message.from_user
+        if payment is None or user is None:
+            return
+        structlog.contextvars.bind_contextvars(user_id=user.id)
+        await billing.apply_payment(
+            telegram_user_id=user.id,
+            currency=payment.currency,
+            total_amount=payment.total_amount,
+            invoice_payload=payment.invoice_payload,
+            telegram_payment_charge_id=payment.telegram_payment_charge_id,
+            provider_payment_charge_id=payment.provider_payment_charge_id,
+            is_recurring=bool(payment.is_recurring),
+            is_first_recurring=bool(payment.is_first_recurring),
+            subscription_expiration_date=payment.subscription_expiration_date,
+        )
+
     @router.message(CommandStart())
     async def on_start(message: Message, command: CommandObject) -> None:
         user = message.from_user

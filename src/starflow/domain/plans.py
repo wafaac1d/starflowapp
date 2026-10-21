@@ -25,7 +25,24 @@ class PremiumPlan:
     price_stars: int
     period_days: int
     assistant_questions: int
-    grace_days: int
+    grace_hours: int
+    reminder_days: int
+
+
+@dataclass(frozen=True)
+class TrialPlan:
+    days: int
+    once: bool
+
+
+@dataclass(frozen=True)
+class GiftPlan:
+    days: int
+
+
+@dataclass(frozen=True)
+class ReferralPlan:
+    reward_days: int
 
 
 @dataclass(frozen=True)
@@ -38,6 +55,9 @@ class FreePlan:
 @dataclass(frozen=True)
 class Plans:
     premium: PremiumPlan
+    trial: TrialPlan
+    gift: GiftPlan
+    referral: ReferralPlan
     free: FreePlan
     features: dict[str, FeatureRule]
 
@@ -53,16 +73,32 @@ def load_plans(path: Path) -> Plans:
     if not isinstance(loaded, dict):
         raise ValueError("plans.yaml must be a mapping")
     premium = _mapping(loaded, "premium")
+    trial = _mapping(loaded, "trial")
+    gift = _mapping(loaded, "gift")
+    referral = _mapping(loaded, "referral")
     free = _mapping(loaded, "free")
     features = _features(_mapping(loaded, "features"))
+    price_stars = _positive(premium, "price_stars")
+    period_days = _positive(premium, "period_days")
+    if price_stars > 10000:
+        raise ValueError("plans.yaml price_stars must be from 1 to 10000")
+    if period_days != 30:
+        raise ValueError("plans.yaml period_days must be 30")
+    once = trial.get("once")
+    if once is not True:
+        raise ValueError("plans.yaml trial.once must be true")
     parsed = Plans(
         premium=PremiumPlan(
             code=_text(premium, "code"),
-            price_stars=_positive(premium, "price_stars"),
-            period_days=_positive(premium, "period_days"),
+            price_stars=price_stars,
+            period_days=period_days,
             assistant_questions=_positive(premium, "assistant_questions"),
-            grace_days=_positive(premium, "grace_days"),
+            grace_hours=_positive(premium, "grace_hours"),
+            reminder_days=_positive(premium, "reminder_days"),
         ),
+        trial=TrialPlan(days=_positive(trial, "days"), once=True),
+        gift=GiftPlan(days=_positive(gift, "days")),
+        referral=ReferralPlan(reward_days=_positive(referral, "reward_days")),
         free=FreePlan(
             compatibility_per_week=_positive(free, "compatibility_per_week"),
             favorites_limit=_positive(free, "favorites_limit"),

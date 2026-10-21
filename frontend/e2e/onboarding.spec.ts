@@ -158,6 +158,12 @@ test("onboarding keeps the name, reports a bad date, and returns the sign", asyn
   expect(profileBox!.x + profileBox!.width).toBeLessThanOrEqual(planBox!.x + 4);
   expect(planBox!.x + planBox!.width).toBeLessThanOrEqual(trayBox!.x + trayBox!.width + 1);
   expect(Math.abs(trayBox!.x + trayBox!.width / 2 - (mainBox!.x + mainBox!.width / 2))).toBeLessThan(8);
+  const settings = page.getByRole("button", { name: "настройки" });
+  await expect(settings).toHaveClass(/tile/);
+  await expect(settings).toContainText("⚙️");
+  const support = page.getByRole("button", { name: "поддержка платежей" });
+  await expect(support).toHaveClass(/tile/);
+  await expect(support).toContainText("💬");
   await page.getByRole("button", { name: "карта" }).click();
   await expect(page.getByRole("heading", { name: "карта" })).toBeVisible();
   await expect(page.getByText("время рождения неизвестно")).toBeVisible();

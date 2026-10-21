@@ -282,6 +282,86 @@ export async function getReferral(fetchImpl: typeof fetch = fetch): Promise<Refe
   return requestJson<ReferralResponse>("/api/v1/referral", { method: "GET" }, fetchImpl);
 }
 
+export type BillingResponse = {
+  premium: boolean;
+  access_until: string | null;
+  price_stars: number;
+  period_days: number;
+  gift_days: number;
+  trial_days: number;
+  assistant_questions: number;
+  subscription_payment_state: string;
+  gift_payment_state: string;
+  subscription_state: string;
+  auto_renew: boolean;
+  subscription_order_id: string | null;
+  subscription_invoice_link: string | null;
+  gift_order_id: string | null;
+  gift_invoice_link: string | null;
+  gift_code: string | null;
+  gift_link: string | null;
+  trial_available: boolean;
+  period_end: string | null;
+};
+
+export async function getBilling(fetchImpl: typeof fetch = fetch): Promise<BillingResponse> {
+  return requestJson<BillingResponse>("/api/v1/billing", { method: "GET" }, fetchImpl);
+}
+
+export async function createBillingOrder(
+  kind: "subscription" | "gift",
+  idempotencyKey: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<BillingResponse> {
+  return requestJson<BillingResponse>(
+    "/api/v1/billing/orders",
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ kind }),
+    },
+    fetchImpl,
+  );
+}
+
+export async function postInvoiceStatus(
+  orderId: string,
+  status: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<BillingResponse> {
+  return requestJson<BillingResponse>(
+    `/api/v1/billing/orders/${orderId}/client-status`,
+    { method: "POST", body: JSON.stringify({ status }) },
+    fetchImpl,
+  );
+}
+
+export async function setSubscriptionCanceled(
+  isCanceled: boolean,
+  fetchImpl: typeof fetch = fetch,
+): Promise<BillingResponse> {
+  return requestJson<BillingResponse>(
+    "/api/v1/billing/subscription",
+    { method: "POST", body: JSON.stringify({ is_canceled: isCanceled }) },
+    fetchImpl,
+  );
+}
+
+export async function startTrial(fetchImpl: typeof fetch = fetch): Promise<BillingResponse> {
+  return requestJson<BillingResponse>("/api/v1/billing/trial", { method: "POST" }, fetchImpl);
+}
+
+export async function redeemGift(
+  code: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<BillingResponse> {
+  return requestJson<BillingResponse>(
+    "/api/v1/billing/gifts/redeem",
+    { method: "POST", body: JSON.stringify({ code }) },
+    fetchImpl,
+  );
+}
+
 export function readingKey(): string {
   const stamp = Date.now().toString(36);
   const salt = Math.random().toString(36).slice(2, 12);

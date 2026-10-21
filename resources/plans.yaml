@@ -3,7 +3,15 @@ premium:
   price_stars: 250
   period_days: 30
   assistant_questions: 20
-  grace_days: 3
+  grace_hours: 1
+  reminder_days: 3
+trial:
+  days: 7
+  once: true
+gift:
+  days: 30
+referral:
+  reward_days: 7
 free:
   compatibility_per_week: 1
   favorites_limit: 3

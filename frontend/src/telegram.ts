@@ -124,6 +124,37 @@ function applyInsets(raw: RawWebApp): void {
   writeInsets(root, "content-safe-area", raw.contentSafeAreaInset);
 }
 
+export type InvoiceStatus = "paid" | "cancelled" | "failed" | "pending";
+
+type InvoiceOpener = {
+  openInvoice?: (url: string, callback?: (status: string) => void) => void;
+};
+
+export function invoiceGrantsPremium(_status: string): false {
+  return false;
+}
+
+export function openInvoice(url: string): Promise<InvoiceStatus | "unavailable"> {
+  const raw = window.Telegram?.WebApp as (RawWebApp & InvoiceOpener) | undefined;
+  if (typeof raw?.openInvoice !== "function") {
+    return Promise.resolve("unavailable");
+  }
+  return new Promise((resolve) => {
+    raw.openInvoice?.(url, (status) => {
+      if (
+        status === "paid" ||
+        status === "cancelled" ||
+        status === "failed" ||
+        status === "pending"
+      ) {
+        resolve(status);
+        return;
+      }
+      resolve("failed");
+    });
+  });
+}
+
 function writeInsets(root: HTMLElement, name: string, insets: Insets | undefined): void {
   if (insets === undefined) {
     return;

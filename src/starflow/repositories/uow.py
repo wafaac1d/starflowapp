@@ -2,6 +2,7 @@ from types import TracebackType
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from starflow.repositories.billing import BillingRepository
 from starflow.repositories.protocols import OutboxRepository, UserRepository
 from starflow.repositories.sql import (
     AiRequestRepository,
@@ -47,6 +48,7 @@ class SqlUnitOfWork:
     geocodes: GeocodeCacheRepository
     daily_sky: DailySkyRepository
     gifts: GiftCodeRepository
+    billing: BillingRepository
     idempotency: IdempotencyRepository
     sessions: AuthSessionRepository
     outbox: OutboxRepository
@@ -76,6 +78,7 @@ class SqlUnitOfWork:
         self.geocodes = GeocodeCacheRepository(session)
         self.daily_sky = DailySkyRepository(session)
         self.gifts = GiftCodeRepository(session)
+        self.billing = BillingRepository(session)
         self.idempotency = IdempotencyRepository(session)
         self.sessions = AuthSessionRepository(session)
         self.outbox = SqlOutboxRepository(session)

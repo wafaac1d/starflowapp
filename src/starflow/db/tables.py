@@ -9,6 +9,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     SmallInteger,
@@ -16,6 +17,7 @@ from sqlalchemy import (
     Time,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -117,6 +119,11 @@ class SubscriptionRow(Base):
     grace_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     source: Mapped[str] = mapped_column(Text, nullable=False)
+    order_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("orders.id", ondelete="SET NULL"))
+    telegram_charge_id: Mapped[str | None] = mapped_column(Text)
+    cancel_at_period_end: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
@@ -125,7 +132,7 @@ class SubscriptionEventRow(Base):
     __tablename__ = "subscription_events"
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    subscription_id: Mapped[uuid.UUID] = mapped_column(
+    subscription_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("subscriptions.id", ondelete="CASCADE")
     )
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
@@ -136,6 +143,15 @@ class SubscriptionEventRow(Base):
 
 class OrderRow(Base):
     __tablename__ = "orders"
+    __table_args__ = (
+        Index(
+            "orders_user_idempotency_uq",
+            "user_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("idempotency_key IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
@@ -144,6 +160,20 @@ class OrderRow(Base):
     currency: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False)
     invoice_payload: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    kind: Mapped[str] = mapped_column(
+        Text, nullable=False, default="subscription", server_default="subscription"
+    )
+    subscription_period: Mapped[int | None] = mapped_column(Integer)
+    invoice_link: Mapped[str | None] = mapped_column(Text)
+    client_status: Mapped[str | None] = mapped_column(Text)
+    idempotency_key: Mapped[str | None] = mapped_column(Text)
+    subscription_charge_id: Mapped[str | None] = mapped_column(Text)
+    sync_state: Mapped[str] = mapped_column(
+        Text, nullable=False, default="idle", server_default="idle"
+    )
+    grant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("subscriptions.id", ondelete="SET NULL")
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
@@ -161,6 +191,18 @@ class PaymentChargeRow(Base):
     period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     charged_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     provider_payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    is_recurring: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    is_first_recurring: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    subscription_expiration: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    refunded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    refund_state: Mapped[str | None] = mapped_column(Text)
+    grant_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("subscriptions.id", ondelete="SET NULL")
+    )
 
 
 class UsageCounterRow(Base):
@@ -317,6 +359,17 @@ class IdempotencyKeyRow(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False)
     result: Mapped[dict[str, object] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
+class GiftAttemptRow(Base):
+    __tablename__ = "gift_attempts"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    failures: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class GiftCodeRow(Base):

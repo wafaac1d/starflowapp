@@ -14,6 +14,7 @@ from starflow.astro.swiss import SwissEphemeris
 from starflow.bot.handlers import UpdateContextMiddleware, register_handlers
 from starflow.bot.runtime import BotRuntime
 from starflow.bot.session import InactiveTelegramSession
+from starflow.bot.stars import AiogramStarGateway
 from starflow.cache.memory import MemoryCache
 from starflow.cache.postgres import PostgresLevelTwo
 from starflow.cache.ttl import TtlCache
@@ -27,6 +28,7 @@ from starflow.logging import configure_logging, get_logger
 from starflow.repositories.uow import SqlUnitOfWork
 from starflow.scheduler.runtime import SchedulerRuntime
 from starflow.services.access import AccessService
+from starflow.services.billing import BillingService
 from starflow.services.chart import ChartService
 from starflow.services.forecast import ForecastService
 from starflow.services.health import HealthService
@@ -91,6 +93,17 @@ REQUIRED_TEXTS = (
     "errors.related_required",
     "errors.conflict",
     "errors.reading_failed",
+    "errors.payment_check",
+    "errors.payment_unavailable",
+    "errors.gift_invalid",
+    "errors.gift_self",
+    "errors.trial_used",
+    "errors.payment_confirm",
+    "bot.subscription_ending",
+    "bot.invoice_subscription_title",
+    "bot.invoice_subscription_description",
+    "bot.invoice_gift_title",
+    "bot.invoice_gift_description",
     "ui.reading.day",
     "ui.reading.week",
     "ui.reading.advice",
@@ -168,6 +181,7 @@ class Container:
     quota_service: QuotaService
     chart_service: ChartService
     forecast_service: ForecastService
+    billing_service: BillingService
     sky_service: SkyService
     uow_factory: Callable[[], SqlUnitOfWork]
     health_service: HealthService
@@ -251,10 +265,18 @@ def build_container(settings: Settings) -> Container:
     )
     session = InactiveTelegramSession() if settings.app_env == "test" else AiohttpSession()
     bot = Bot(token=settings.bot_token, session=session, default=DefaultBotProperties())
+    billing_service = BillingService(
+        uow_factory,
+        AiogramStarGateway(bot),
+        plans,
+        settings.payment_hmac_secret,
+        catalog,
+        settings.mini_app_url,
+    )
     dispatcher = Dispatcher()
     dispatcher.update.middleware(UpdateContextMiddleware())
     router = Router()
-    register_handlers(router, session_service, catalog, settings.mini_app_url)
+    register_handlers(router, session_service, catalog, settings.mini_app_url, billing_service)
     dispatcher.include_router(router)
     commands = tuple(
         BotCommand(command=name, description=catalog.text(key))
@@ -270,7 +292,7 @@ def build_container(settings: Settings) -> Container:
         )
     )
     bot_runtime = BotRuntime(settings, bot, dispatcher, commands, catalog.text("bot.menu"))
-    scheduler_runtime = SchedulerRuntime(settings, outbox_service, bot_runtime)
+    scheduler_runtime = SchedulerRuntime(settings, outbox_service, bot_runtime, billing_service)
     return Container(
         settings=settings,
         plans=plans,
@@ -284,6 +306,7 @@ def build_container(settings: Settings) -> Container:
         quota_service=quota_service,
         chart_service=chart_service,
         forecast_service=forecast_service,
+        billing_service=billing_service,
         sky_service=sky_service,
         uow_factory=uow_factory,
         health_service=health_service,

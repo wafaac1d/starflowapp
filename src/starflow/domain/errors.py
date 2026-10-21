@@ -32,3 +32,7 @@ class FieldInvalid(DomainError):
 
 class PremiumRequired(DomainError):
     """Место рождения в этом срезе сохраняется только на активном периоде."""
+
+
+class PaymentUnavailable(DomainError):
+    """Telegram не подтвердил вызов. Доступ от этого вызова не меняется."""

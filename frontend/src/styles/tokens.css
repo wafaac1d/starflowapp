@@ -106,6 +106,12 @@ h1 {
   font: 400 13px/18px var(--font-family);
 }
 
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 .button {
   min-height: var(--size-touch);
   width: 100%;
@@ -472,12 +478,6 @@ h1 {
 .choice[aria-pressed="true"] {
   background: var(--color-text);
   color: var(--color-button-label);
-}
-
-.home-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
 }
 
 .thumb-row {

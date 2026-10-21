@@ -468,6 +468,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Billing */
+        get: operations["read_billing_api_v1_billing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Order */
+        post: operations["create_order_api_v1_billing_orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/orders/{order_id}/client-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Note Client Status */
+        post: operations["note_client_status_api_v1_billing_orders__order_id__client_status_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/subscription": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Edit Subscription */
+        post: operations["edit_subscription_api_v1_billing_subscription_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/trial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Trial */
+        post: operations["start_trial_api_v1_billing_trial_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/gifts/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Redeem Gift */
+        post: operations["redeem_gift_api_v1_billing_gifts_redeem_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refund Charge */
+        post: operations["refund_charge_api_v1_billing_refunds_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/admin-grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Grant Admin */
+        post: operations["grant_admin_api_v1_billing_admin_grants_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/telegram/webhook": {
         parameters: {
             query?: never;
@@ -498,6 +634,64 @@ export interface components {
             /** Reset At */
             reset_at?: string | null;
         };
+        /** AdminGrantBody */
+        AdminGrantBody: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Days */
+            days: number;
+            /** Reason */
+            reason: string;
+        };
+        /** BillingBody */
+        BillingBody: {
+            /** Premium */
+            premium: boolean;
+            /** Access Until */
+            access_until: string | null;
+            /** Price Stars */
+            price_stars: number;
+            /** Period Days */
+            period_days: number;
+            /** Gift Days */
+            gift_days: number;
+            /** Trial Days */
+            trial_days: number;
+            /** Assistant Questions */
+            assistant_questions: number;
+            /** Subscription Payment State */
+            subscription_payment_state: string;
+            /** Gift Payment State */
+            gift_payment_state: string;
+            /** Subscription State */
+            subscription_state: string;
+            /** Auto Renew */
+            auto_renew: boolean;
+            /** Subscription Order Id */
+            subscription_order_id: string | null;
+            /** Subscription Invoice Link */
+            subscription_invoice_link: string | null;
+            /** Gift Order Id */
+            gift_order_id: string | null;
+            /** Gift Invoice Link */
+            gift_invoice_link: string | null;
+            /** Gift Code */
+            gift_code: string | null;
+            /** Gift Link */
+            gift_link: string | null;
+            /** Trial Available */
+            trial_available: boolean;
+            /** Period End */
+            period_end: string | null;
+        };
+        /** CancelBody */
+        CancelBody: {
+            /** Is Canceled */
+            is_canceled: boolean;
+        };
         /** ChartBody */
         ChartBody: {
             /** Sun Sign */
@@ -524,6 +718,11 @@ export interface components {
             limitations: string[];
             /** Natal Access */
             natal_access: string;
+        };
+        /** ClientStatusBody */
+        ClientStatusBody: {
+            /** Status */
+            status: string;
         };
         /** CompatibilityResult */
         CompatibilityResult: {
@@ -632,6 +831,11 @@ export interface components {
             /** Mini App Configured */
             mini_app_configured: boolean;
         };
+        /** OrderBody */
+        OrderBody: {
+            /** Kind */
+            kind: string;
+        };
         /** PlaceBody */
         PlaceBody: {
             /** Query */
@@ -738,12 +942,26 @@ export interface components {
             /** Reset At */
             reset_at?: string | null;
         };
+        /** RedeemBody */
+        RedeemBody: {
+            /** Code */
+            code: string;
+        };
         /** ReferralBody */
         ReferralBody: {
             /** Code */
             code: string;
             /** Link */
             link: string;
+        };
+        /** RefundBody */
+        RefundBody: {
+            /** Telegram Payment Charge Id */
+            telegram_payment_charge_id: string;
+            /** Confirm */
+            confirm: boolean;
+            /** Reason */
+            reason: string;
         };
         /** RelatedBody */
         RelatedBody: {
@@ -1629,6 +1847,244 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RelatedItem"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_billing_api_v1_billing_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingBody"];
+                };
+            };
+        };
+    };
+    create_order_api_v1_billing_orders_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrderBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    note_client_status_api_v1_billing_orders__order_id__client_status_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientStatusBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    edit_subscription_api_v1_billing_subscription_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CancelBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_trial_api_v1_billing_trial_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingBody"];
+                };
+            };
+        };
+    };
+    redeem_gift_api_v1_billing_gifts_redeem_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RedeemBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refund_charge_api_v1_billing_refunds_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grant_admin_api_v1_billing_admin_grants_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminGrantBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

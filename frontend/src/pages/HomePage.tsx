@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router";
 
 import type { ProfileResponse } from "../api/client";
-import { Button } from "../components/ui/controls";
 import { Icon } from "../components/ui/icons";
 import { RotatingPhrase } from "../components/ui/RotatingPhrase";
 import { text, type TextKey } from "../resources";
@@ -18,18 +17,15 @@ const TILES: { to: string; label: TextKey; emoji: string }[] = [
   { to: "/reading/moon", label: "ui.reading.moon", emoji: "🌙" },
   { to: "/reading/compatibility", label: "ui.reading.compatibility", emoji: "🤝" },
   { to: "/chart", label: "ui.chart.title", emoji: "🪐" },
-];
-
-const LINKS: { to: string; label: TextKey }[] = [
-  { to: "/history", label: "ui.reading.history" },
-  { to: "/favorites", label: "ui.reading.favorites" },
-  { to: "/related", label: "ui.reading.related" },
-  { to: "/referral", label: "ui.reading.referral" },
-  { to: "/settings", label: "ui.settings.title" },
-  { to: "/premium", label: "ui.premium.title" },
-  { to: "/help", label: "ui.help.title" },
-  { to: "/terms", label: "ui.terms.title" },
-  { to: "/paysupport", label: "ui.paysupport.title" },
+  { to: "/history", label: "ui.reading.history", emoji: "📜" },
+  { to: "/favorites", label: "ui.reading.favorites", emoji: "⭐" },
+  { to: "/related", label: "ui.reading.related", emoji: "👥" },
+  { to: "/referral", label: "ui.reading.referral", emoji: "🔗" },
+  { to: "/settings", label: "ui.settings.title", emoji: "⚙️" },
+  { to: "/premium", label: "ui.premium.title", emoji: "✨" },
+  { to: "/help", label: "ui.help.title", emoji: "❓" },
+  { to: "/terms", label: "ui.terms.title", emoji: "📋" },
+  { to: "/paysupport", label: "ui.paysupport.title", emoji: "💬" },
 ];
 
 export function HomePage({ profile }: HomePageProps) {
@@ -85,17 +81,6 @@ export function HomePage({ profile }: HomePageProps) {
             </span>
             <span>{text(tile.label)}</span>
           </button>
-        ))}
-      </div>
-      <div className="home-links">
-        {LINKS.map((link) => (
-          <Button
-            key={link.to}
-            label={text(link.label)}
-            onClick={() => {
-              void navigate(link.to);
-            }}
-          />
         ))}
       </div>
       <p className="home-note">{text("ui.home.disclaimer")}</p>
