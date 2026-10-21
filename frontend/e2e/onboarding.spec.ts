@@ -76,11 +76,10 @@ test("onboarding keeps the name, reports a bad date, and returns the sign", asyn
   await page.getByRole("button", { name: "далее" }).click();
   await page.getByRole("button", { name: "не знаю" }).click();
   await page.getByRole("button", { name: "далее" }).click();
-  await page.getByLabel("часовой пояс").fill("Europe/Moscow");
-  await page.getByRole("button", { name: "далее" }).click();
   await expect(page.getByRole("heading", { name: "Мария, ваш знак" })).toBeVisible();
   await expect(page.getByText("козерог")).toBeVisible();
-  await page.getByRole("link", { name: "карта" }).click();
+  await expect(page.getByRole("button", { name: "профиль" })).toBeVisible();
+  await page.getByRole("button", { name: "карта" }).click();
   await expect(page.getByRole("heading", { name: "карта" })).toBeVisible();
   await expect(page.getByText("время рождения неизвестно")).toBeVisible();
   await expect(page.getByRole("heading", { name: "этот разбор в premium" })).toBeVisible();

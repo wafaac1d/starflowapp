@@ -63,10 +63,12 @@ class ProfileService:
         timezones: TimezoneAt,
         *,
         today: Callable[[], date] | None = None,
+        default_timezone: str = "Europe/Moscow",
     ) -> None:
         self._uow_factory = uow_factory
         self._timezones = timezones
         self._today = today or _utc_today
+        self._default_timezone = default_timezone
 
     async def read(self, user_id: UUID) -> tuple[Profile, bool, str | None]:
         async with self._uow_factory() as uow:
@@ -173,12 +175,14 @@ class ProfileService:
             )
         if step == "time":
             clock = parse_birth_time(incoming.birth_time, incoming.birth_time_unknown)
+            zone = parse_timezone(incoming.timezone or self._default_timezone)
             return await uow.profiles.save_onboarding(
                 profile.user_id,
                 step=next_after(step, premium=premium),
                 birth_time=clock,
                 birth_time_unknown=incoming.birth_time_unknown,
                 clear_time=incoming.birth_time_unknown,
+                timezone=zone,
             )
         if step == "timezone":
             zone = parse_timezone(incoming.timezone)

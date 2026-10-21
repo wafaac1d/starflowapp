@@ -6,9 +6,6 @@ export const homeCopy = {
   title: texts["ui.home.title"],
   lead: texts["ui.home.lead"],
   disclaimer: texts["ui.home.disclaimer"],
-  action: texts["ui.home.action"],
-  status_ready: texts["ui.home.status_ready"],
-  status_failed: texts["ui.home.status_failed"],
   logo_label: texts["ui.home.logo_label"],
   price_label: texts["ui.home.price_label"],
 };

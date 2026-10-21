@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   ApiRequestError,
@@ -11,7 +11,8 @@ import {
   type PlaceHit,
   type ProfileResponse,
 } from "../api/client";
-import { Button, Field } from "../components/ui/controls";
+import { Button, Field, LoadingScreen } from "../components/ui/controls";
+import { deviceTimezone } from "../deviceZone";
 import { useDebouncedValue } from "../placeQuery";
 import { formatText, text } from "../resources";
 import { readWebApp } from "../telegram";
@@ -94,6 +95,15 @@ export function OnboardingPage({ profile }: OnboardingPageProps) {
   const dirty = isDirty(profile, state);
   const canGoBack = profile.step !== "welcome";
   const pending = draft.isPending || back.isPending || search.isPending || place.isPending;
+  const zoneSkip = useRef(false);
+
+  useEffect(() => {
+    if (profile.step !== "timezone" || zoneSkip.current) {
+      return;
+    }
+    zoneSkip.current = true;
+    void draft.mutateAsync({ timezone: deviceTimezone() });
+  }, [draft, profile.step]);
   const failure =
     (draft.isError || search.isError || place.isError) && Object.keys(fields).length === 0;
 
@@ -118,6 +128,23 @@ export function OnboardingPage({ profile }: OnboardingPageProps) {
       webApp.setClosingConfirmation(false);
     };
   }, [back.mutateAsync, canGoBack, dirty]);
+
+  if (profile.step === "timezone") {
+    if (draft.isError) {
+      return (
+        <main className="shell">
+          <p role="alert">{text("ui.common.error")}</p>
+          <Button
+            label={text("ui.common.retry")}
+            onClick={() => {
+              void draft.mutateAsync({ timezone: deviceTimezone() });
+            }}
+          />
+        </main>
+      );
+    }
+    return <LoadingScreen />;
+  }
 
   return (
     <main className="shell">
@@ -159,14 +186,6 @@ export function OnboardingPage({ profile }: OnboardingPageProps) {
               {text("ui.onboarding.time_unknown")}
             </button>
           </>
-        ) : null}
-        {profile.step === "timezone" ? (
-          <Field
-            label={text("ui.onboarding.timezone_title")}
-            value={zone}
-            onChange={setZone}
-            {...(fields.timezone !== undefined ? { error: fields.timezone } : {})}
-          />
         ) : null}
         {profile.step === "place" ? (
           <>
@@ -296,9 +315,13 @@ function payload(step: string, state: DraftState) {
   }
   if (step === "time") {
     if (state.unknownTime) {
-      return { birth_time_unknown: true };
+      return { birth_time_unknown: true, timezone: deviceTimezone() };
     }
-    return { birth_time: state.birthTime, birth_time_unknown: false };
+    return {
+      birth_time: state.birthTime,
+      birth_time_unknown: false,
+      timezone: deviceTimezone(),
+    };
   }
   if (step === "timezone") {
     return { timezone: state.zone };

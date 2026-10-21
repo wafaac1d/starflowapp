@@ -120,11 +120,6 @@ h1 {
   cursor: pointer;
 }
 
-.button svg {
-  width: 20px;
-  height: 20px;
-}
-
 .button:focus-visible {
   outline: 2px solid var(--color-text);
   outline-offset: 2px;
@@ -167,18 +162,87 @@ h1 {
   gap: var(--space-3);
 }
 
-.link-row {
+.home-top {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
-.link-row a {
+.home-top h1 {
+  margin-top: 0;
+}
+
+.profile-chip {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  font: 500 16px/24px var(--font-family);
+}
+
+.profile-chip svg,
+.tile svg {
+  width: 28px;
+  height: 28px;
+}
+
+.profile-chip svg {
+  width: 22px;
+  height: 22px;
+}
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.tile {
+  aspect-ratio: 1;
   min-height: var(--size-touch);
   display: flex;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-surface);
   color: var(--color-text);
+  cursor: pointer;
+  font: 500 16px/22px var(--font-family);
+  text-align: center;
+}
+
+.tile:focus-visible,
+.profile-chip:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--color-bg);
+}
+
+.loading-label {
+  margin: 0;
 }
 
 .choice {
@@ -190,6 +254,11 @@ h1 {
   background: var(--color-surface);
   text-align: left;
   padding: 0 var(--space-4);
+}
+
+.choice[aria-pressed="true"] {
+  background: var(--color-text);
+  color: var(--color-button-label);
 }
 
 @media (prefers-reduced-motion: reduce) {

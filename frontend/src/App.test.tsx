@@ -35,7 +35,7 @@ describe("entry", () => {
   it("asks to open the app outside telegram", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: text("ui.open.title") })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: text("ui.home.action") })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: text("ui.home.lead") })).not.toBeInTheDocument();
   });
 
   it("exchanges initData in a header and opens the welcome step", async () => {

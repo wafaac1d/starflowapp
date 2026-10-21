@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router";
+
+import { logoAvailable } from "../../generated/logo";
+import { text } from "../../resources";
 
 type ButtonProps = {
   label: string;
@@ -17,9 +21,6 @@ export function Button({ label, onClick, disabled = false, loading = false }: Bu
       disabled={inactive}
       aria-busy={loading}
     >
-      <svg viewBox="0 0 20 20" aria-hidden="true">
-        <circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      </svg>
       {label}
     </button>
   );
@@ -57,6 +58,27 @@ type LogoSlotProps = {
   src: string;
   label: string;
 };
+
+export function BackHome() {
+  const navigate = useNavigate();
+  return (
+    <Button
+      label={text("ui.common.back")}
+      onClick={() => {
+        void navigate("/");
+      }}
+    />
+  );
+}
+
+export function LoadingScreen() {
+  return (
+    <main className="loading-screen">
+      <LogoSlot available={logoAvailable} src="/logo.png" label={text("ui.home.logo_label")} />
+      <p className="loading-label">{text("ui.common.loading")}</p>
+    </main>
+  );
+}
 
 export function LogoSlot({ available, src, label }: LogoSlotProps) {
   const [failed, setFailed] = useState(false);

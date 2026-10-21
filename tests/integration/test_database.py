@@ -314,14 +314,14 @@ async def test_onboarding_resumes_and_rows_stay_with_their_owner(
         assert again.json()["display_name"] == "Мария"
         await owner.post("/api/v1/profile/draft", headers=intent, json={"display_name": "Мария"})
         await owner.post("/api/v1/profile/draft", headers=intent, json={"birth_date": "02.01.1990"})
-        await owner.post("/api/v1/profile/draft", headers=intent, json={"birth_time_unknown": True})
         done = await owner.post(
             "/api/v1/profile/draft",
             headers=intent,
-            json={"timezone": "Europe/Moscow"},
+            json={"birth_time_unknown": True, "timezone": "Europe/Moscow"},
         )
         assert done.status_code == 200
         assert done.json()["step"] == "done"
+        assert done.json()["timezone"] == "Europe/Moscow"
         assert done.json()["calendar_sign"] == "козерог"
         owner_id = UUID(opened.json()["user_id"])
         engine = create_async_engine(database_url)

@@ -39,9 +39,6 @@ REQUIRED_TEXTS = (
     "ui.home.title",
     "ui.home.lead",
     "ui.home.disclaimer",
-    "ui.home.action",
-    "ui.home.status_ready",
-    "ui.home.status_failed",
     "ui.home.logo_label",
     "ui.home.price_label",
     "bot.start",
@@ -198,7 +195,9 @@ def build_container(settings: Settings) -> Container:
     session_service = SessionService(
         uow_factory, frozenset(settings.admin_ids), settings.session_ttl_sec
     )
-    profile_service = ProfileService(uow_factory, FinderTimezone())
+    profile_service = ProfileService(
+        uow_factory, FinderTimezone(), default_timezone=settings.default_timezone
+    )
     place_service = PlaceService(
         uow_factory,
         NominatimLookup(settings.nominatim_base_url, settings.nominatim_user_agent),

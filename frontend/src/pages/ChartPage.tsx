@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router";
 
 import { getChart, getSky, type ChartResponse } from "../api/client";
-import { Button } from "../components/ui/controls";
+import { BackHome, Button, LoadingScreen } from "../components/ui/controls";
 import { text, type TextKey } from "../resources";
 
 const LIMITATIONS: Record<string, TextKey> = {
@@ -30,11 +29,13 @@ export function ChartPage({ fetchImpl = fetch }: ChartPageProps) {
     queryFn: () => getSky(fetchImpl),
     retry: false,
   });
+  if (chart.isPending) {
+    return <LoadingScreen />;
+  }
   return (
     <main className="shell">
       <section className="surface">
         <h1>{text("ui.chart.title")}</h1>
-        {chart.isPending ? <p className="lead">{text("ui.common.loading")}</p> : null}
         {chart.isError ? (
           <>
             <p role="alert">{text("ui.common.error")}</p>
@@ -57,9 +58,9 @@ export function ChartPage({ fetchImpl = fetch }: ChartPageProps) {
           </>
         ) : null}
         <p className="disclaimer">{text("ui.home.disclaimer")}</p>
-        <nav className="link-row">
-          <Link to="/">{text("ui.common.back")}</Link>
-        </nav>
+        <div className="actions">
+          <BackHome />
+        </div>
       </section>
     </main>
   );

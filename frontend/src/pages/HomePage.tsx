@@ -1,62 +1,77 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router";
+import { useNavigate } from "react-router";
 
-import { getMeta, type ProfileResponse } from "../api/client";
-import { Button, LogoSlot } from "../components/ui/controls";
-import { logoAvailable } from "../generated/logo";
-import { formatText, homeCopy, pluralText, text } from "../resources";
+import type { ProfileResponse } from "../api/client";
+import { Icon } from "../components/ui/icons";
+import { formatText, homeCopy, text, type TextKey } from "../resources";
 
 type HomePageProps = {
   profile: ProfileResponse;
 };
 
+const TILES: { to: string; label: TextKey; icon: "chart" | "settings" | "premium" | "help" | "terms" | "support" }[] =
+  [
+    { to: "/chart", label: "ui.chart.title", icon: "chart" },
+    { to: "/settings", label: "ui.settings.title", icon: "settings" },
+    { to: "/premium", label: "ui.premium.title", icon: "premium" },
+    { to: "/help", label: "ui.help.title", icon: "help" },
+    { to: "/terms", label: "ui.terms.title", icon: "terms" },
+    { to: "/paysupport", label: "ui.paysupport.title", icon: "support" },
+  ];
+
 export function HomePage({ profile }: HomePageProps) {
-  const meta = useQuery({
-    queryKey: ["meta"],
-    queryFn: () => getMeta(),
-    enabled: false,
-    retry: false,
-  });
-  const status = meta.isSuccess
-    ? `${homeCopy.status_ready}. ${homeCopy.price_label}: ${meta.data.premium_price_stars}`
-    : meta.isError
-      ? homeCopy.status_failed
-      : homeCopy.lead;
+  const navigate = useNavigate();
   const sign =
     profile.calendar_sign === null
-      ? text("ui.onboarding.sign_title")
+      ? homeCopy.title
       : profile.display_name
         ? formatText("ui.onboarding.sign_named", { name: profile.display_name })
         : text("ui.onboarding.sign_title");
+  const letter = profileLetter(profile.display_name);
 
   return (
     <main className="shell">
-      <section className="surface">
-        <LogoSlot available={logoAvailable} src="/logo.png" label={homeCopy.logo_label} />
-        <h1>{sign}</h1>
-        {profile.calendar_sign !== null ? <p className="lead">{profile.calendar_sign}</p> : null}
-        <p className="lead">{status}</p>
-        <p className="disclaimer">{homeCopy.disclaimer}</p>
-        <Button
-          label={homeCopy.action}
-          loading={meta.isFetching}
+      <header className="home-top">
+        <div>
+          <h1>{sign}</h1>
+          {profile.calendar_sign !== null ? <p className="lead">{profile.calendar_sign}</p> : null}
+          <p className="lead">{homeCopy.lead}</p>
+        </div>
+        <button
+          type="button"
+          className="profile-chip"
+          aria-label={text("ui.profile.title")}
           onClick={() => {
-            void meta.refetch();
+            void navigate("/profile");
           }}
-        />
-        <nav className="link-row">
-          <Link to="/chart">{text("ui.chart.title")}</Link>
-          <Link to="/profile">{text("ui.profile.title")}</Link>
-          <Link to="/settings">{text("ui.settings.title")}</Link>
-          <Link to="/premium">{text("ui.premium.title")}</Link>
-          <Link to="/terms">{text("ui.terms.title")}</Link>
-          <Link to="/help">{text("ui.help.title")}</Link>
-          <Link to="/paysupport">{text("ui.paysupport.title")}</Link>
-        </nav>
-        {meta.isSuccess ? (
-          <p className="meta">{pluralText("ui.premium.questions", meta.data.assistant_questions)}</p>
-        ) : null}
-      </section>
+        >
+          {letter === null ? <Icon name="person" /> : letter}
+        </button>
+      </header>
+      <p className="disclaimer">{homeCopy.disclaimer}</p>
+      <div className="tile-grid">
+        {TILES.map((tile) => (
+          <button
+            key={tile.to}
+            type="button"
+            className="tile"
+            onClick={() => {
+              void navigate(tile.to);
+            }}
+          >
+            <Icon name={tile.icon} />
+            <span>{text(tile.label)}</span>
+          </button>
+        ))}
+      </div>
     </main>
   );
+}
+
+function profileLetter(name: string | null): string | null {
+  const trimmed = name?.trim() ?? "";
+  if (trimmed.length === 0) {
+    return null;
+  }
+  const [letter] = Array.from(trimmed);
+  return letter ?? null;
 }

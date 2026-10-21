@@ -2,9 +2,6 @@ home:
   title: starflow
   lead: "персональный разбор по дате рождения"
   disclaimer: "развлекательный материал, без обещания точных событий"
-  action: "проверить связь"
-  status_ready: "сервис отвечает"
-  status_failed: "сервис недоступен"
   logo_label: "логотип starflow"
   price_label: "premium, звёзд"
 open:

@@ -10,6 +10,8 @@ STEPS: tuple[str, ...] = ("welcome", "name", "date", "time", "timezone", "place"
 
 
 def previous_step(step: str) -> str:
+    if step in {"timezone", "place"}:
+        return "time"
     index = STEPS.index(step)
     if index <= 0:
         return "welcome"
@@ -85,7 +87,7 @@ def next_after(step: str, *, premium: bool) -> str:
     if step == "date":
         return "time"
     if step == "time":
-        return "timezone"
+        return "place" if premium else "done"
     if step == "timezone":
         return "place" if premium else "done"
     if step == "place":

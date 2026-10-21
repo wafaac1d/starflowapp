@@ -7,7 +7,12 @@ from pydantic import ValidationError
 from starflow.bot.screens import screen_url
 from starflow.domain.calendar_sign import calendar_sign
 from starflow.domain.errors import AuthFailure, FieldInvalid
-from starflow.domain.onboarding import parse_birth_date, parse_display_name, previous_step
+from starflow.domain.onboarding import (
+    next_after,
+    parse_birth_date,
+    parse_display_name,
+    previous_step,
+)
 from starflow.domain.start_param import normalize_start_param
 from starflow.services.telegram_auth import TelegramInitDataVerifier
 from tests.support import make_settings
@@ -33,6 +38,9 @@ def test_name_keeps_case_and_dates_report_the_field() -> None:
         parse_birth_date("32.13.1990", today=date(2026, 10, 21))
     assert invalid.value.message_key == "errors.date_invalid"
     assert previous_step("date") == "name"
+    assert previous_step("place") == "time"
+    assert next_after("time", premium=False) == "done"
+    assert next_after("time", premium=True) == "place"
     assert calendar_sign(date(1990, 1, 2)) == "козерог"
 
 

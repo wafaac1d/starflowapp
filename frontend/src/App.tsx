@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router";
 
 import { openSession } from "./api/client";
-import { Button } from "./components/ui/controls";
+import { Button, LoadingScreen } from "./components/ui/controls";
 import { HelpPage, PaySupportPage, PremiumPage, SettingsPage, TermsPage } from "./pages/InfoPages";
 import { ChartPage } from "./pages/ChartPage";
 import { HomePage } from "./pages/HomePage";
@@ -35,11 +35,7 @@ function AuthedApp({ initData }: { initData: string }) {
     retry: false,
   });
   if (session.isPending) {
-    return (
-      <main className="shell">
-        <p className="lead">{text("ui.common.loading")}</p>
-      </main>
-    );
+    return <LoadingScreen />;
   }
   if (session.isError || session.data === undefined) {
     return (

@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
 
 import {
   confirmPlace,
@@ -9,7 +8,7 @@ import {
   type PlaceHit,
   type ProfileResponse,
 } from "../api/client";
-import { Button, Field } from "../components/ui/controls";
+import { BackHome, Button, Field } from "../components/ui/controls";
 import { useDebouncedValue } from "../placeQuery";
 import { homeCopy, pluralText, text, type TextKey } from "../resources";
 import { readWebApp } from "../telegram";
@@ -26,7 +25,7 @@ export function TextScreen({ title, body }: ScreenProps) {
       <section className="surface">
         <h1>{text(title)}</h1>
         <p className="lead">{body}</p>
-        <Link to="/">{text("ui.common.back")}</Link>
+        <BackHome />
       </section>
     </main>
   );
@@ -75,7 +74,7 @@ export function PremiumPage({ profile }: { profile: ProfileResponse }) {
           />
         ) : null}
         {profile.is_premium ? <PlaceSearch /> : <p>{text("errors.premium_required")}</p>}
-        <Link to="/">{text("ui.common.back")}</Link>
+        <BackHome />
       </section>
     </main>
   );

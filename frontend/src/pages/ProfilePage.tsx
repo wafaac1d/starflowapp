@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
 
 import {
   ApiRequestError,
@@ -10,7 +9,7 @@ import {
   type DraftPayload,
   type ProfileResponse,
 } from "../api/client";
-import { Button, Field } from "../components/ui/controls";
+import { BackHome, Button, Field } from "../components/ui/controls";
 import { text } from "../resources";
 import { readWebApp } from "../telegram";
 
@@ -22,13 +21,15 @@ export function ProfilePage({ profile }: ProfilePageProps) {
   const client = useQueryClient();
   const [name, setName] = useState(profile.display_name ?? "");
   const [birthDate, setBirthDate] = useState(profile.birth_date ?? "");
-  const [zone, setZone] = useState(profile.timezone ?? "");
+  const [birthTime, setBirthTime] = useState(profile.birth_time ?? "");
+  const [unknownTime, setUnknownTime] = useState(profile.birth_time_unknown);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [confirming, setConfirming] = useState(false);
   const dirty =
     name !== (profile.display_name ?? "") ||
     birthDate !== (profile.birth_date ?? "") ||
-    zone !== (profile.timezone ?? "");
+    unknownTime !== profile.birth_time_unknown ||
+    birthTime !== (profile.birth_time ?? "");
 
   useEffect(() => {
     const webApp = readWebApp();
@@ -44,6 +45,13 @@ export function ProfilePage({ profile }: ProfilePageProps) {
       webApp.setClosingConfirmation(false);
     };
   }, [dirty]);
+
+  useEffect(() => {
+    setName(profile.display_name ?? "");
+    setBirthDate(profile.birth_date ?? "");
+    setBirthTime(profile.birth_time ?? "");
+    setUnknownTime(profile.birth_time_unknown);
+  }, [profile]);
 
   const save = useMutation<ProfileResponse, Error, DraftPayload>({
     mutationFn: (body) => editProfile(body),
@@ -77,7 +85,7 @@ export function ProfilePage({ profile }: ProfilePageProps) {
         <section className="surface">
           <h1>{text("ui.profile.title")}</h1>
           <p className="lead">{text("errors.onboarding_incomplete")}</p>
-          <Link to="/">{text("ui.common.back")}</Link>
+          <BackHome />
         </section>
       </main>
     );
@@ -100,11 +108,19 @@ export function ProfilePage({ profile }: ProfilePageProps) {
           {...(fields.birth_date !== undefined ? { error: fields.birth_date } : {})}
         />
         <Field
-          label={text("ui.onboarding.timezone_title")}
-          value={zone}
-          onChange={setZone}
-          {...(fields.timezone !== undefined ? { error: fields.timezone } : {})}
+          label={text("ui.onboarding.time_title")}
+          value={birthTime}
+          onChange={setBirthTime}
+          {...(fields.birth_time !== undefined ? { error: fields.birth_time } : {})}
         />
+        <button
+          type="button"
+          className="choice"
+          aria-pressed={unknownTime}
+          onClick={() => setUnknownTime((value) => !value)}
+        >
+          {text("ui.onboarding.time_unknown")}
+        </button>
         {save.isError && Object.keys(fields).length === 0 ? (
           <p role="alert">{text("ui.common.error")}</p>
         ) : null}
@@ -113,18 +129,14 @@ export function ProfilePage({ profile }: ProfilePageProps) {
             label={text("ui.profile.save")}
             loading={save.isPending}
             onClick={() => {
-              void save.mutateAsync({ display_name: name, birth_date: birthDate, timezone: zone });
+              void save.mutateAsync(profileEdits(name, birthDate, birthTime, unknownTime));
             }}
           />
           {save.isError && Object.keys(fields).length === 0 ? (
             <Button
               label={text("ui.common.retry")}
               onClick={() => {
-                void save.mutateAsync({
-                  display_name: name,
-                  birth_date: birthDate,
-                  timezone: zone,
-                });
+                void save.mutateAsync(profileEdits(name, birthDate, birthTime, unknownTime));
               }}
             />
           ) : null}
@@ -139,9 +151,26 @@ export function ProfilePage({ profile }: ProfilePageProps) {
               void remove.mutateAsync();
             }}
           />
-          <Link to="/">{text("ui.common.back")}</Link>
+          <BackHome />
         </div>
       </section>
     </main>
   );
+}
+
+function profileEdits(
+  name: string,
+  birthDate: string,
+  birthTime: string,
+  unknownTime: boolean,
+): DraftPayload {
+  const body: DraftPayload = {
+    display_name: name,
+    birth_date: birthDate,
+    birth_time_unknown: unknownTime,
+  };
+  if (!unknownTime) {
+    body.birth_time = birthTime;
+  }
+  return body;
 }
