@@ -8,4 +8,6 @@ __pycache__/
 frontend/node_modules/
 frontend/dist/
 frontend/public/logo.png
+frontend/test-results/
+src/*.egg-info/
 *.pyc
