@@ -35,6 +35,10 @@ class UserRow(Base):
     username: Mapped[str | None] = mapped_column(Text)
     language_code: Mapped[str | None] = mapped_column(Text)
     pending_start_param: Mapped[str | None] = mapped_column(Text)
+    referral_code: Mapped[str | None] = mapped_column(Text, unique=True)
+    referred_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -62,6 +66,8 @@ class ProfileRow(Base):
     longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     timezone: Mapped[str | None] = mapped_column(Text)
     onboarding_step: Mapped[str] = mapped_column(Text, nullable=False, default="welcome")
+    streak_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    streak_last_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
@@ -186,6 +192,7 @@ class ForecastCacheRow(Base):
     kind: Mapped[str] = mapped_column(Text, nullable=False)
     payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    hits: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
 

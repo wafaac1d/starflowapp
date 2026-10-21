@@ -1,8 +1,9 @@
+import secrets
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -110,6 +111,39 @@ class SqlUserRepository:
         row.updated_at = now_utc()
         await self._session.flush()
 
+    async def start_param(self, user_id: UUID) -> str | None:
+        row = await self._session.get(UserRow, user_id)
+        if row is None:
+            return None
+        return row.pending_start_param
+
+    async def ensure_referral_code(self, user_id: UUID) -> str:
+        row = await self._session.get(UserRow, user_id)
+        if row is None:
+            raise Conflict("user is missing")
+        if row.referral_code:
+            return row.referral_code
+        row.referral_code = secrets.token_hex(8)
+        row.updated_at = now_utc()
+        await self._session.flush()
+        return row.referral_code
+
+    async def bind_referrer(self, user_id: UUID, start_param: str | None) -> bool:
+        if start_param is None or not start_param.startswith("ref_"):
+            return False
+        code = start_param.removeprefix("ref_")
+        owner = await self._session.get(UserRow, user_id)
+        if owner is None or owner.referral_code == code or owner.referred_by is not None:
+            return False
+        result = await self._session.execute(select(UserRow).where(UserRow.referral_code == code))
+        referrer = result.scalar_one_or_none()
+        if referrer is None or referrer.id == user_id:
+            return False
+        owner.referred_by = referrer.id
+        owner.updated_at = now_utc()
+        await self._session.flush()
+        return True
+
     async def delete(self, user_id: UUID) -> None:
         row = await self._session.get(UserRow, user_id)
         if row is None:
@@ -211,6 +245,20 @@ class ProfileRepository:
         await self._session.flush()
         await _drop_natal_cache(self._session, user_id)
         return _profile(row)
+
+    async def touch_streak(self, user_id: UUID, today: date) -> int:
+        row = await self._row(user_id)
+        last = row.streak_last_date
+        if last == today:
+            return row.streak_count
+        if last is not None and last == today - timedelta(days=1):
+            row.streak_count += 1
+        else:
+            row.streak_count = 1
+        row.streak_last_date = today
+        row.updated_at = now_utc()
+        await self._session.flush()
+        return row.streak_count
 
     async def _row(self, user_id: UUID) -> ProfileRow:
         result = await self._session.execute(
@@ -520,6 +568,78 @@ class ForecastCacheRepository:
             return None
         return _object_dict(row.payload)
 
+    async def lock(self, cache_key: str) -> None:
+        await self._session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:cache_key))"),
+            {"cache_key": cache_key},
+        )
+
+    async def read_fresh(
+        self,
+        cache_key: str,
+        now: datetime,
+    ) -> tuple[dict[str, object], datetime] | None:
+        result = await self._session.execute(
+            select(ForecastCacheRow)
+            .where(ForecastCacheRow.cache_key == cache_key)
+            .with_for_update()
+        )
+        row = result.scalar_one_or_none()
+        if row is None or row.valid_until <= now:
+            return None
+        row.hits += 1
+        await self._session.flush()
+        return _object_dict(row.payload), row.valid_until
+
+    async def write_shared(
+        self,
+        cache_key: str,
+        kind: str,
+        payload: dict[str, object],
+        expires_at: datetime,
+    ) -> tuple[dict[str, object], datetime]:
+        result = await self._session.execute(
+            select(ForecastCacheRow).where(ForecastCacheRow.cache_key == cache_key)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            row = ForecastCacheRow(
+                cache_key=cache_key,
+                user_id=None,
+                kind=kind,
+                payload=payload,
+                valid_until=expires_at,
+                hits=0,
+            )
+            await _save(self._session, row)
+            return payload, expires_at
+        row.user_id = None
+        row.kind = kind
+        row.payload = payload
+        row.valid_until = expires_at
+        row.hits = 0
+        await self._session.flush()
+        return payload, expires_at
+
+    async def overwrite(
+        self,
+        cache_key: str,
+        kind: str,
+        payload: dict[str, object],
+        expires_at: datetime,
+    ) -> tuple[dict[str, object], datetime]:
+        result = await self._session.execute(
+            select(ForecastCacheRow).where(ForecastCacheRow.cache_key == cache_key)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return await self.write_shared(cache_key, kind, payload, expires_at)
+        row.kind = kind
+        row.payload = payload
+        row.valid_until = expires_at
+        await self._session.flush()
+        return payload, expires_at
+
     async def delete_kind(self, user_id: UUID, kind: str) -> None:
         await self._session.execute(
             delete(ForecastCacheRow).where(
@@ -553,6 +673,38 @@ class ForecastHistoryRepository:
         row = await self._session.get(ForecastHistoryRow, history_id)
         return row is not None and row.user_id == user_id
 
+    async def find(
+        self,
+        user_id: UUID,
+        kind: str,
+        period_date: date,
+    ) -> tuple[UUID, dict[str, object]] | None:
+        result = await self._session.execute(
+            select(ForecastHistoryRow).where(
+                ForecastHistoryRow.user_id == user_id,
+                ForecastHistoryRow.kind == kind,
+                ForecastHistoryRow.period_date == period_date,
+            )
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return row.id, _object_dict(row.payload)
+
+    async def payload_for(self, user_id: UUID, history_id: UUID) -> dict[str, object] | None:
+        row = await self._session.get(ForecastHistoryRow, history_id)
+        if row is None or row.user_id != user_id:
+            return None
+        return _object_dict(row.payload)
+
+    async def list_for_user(self, user_id: UUID) -> tuple[ForecastHistoryRow, ...]:
+        result = await self._session.execute(
+            select(ForecastHistoryRow)
+            .where(ForecastHistoryRow.user_id == user_id)
+            .order_by(ForecastHistoryRow.created_at.desc())
+        )
+        return tuple(result.scalars())
+
 
 class FavoriteRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -568,6 +720,14 @@ class FavoriteRepository:
             select(func.count()).select_from(FavoriteRow).where(FavoriteRow.user_id == user_id)
         )
         return int(result.scalar_one())
+
+    async def list_for_user(self, user_id: UUID) -> tuple[FavoriteRow, ...]:
+        result = await self._session.execute(
+            select(FavoriteRow)
+            .where(FavoriteRow.user_id == user_id)
+            .order_by(FavoriteRow.created_at.desc())
+        )
+        return tuple(result.scalars())
 
 
 class NotificationSettingsRepository:
@@ -1000,6 +1160,8 @@ def _user(row: UserRow) -> User:
         telegram_id=row.telegram_id,
         username=row.username,
         language_code=row.language_code,
+        referral_code=row.referral_code,
+        referred_by=row.referred_by,
     )
 
 
@@ -1038,6 +1200,8 @@ def _profile(row: ProfileRow) -> Profile:
         longitude=row.longitude,
         timezone=row.timezone,
         onboarding_step=row.onboarding_step,
+        streak_count=row.streak_count,
+        streak_last_date=row.streak_last_date,
     )
 
 

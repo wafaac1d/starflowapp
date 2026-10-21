@@ -10,6 +10,8 @@ class User:
     telegram_id: int
     username: str | None
     language_code: str | None
+    referral_code: str | None = None
+    referred_by: UUID | None = None
 
 
 @dataclass(frozen=True)
@@ -37,6 +39,8 @@ class Profile:
     longitude: Decimal | None
     timezone: str | None
     onboarding_step: str
+    streak_count: int = 0
+    streak_last_date: date | None = None
 
 
 @dataclass(frozen=True)

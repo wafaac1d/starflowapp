@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import (
 def create_db_engine(database_url: str) -> AsyncEngine:
     return create_async_engine(
         database_url,
+        pool_size=5,
+        max_overflow=10,
         pool_pre_ping=True,
         connect_args={"server_settings": {"timezone": "UTC"}},
     )

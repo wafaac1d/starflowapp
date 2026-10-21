@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
 import type { ProfileResponse } from "../api/client";
+import { Button } from "../components/ui/controls";
 import { Icon } from "../components/ui/icons";
-import { prefersReducedMotion } from "../motion";
+import { RotatingPhrase } from "../components/ui/RotatingPhrase";
 import { text, type TextKey } from "../resources";
 import { signEmoji } from "../signEmoji";
 
@@ -12,25 +12,24 @@ type HomePageProps = {
 };
 
 const TILES: { to: string; label: TextKey; emoji: string }[] = [
+  { to: "/reading/day", label: "ui.reading.day", emoji: "☀️" },
+  { to: "/reading/week", label: "ui.reading.week", emoji: "📅" },
+  { to: "/reading/advice", label: "ui.reading.advice", emoji: "💡" },
+  { to: "/reading/moon", label: "ui.reading.moon", emoji: "🌙" },
+  { to: "/reading/compatibility", label: "ui.reading.compatibility", emoji: "🤝" },
   { to: "/chart", label: "ui.chart.title", emoji: "🪐" },
-  { to: "/settings", label: "ui.settings.title", emoji: "⚙️" },
-  { to: "/premium", label: "ui.premium.title", emoji: "✨" },
-  { to: "/help", label: "ui.help.title", emoji: "❓" },
-  { to: "/terms", label: "ui.terms.title", emoji: "📄" },
-  { to: "/paysupport", label: "ui.paysupport.title", emoji: "💳" },
 ];
 
-const PHRASES: TextKey[] = [
-  "ui.home.phrase_1",
-  "ui.home.phrase_2",
-  "ui.home.phrase_3",
-  "ui.home.phrase_4",
-  "ui.home.phrase_5",
-  "ui.home.phrase_6",
-  "ui.home.phrase_7",
-  "ui.home.phrase_8",
-  "ui.home.phrase_9",
-  "ui.home.phrase_10",
+const LINKS: { to: string; label: TextKey }[] = [
+  { to: "/history", label: "ui.reading.history" },
+  { to: "/favorites", label: "ui.reading.favorites" },
+  { to: "/related", label: "ui.reading.related" },
+  { to: "/referral", label: "ui.reading.referral" },
+  { to: "/settings", label: "ui.settings.title" },
+  { to: "/premium", label: "ui.premium.title" },
+  { to: "/help", label: "ui.help.title" },
+  { to: "/terms", label: "ui.terms.title" },
+  { to: "/paysupport", label: "ui.paysupport.title" },
 ];
 
 export function HomePage({ profile }: HomePageProps) {
@@ -59,6 +58,15 @@ export function HomePage({ profile }: HomePageProps) {
           >
             {letter === null ? <Icon name="person" /> : letter}
           </button>
+          <span
+            className="plan-mark"
+            role="img"
+            aria-label={text(profile.is_premium ? "ui.home.plan_premium" : "ui.home.plan_free")}
+          >
+            <span className="emoji" aria-hidden="true">
+              {profile.is_premium ? "✨" : "🆓"}
+            </span>
+          </span>
         </div>
       </header>
       <RotatingPhrase />
@@ -79,38 +87,19 @@ export function HomePage({ profile }: HomePageProps) {
           </button>
         ))}
       </div>
+      <div className="home-links">
+        {LINKS.map((link) => (
+          <Button
+            key={link.to}
+            label={text(link.label)}
+            onClick={() => {
+              void navigate(link.to);
+            }}
+          />
+        ))}
+      </div>
       <p className="home-note">{text("ui.home.disclaimer")}</p>
     </main>
-  );
-}
-
-function RotatingPhrase() {
-  const [index, setIndex] = useState(() => Math.floor(Math.random() * PHRASES.length));
-  const [shown, setShown] = useState(true);
-
-  useEffect(() => {
-    if (prefersReducedMotion()) {
-      return;
-    }
-    let fadeTimer = 0;
-    const id = window.setInterval(() => {
-      setShown(false);
-      fadeTimer = window.setTimeout(() => {
-        setIndex((current) => (current + 1) % PHRASES.length);
-        setShown(true);
-      }, 450);
-    }, 3800);
-    return () => {
-      window.clearInterval(id);
-      window.clearTimeout(fadeTimer);
-    };
-  }, []);
-
-  const phrase = PHRASES[index] ?? "ui.home.phrase_1";
-  return (
-    <p className="home-phrase" data-shown={shown} aria-live="polite">
-      {text(phrase)}
-    </p>
   );
 }
 

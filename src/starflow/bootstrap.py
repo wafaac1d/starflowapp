@@ -7,6 +7,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.types import BotCommand
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from starflow.ai.catalog import load_prompts
 from starflow.ai.client import DeepSeekClient
 from starflow.ai.prompts import PromptLibrary
 from starflow.astro.swiss import SwissEphemeris
@@ -14,6 +15,9 @@ from starflow.bot.handlers import UpdateContextMiddleware, register_handlers
 from starflow.bot.runtime import BotRuntime
 from starflow.bot.session import InactiveTelegramSession
 from starflow.cache.memory import MemoryCache
+from starflow.cache.postgres import PostgresLevelTwo
+from starflow.cache.ttl import TtlCache
+from starflow.cache.two_level import TwoLevelCache
 from starflow.config import Settings
 from starflow.db.engine import create_db_engine, create_session_factory
 from starflow.db.lock import SingletonLock
@@ -24,6 +28,7 @@ from starflow.repositories.uow import SqlUnitOfWork
 from starflow.scheduler.runtime import SchedulerRuntime
 from starflow.services.access import AccessService
 from starflow.services.chart import ChartService
+from starflow.services.forecast import ForecastService
 from starflow.services.health import HealthService
 from starflow.services.nominatim import NominatimLookup
 from starflow.services.outbox import OutboxService
@@ -85,6 +90,17 @@ REQUIRED_TEXTS = (
     "errors.idempotency_key",
     "errors.related_required",
     "errors.conflict",
+    "errors.reading_failed",
+    "ui.reading.day",
+    "ui.reading.week",
+    "ui.reading.advice",
+    "ui.reading.moon",
+    "ui.reading.compatibility",
+    "ui.reading.fallback_day",
+    "ui.reading.fallback_week",
+    "ui.reading.fallback_advice",
+    "ui.reading.fallback_moon",
+    "ui.reading.fallback_compatibility",
     "ui.chart.title",
     "ui.chart.sun",
     "ui.chart.calendar_source",
@@ -151,6 +167,7 @@ class Container:
     access_service: AccessService
     quota_service: QuotaService
     chart_service: ChartService
+    forecast_service: ForecastService
     sky_service: SkyService
     uow_factory: Callable[[], SqlUnitOfWork]
     health_service: HealthService
@@ -186,6 +203,7 @@ def build_container(settings: Settings) -> Container:
     catalog = load_catalog(settings.resources_dir, settings.default_locale, cache)
     require_keys(catalog, REQUIRED_TEXTS)
     PromptLibrary(settings.resources_dir / "prompts").assistant_system()
+    prompts = load_prompts(settings.resources_dir / "prompts" / "forecasts.yaml")
     engine = create_db_engine(settings.database_url)
     session_factory = create_session_factory(engine)
 
@@ -208,6 +226,24 @@ def build_container(settings: Settings) -> Container:
     quota_service = QuotaService(uow_factory, plans)
     sky_service = SkyService(uow_factory, ephemeris)
     chart_service = ChartService(uow_factory, ephemeris, quota_service, sky_service)
+    deepseek = DeepSeekClient(settings)
+    forecast_cache = TwoLevelCache(
+        TtlCache(settings.memory_cache_size), PostgresLevelTwo(uow_factory)
+    )
+    forecast_service = ForecastService(
+        uow_factory,
+        forecast_cache,
+        deepseek,
+        prompts,
+        catalog,
+        quota_service,
+        sky_service,
+        fast_model=settings.deepseek_model_fast,
+        pro_model=settings.deepseek_model_pro,
+        zone_name=settings.default_timezone,
+        locale=settings.default_locale,
+        mini_app_url=settings.mini_app_url,
+    )
     outbox_service = OutboxService(uow_factory, catalog)
     health_service = HealthService(engine)
     verifier = TelegramInitDataVerifier(
@@ -240,13 +276,14 @@ def build_container(settings: Settings) -> Container:
         plans=plans,
         catalog=catalog,
         engine=engine,
-        deepseek=DeepSeekClient(settings),
+        deepseek=deepseek,
         session_service=session_service,
         profile_service=profile_service,
         place_service=place_service,
         access_service=access_service,
         quota_service=quota_service,
         chart_service=chart_service,
+        forecast_service=forecast_service,
         sky_service=sky_service,
         uow_factory=uow_factory,
         health_service=health_service,

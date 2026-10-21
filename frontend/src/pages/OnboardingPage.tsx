@@ -11,8 +11,11 @@ import {
   type PlaceHit,
   type ProfileResponse,
 } from "../api/client";
-import { Button, Field, LoadingScreen } from "../components/ui/controls";
+import { maskBirthDate } from "../birthDate";
+import { Button, Field, LoadingScreen, LogoSlot } from "../components/ui/controls";
+import { RotatingPhrase } from "../components/ui/RotatingPhrase";
 import { deviceTimezone } from "../deviceZone";
+import { logoAvailable } from "../generated/logo";
 import { useDebouncedValue } from "../placeQuery";
 import { formatText, text } from "../resources";
 import { readWebApp } from "../telegram";
@@ -25,30 +28,28 @@ type DraftState = {
   name: string;
   birthDate: string;
   birthTime: string;
-  unknownTime: boolean;
   zone: string;
   placeQuery: string;
 };
 
 export function OnboardingPage({ profile }: OnboardingPageProps) {
   const client = useQueryClient();
+  const [started, setStarted] = useState(false);
   const [name, setName] = useState(profile.display_name ?? "");
   const [birthDate, setBirthDate] = useState(profile.birth_date ?? "");
   const [birthTime, setBirthTime] = useState(profile.birth_time ?? "");
-  const [unknownTime, setUnknownTime] = useState(profile.birth_time_unknown);
   const [zone, setZone] = useState(profile.timezone ?? "");
   const [placeQuery, setPlaceQuery] = useState("");
   const stablePlace = useDebouncedValue(placeQuery);
   const [hits, setHits] = useState<PlaceHit[]>([]);
   const [searchedQuery, setSearchedQuery] = useState("");
   const [fields, setFields] = useState<Record<string, string>>({});
-  const state = { name, birthDate, birthTime, unknownTime, zone, placeQuery };
+  const state = { name, birthDate, birthTime, zone, placeQuery };
 
   useEffect(() => {
     setName(profile.display_name ?? "");
     setBirthDate(profile.birth_date ?? "");
     setBirthTime(profile.birth_time ?? "");
-    setUnknownTime(profile.birth_time_unknown);
     setZone(profile.timezone ?? "");
     setFields({});
   }, [profile]);
@@ -146,16 +147,34 @@ export function OnboardingPage({ profile }: OnboardingPageProps) {
     return <LoadingScreen />;
   }
 
+  if (profile.step === "welcome" && !started) {
+    return (
+      <main className="shell screen-fill start-screen">
+        <div className="start-center">
+          <LogoSlot available={logoAvailable} src="/logo.png" label={text("ui.home.logo_label")} />
+          <Button
+            label={text("ui.onboarding.start")}
+            onClick={() => {
+              setStarted(true);
+            }}
+          />
+        </div>
+        <RotatingPhrase tone="muted" />
+      </main>
+    );
+  }
+
   return (
-    <main className="shell">
-      <section className="surface">
-        <h1>{heading(profile)}</h1>
+    <main className="shell screen-fill onboarding-screen">
+      <section className="onboarding-body">
+        <h1 id="onboarding-heading">{heading(profile)}</h1>
         {profile.step === "welcome" ? (
           <p className="lead">{text("ui.onboarding.welcome_lead")}</p>
         ) : null}
         {profile.step === "name" ? (
           <Field
-            label={text("ui.onboarding.name_title")}
+            label={text("ui.onboarding.name_heading")}
+            labelledBy="onboarding-heading"
             value={name}
             onChange={setName}
             {...(fields.display_name !== undefined ? { error: fields.display_name } : {})}
@@ -165,27 +184,20 @@ export function OnboardingPage({ profile }: OnboardingPageProps) {
           <Field
             label={text("ui.onboarding.date_title")}
             value={birthDate}
-            onChange={setBirthDate}
+            inputMode="numeric"
+            onChange={(value) => {
+              setBirthDate(maskBirthDate(value));
+            }}
             {...(fields.birth_date !== undefined ? { error: fields.birth_date } : {})}
           />
         ) : null}
         {profile.step === "time" ? (
-          <>
-            <Field
-              label={text("ui.onboarding.time_title")}
-              value={birthTime}
-              onChange={setBirthTime}
-              {...(fields.birth_time !== undefined ? { error: fields.birth_time } : {})}
-            />
-            <button
-              type="button"
-              className="choice"
-              aria-pressed={unknownTime}
-              onClick={() => setUnknownTime((value) => !value)}
-            >
-              {text("ui.onboarding.time_unknown")}
-            </button>
-          </>
+          <Field
+            label={text("ui.onboarding.time_title")}
+            value={birthTime}
+            onChange={setBirthTime}
+            {...(fields.birth_time !== undefined ? { error: fields.birth_time } : {})}
+          />
         ) : null}
         {profile.step === "place" ? (
           <>
@@ -246,22 +258,6 @@ export function OnboardingPage({ profile }: OnboardingPageProps) {
               }}
             />
           ) : null}
-          {dirty ? (
-            <Button
-              label={text("ui.common.cancel")}
-              disabled={pending}
-              onClick={() => {
-                setName(profile.display_name ?? "");
-                setBirthDate(profile.birth_date ?? "");
-                setBirthTime(profile.birth_time ?? "");
-                setUnknownTime(profile.birth_time_unknown);
-                setZone(profile.timezone ?? "");
-                setPlaceQuery("");
-                setHits([]);
-                setFields({});
-              }}
-            />
-          ) : null}
           {failure ? (
             <Button
               label={text("ui.common.retry")}
@@ -286,7 +282,7 @@ function heading(profile: ProfileResponse): string {
     return text("ui.onboarding.welcome_title");
   }
   if (profile.step === "name") {
-    return text("ui.onboarding.name_title");
+    return text("ui.onboarding.name_heading");
   }
   if (profile.step === "date") {
     return text("ui.onboarding.date_title");
@@ -314,11 +310,12 @@ function payload(step: string, state: DraftState) {
     return { birth_date: state.birthDate };
   }
   if (step === "time") {
-    if (state.unknownTime) {
+    const clock = state.birthTime.trim();
+    if (clock.length === 0) {
       return { birth_time_unknown: true, timezone: deviceTimezone() };
     }
     return {
-      birth_time: state.birthTime,
+      birth_time: clock,
       birth_time_unknown: false,
       timezone: deviceTimezone(),
     };
@@ -337,10 +334,7 @@ function isDirty(profile: ProfileResponse, state: DraftState): boolean {
     return state.birthDate !== (profile.birth_date ?? "");
   }
   if (profile.step === "time") {
-    return (
-      state.unknownTime !== profile.birth_time_unknown ||
-      state.birthTime !== (profile.birth_time ?? "")
-    );
+    return state.birthTime !== (profile.birth_time ?? "");
   }
   if (profile.step === "timezone") {
     return state.zone !== (profile.timezone ?? "");

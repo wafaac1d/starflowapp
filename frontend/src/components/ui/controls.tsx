@@ -33,18 +33,22 @@ type FieldProps = {
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  inputMode?: "numeric" | "text";
+  labelledBy?: string;
 };
 
-export function Field({ label, value, onChange, error }: FieldProps) {
+export function Field({ label, value, onChange, error, inputMode, labelledBy }: FieldProps) {
   const described = error ? `${label}-error` : undefined;
   return (
     <label className="field">
-      <span>{label}</span>
+      {labelledBy === undefined ? <span>{label}</span> : null}
       <input
         value={value}
+        inputMode={inputMode}
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={error !== undefined}
         aria-describedby={described}
+        {...(labelledBy !== undefined ? { "aria-labelledby": labelledBy } : {})}
       />
       {error !== undefined ? (
         <span id={described} className="field-error" role="alert">
@@ -90,8 +94,12 @@ export function LoadingScreen() {
     <main className="loading-screen">
       <LogoSlot available={logoAvailable} src="/logo.png" label={text("ui.home.logo_label")} />
       <p className="loading-label">
-        {text("ui.common.loading")}
-        <span className="loading-dots">{".".repeat(dots)}</span>
+        <span className="loading-word">
+          {text("ui.common.loading")}
+          <span className="loading-dots" aria-hidden="true">
+            {".".repeat(dots)}
+          </span>
+        </span>
       </p>
     </main>
   );

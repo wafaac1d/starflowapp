@@ -12,6 +12,7 @@ from starflow.api.actor import (
     require_intent,
 )
 from starflow.api.chart_http import register_chart_routes
+from starflow.api.forecast_http import register_forecast_routes
 from starflow.api.http import (
     ApiError,
     MetaResponse,
@@ -148,6 +149,7 @@ def _api_router(container: Container) -> APIRouter:
 
     register_profile_routes(router, container)
     register_chart_routes(router, container)
+    register_forecast_routes(router, container)
     return router
 
 

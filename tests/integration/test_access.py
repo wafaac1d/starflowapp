@@ -1,6 +1,7 @@
 """Квоты, источники premium и идемпотентность HTTP на пустой PostgreSQL."""
 
 import asyncio
+import json
 import os
 import subprocess
 import sys
@@ -16,10 +17,17 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from testcontainers.community.postgres import PostgresContainer
 
+from starflow.ai.catalog import load_prompts
+from starflow.ai.client import ModelReply
 from starflow.api.app import build_fastapi
 from starflow.bootstrap import build_container
+from starflow.cache.memory import MemoryCache
+from starflow.cache.postgres import PostgresLevelTwo
+from starflow.cache.ttl import TtlCache
+from starflow.cache.two_level import TwoLevelCache
 from starflow.db.engine import create_db_engine, create_session_factory
 from starflow.db.tables import (
+    AiRequestRow,
     DailySkyRow,
     FavoriteRow,
     ForecastCacheRow,
@@ -30,7 +38,9 @@ from starflow.db.tables import (
 from starflow.domain.plans import Plans, load_plans
 from starflow.domain.quota import Allowed, LimitReached
 from starflow.domain.records import ProfileDraft
+from starflow.i18n.catalog import load_catalog
 from starflow.repositories.uow import SqlUnitOfWork
+from starflow.services.forecast import ForecastService
 from starflow.services.quota import QuotaService, StoredResult
 from tests.support import make_settings
 from tests.unit.test_skeleton import _init_data
@@ -532,4 +542,240 @@ async def test_daily_sky_is_computed_once_and_birth_edits_drop_the_chart(
     assert skies == 1
     assert cached == 0
     await container.engine.dispose()
+    await engine.dispose()
+
+
+class _ScriptedModel:
+    def __init__(self, content: str | None = None, error: Exception | None = None) -> None:
+        self.calls = 0
+        self._content = content or '{"title":"сегодня","body":"спокойный фон"}'
+        self._error = error
+
+    async def complete_forecast(self, **_kwargs: object) -> ModelReply:
+        self.calls += 1
+        if self._error is not None:
+            raise self._error
+        return ModelReply(self._content, "fake", 3, 4, 5)
+
+
+class _Sky:
+    async def for_date(self, day: date) -> dict[str, object]:
+        return {"moon_sign": "рак", "phase_name": "полнолуние", "date": day.isoformat()}
+
+
+def _readings(
+    factory: async_sessionmaker[AsyncSession], model: _ScriptedModel, moment: datetime
+) -> ForecastService:
+    settings = make_settings()
+    catalog = load_catalog(settings.resources_dir, "ru", MemoryCache(32))
+    prompts = load_prompts(settings.resources_dir / "prompts" / "forecasts.yaml")
+    cache = TwoLevelCache(TtlCache(64), PostgresLevelTwo(lambda: SqlUnitOfWork(factory)))
+    quota = QuotaService(lambda: SqlUnitOfWork(factory), _plans(), clock=lambda: moment)
+    return ForecastService(
+        lambda: SqlUnitOfWork(factory),
+        cache,
+        model,
+        prompts,
+        catalog,
+        quota,
+        _Sky(),
+        fast_model="fake-fast",
+        pro_model="fake-pro",
+        zone_name="Europe/Moscow",
+        locale="ru",
+        mini_app_url="https://t.me/starflowbot/app",
+        clock=lambda: moment,
+        background=False,
+    )
+
+
+async def _named(
+    factory: async_sessionmaker[AsyncSession],
+    name: str,
+    born: date,
+) -> UUID:
+    async with SqlUnitOfWork(factory) as uow:
+        user = await uow.users.upsert_telegram(unix_clock.time_ns() % 1_000_000_000, None, "ru")
+        await uow.profiles.upsert(
+            user.id,
+            ProfileDraft(
+                display_name=name,
+                birth_date=born,
+                birth_time=None,
+                birth_time_unknown=True,
+                birth_place=None,
+                latitude=None,
+                longitude=None,
+                timezone="Europe/Moscow",
+            ),
+        )
+        await uow.commit()
+        return user.id
+
+
+async def _settle(service: ForecastService, user_id: UUID, kind: str) -> object:
+    for _ in range(100):
+        view = await service.current(user_id, kind)
+        if view.status != "pending":
+            return view
+        await asyncio.sleep(0.02)
+    raise AssertionError("reading stayed pending")
+
+
+@pytest.mark.asyncio
+async def test_shared_segment_collapses_generation_and_keeps_names_out(database_url: str) -> None:
+    engine, factory = _factory(database_url)
+    moment = datetime(2026, 10, 21, 9, 0, tzinfo=UTC)
+    model = _ScriptedModel()
+    service = _readings(factory, model, moment)
+    first = await _named(factory, "мария", date(1990, 1, 2))
+    second = await _named(factory, "анна", date(1988, 1, 10))
+    await asyncio.gather(
+        *[service.start(first, "day", f"daykey{index:02d}xxxx") for index in range(10)]
+    )
+    left = await _settle(service, first, "day")
+    await service.start(second, "day", "daykeysecond1")
+    right = await _settle(service, second, "day")
+    assert model.calls == 1
+    assert left.status == "ready"
+    assert right.status == "ready"
+    assert left.title == right.title
+    assert left.greeting == "мария"
+    assert right.greeting == "анна"
+    assert left.streak == 1
+    async with factory() as session:
+        stored = (await session.execute(select(ForecastCacheRow))).scalars().all()
+        shared = [row for row in stored if row.user_id is None and row.kind == "day"]
+        requests = await session.scalar(select(func.count()).select_from(AiRequestRow))
+    assert len(shared) == 1
+    blob = json.dumps(shared[0].payload, ensure_ascii=False)
+    assert "мария" not in blob
+    assert "анна" not in blob
+    assert "1990" not in blob
+    assert shared[0].cache_key.endswith("|1")
+    assert requests == 1
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_ten_callers_and_a_second_cache_share_one_postgres_row(database_url: str) -> None:
+    engine, factory = _factory(database_url)
+    calls = 0
+
+    async def produce() -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        await asyncio.sleep(0.05)
+        return {"title": "сегодня", "body": "общий фон"}
+
+    expires = datetime(2026, 10, 22, 3, 0, tzinfo=UTC)
+    level = PostgresLevelTwo(lambda: SqlUnitOfWork(factory))
+    first = TwoLevelCache(TtlCache(16), level)
+    await asyncio.gather(
+        *[first.get_or_create("stampede-day", "day", expires, produce) for _ in range(10)]
+    )
+    second = TwoLevelCache(TtlCache(16), PostgresLevelTwo(lambda: SqlUnitOfWork(factory)))
+
+    async def unexpected() -> dict[str, object]:
+        raise AssertionError("second cache generated a forecast")
+
+    hit = await second.get_or_create("stampede-day", "day", expires, unexpected)
+    assert calls == 1
+    assert hit.generated is False
+    assert hit.payload["body"] == "общий фон"
+    async with factory() as session:
+        row = (
+            await session.execute(
+                select(ForecastCacheRow).where(ForecastCacheRow.cache_key == "stampede-day")
+            )
+        ).scalar_one()
+    assert row.hits >= 1
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_expired_cache_and_cancellation_do_not_keep_a_partial_row(database_url: str) -> None:
+    engine, factory = _factory(database_url)
+    level = PostgresLevelTwo(lambda: SqlUnitOfWork(factory))
+    past = datetime(2026, 1, 1, tzinfo=UTC)
+    await level.write("expired-day", "day", {"title": "старый", "body": "текст"}, past)
+    calls = 0
+
+    async def produce() -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        return {"title": "новый", "body": "текст"}
+
+    future = datetime(2026, 12, 1, tzinfo=UTC)
+    cache = TwoLevelCache(TtlCache(8), level)
+    renewed = await cache.get_or_create("expired-day", "day", future, produce)
+    assert calls == 1
+    assert renewed.payload["title"] == "новый"
+
+    async def slow() -> dict[str, object]:
+        await asyncio.sleep(30)
+        return {"title": "частичный", "body": "текст"}
+
+    task = asyncio.create_task(cache.get_or_create("cancel-day", "day", future, slow))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    finished = await cache.get_or_create("cancel-day", "day", future, produce)
+    assert finished.payload["title"] == "новый"
+    async with factory() as session:
+        partials = (
+            await session.execute(
+                select(ForecastCacheRow).where(ForecastCacheRow.cache_key == "cancel-day")
+            )
+        ).scalars()
+    assert all(row.payload.get("title") != "частичный" for row in partials)
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_compatibility_model_error_does_not_charge(database_url: str) -> None:
+    engine, factory = _factory(database_url)
+    moment = datetime(2026, 10, 21, 9, 0, tzinfo=UTC)
+    model = _ScriptedModel(error=RuntimeError("down"))
+    service = _readings(factory, model, moment)
+    user_id = await _named(factory, "мария", date(1990, 1, 2))
+    async with SqlUnitOfWork(factory) as uow:
+        await uow.related_profiles.add(
+            user_id,
+            ProfileDraft(
+                display_name="друг",
+                birth_date=date(1992, 7, 20),
+                birth_time=None,
+                birth_time_unknown=True,
+                birth_place=None,
+                latitude=None,
+                longitude=None,
+                timezone="Europe/Moscow",
+            ),
+        )
+        await uow.commit()
+    await service.start(user_id, "compatibility", "compaterr01")
+    view = await _settle(service, user_id, "compatibility")
+    assert view.status == "fallback"
+    assert view.history_id is None
+    async with factory() as session:
+        used = await session.scalar(
+            select(func.coalesce(func.sum(UsageCounterRow.used), 0)).where(
+                UsageCounterRow.user_id == user_id
+            )
+        )
+        reserved = await session.scalar(
+            select(func.coalesce(func.sum(UsageCounterRow.reserved), 0)).where(
+                UsageCounterRow.user_id == user_id
+            )
+        )
+        histories = await session.scalar(
+            select(func.count())
+            .select_from(ForecastHistoryRow)
+            .where(ForecastHistoryRow.user_id == user_id)
+        )
+    assert used == 0
+    assert reserved == 0
+    assert histories == 0
     await engine.dispose()

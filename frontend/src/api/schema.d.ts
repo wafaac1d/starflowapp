@@ -336,7 +336,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Read Favorites */
+        get: operations["read_favorites_api_v1_favorites_get"];
         put?: never;
         /** Add Favorite */
         post: operations["add_favorite_api_v1_favorites_post"];
@@ -357,6 +358,110 @@ export interface paths {
         put?: never;
         /** Read Compatibility */
         post: operations["read_compatibility_api_v1_compatibility_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/readings/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Reading */
+        get: operations["read_reading_api_v1_readings__kind__get"];
+        put?: never;
+        /** Start Reading */
+        post: operations["start_reading_api_v1_readings__kind__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read History */
+        get: operations["read_history_api_v1_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/readings/{history_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Feedback */
+        post: operations["add_feedback_api_v1_readings__history_id__feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/share/{history_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Share */
+        get: operations["read_share_api_v1_share__history_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/referral": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Referral */
+        get: operations["read_referral_api_v1_referral_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/related": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Related */
+        get: operations["read_related_api_v1_related_get"];
+        put?: never;
+        /** Add Related */
+        post: operations["add_related_api_v1_related_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -463,6 +568,16 @@ export interface components {
              */
             target_id: string;
         };
+        /** FavoriteItem */
+        FavoriteItem: {
+            /**
+             * History Id
+             * Format: uuid
+             */
+            history_id: string;
+            /** Title */
+            title: string;
+        };
         /** FavoriteResult */
         FavoriteResult: {
             /**
@@ -478,10 +593,29 @@ export interface components {
             /** Replayed */
             replayed: boolean;
         };
+        /** FeedbackBody */
+        FeedbackBody: {
+            /** Score */
+            score: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HistoryItem */
+        HistoryItem: {
+            /**
+             * History Id
+             * Format: uuid
+             */
+            history_id: string;
+            /** Kind */
+            kind: string;
+            /** Period Date */
+            period_date: string;
+            /** Title */
+            title: string;
         };
         /** MetaResponse */
         MetaResponse: {
@@ -577,6 +711,63 @@ export interface components {
             longitude: string | null;
             /** Calendar Sign */
             calendar_sign: string | null;
+        };
+        /** ReadingBody */
+        ReadingBody: {
+            /** Status */
+            status: string;
+            /** Title */
+            title?: string | null;
+            /** Body */
+            body?: string | null;
+            /** Greeting */
+            greeting?: string | null;
+            /** User Sign */
+            user_sign?: string | null;
+            /** Shared Facts */
+            shared_facts?: string | null;
+            /** History Id */
+            history_id?: string | null;
+            /** Streak */
+            streak?: number | null;
+            /**
+             * Replayed
+             * @default false
+             */
+            replayed: boolean;
+            /** Reset At */
+            reset_at?: string | null;
+        };
+        /** ReferralBody */
+        ReferralBody: {
+            /** Code */
+            code: string;
+            /** Link */
+            link: string;
+        };
+        /** RelatedBody */
+        RelatedBody: {
+            /** Display Name */
+            display_name: string;
+            /** Birth Date */
+            birth_date: string;
+        };
+        /** RelatedItem */
+        RelatedItem: {
+            /**
+             * Related Id
+             * Format: uuid
+             */
+            related_id: string;
+            /** Display Name */
+            display_name: string;
+            /** Birth Date */
+            birth_date: string | null;
+        };
+        /** ShareBody */
+        ShareBody: {
+            /** Text */
+            text: string;
         };
         /** SkyBody */
         SkyBody: {
@@ -1141,6 +1332,26 @@ export interface operations {
             };
         };
     };
+    read_favorites_api_v1_favorites_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FavoriteItem"][];
+                };
+            };
+        };
+    };
     add_favorite_api_v1_favorites_post: {
         parameters: {
             query?: never;
@@ -1194,6 +1405,229 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CompatibilityResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_reading_api_v1_readings__kind__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadingBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_reading_api_v1_readings__kind__post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path: {
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReadingBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_history_api_v1_history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HistoryItem"][];
+                };
+            };
+        };
+    };
+    add_feedback_api_v1_readings__history_id__feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                history_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_share_api_v1_share__history_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                history_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_referral_api_v1_referral_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralBody"];
+                };
+            };
+        };
+    };
+    read_related_api_v1_related_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelatedItem"][];
+                };
+            };
+        };
+    };
+    add_related_api_v1_related_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelatedBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelatedItem"];
                 };
             };
             /** @description Validation Error */

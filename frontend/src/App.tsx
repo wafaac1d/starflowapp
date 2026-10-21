@@ -1,13 +1,15 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { BrowserRouter, Route, Routes } from "react-router";
+import { BrowserRouter, Route, Routes, useParams } from "react-router";
 
 import { openSession } from "./api/client";
 import { Button, LoadingScreen } from "./components/ui/controls";
 import { EdgeSwipe } from "./components/ui/EdgeSwipe";
 import { HelpPage, PaySupportPage, PremiumPage, SettingsPage, TermsPage } from "./pages/InfoPages";
+import { FavoritesPage, HistoryPage, ReferralPage, RelatedPage } from "./pages/LibraryPages";
 import { ChartPage } from "./pages/ChartPage";
 import { HomePage } from "./pages/HomePage";
+import { ReadingPage } from "./pages/ReadingPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { OpenAppPage } from "./pages/OpenAppPage";
 import { ProfilePage } from "./pages/ProfilePage";
@@ -27,6 +29,11 @@ export function App() {
       </BrowserRouter>
     </QueryClientProvider>
   );
+}
+
+function ReadingRoute() {
+  const params = useParams();
+  return <ReadingPage kind={params.kind ?? "day"} />;
 }
 
 function AuthedApp({ initData }: { initData: string }) {
@@ -63,6 +70,11 @@ function AuthedApp({ initData }: { initData: string }) {
         }
       />
       <Route path="/chart" element={<ChartPage />} />
+      <Route path="/reading/:kind" element={<ReadingRoute />} />
+      <Route path="/history" element={<HistoryPage />} />
+      <Route path="/favorites" element={<FavoritesPage />} />
+      <Route path="/related" element={<RelatedPage />} />
+      <Route path="/referral" element={<ReferralPage />} />
       <Route path="/profile" element={<ProfilePage profile={profile} />} />
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/premium" element={<PremiumPage profile={profile} />} />

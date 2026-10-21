@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
@@ -55,8 +56,10 @@ describe("entry", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
+    expect(await screen.findByRole("button", { name: text("ui.onboarding.start") })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: text("ui.onboarding.start") }));
     expect(
-      await screen.findByRole("heading", { name: text("ui.onboarding.welcome_title") }),
+      screen.getByRole("heading", { name: text("ui.onboarding.welcome_title") }),
     ).toBeInTheDocument();
     const call = fetchMock.mock.calls[0];
     expect(call).toBeDefined();

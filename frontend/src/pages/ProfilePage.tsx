@@ -9,6 +9,7 @@ import {
   type DraftPayload,
   type ProfileResponse,
 } from "../api/client";
+import { maskBirthDate } from "../birthDate";
 import { BackHome, Button, Field } from "../components/ui/controls";
 import { text } from "../resources";
 import { readWebApp } from "../telegram";
@@ -101,7 +102,10 @@ export function ProfilePage({ profile }: ProfilePageProps) {
         <Field
           label={text("ui.onboarding.date_title")}
           value={birthDate}
-          onChange={setBirthDate}
+          inputMode="numeric"
+          onChange={(value) => {
+            setBirthDate(maskBirthDate(value));
+          }}
           {...(fields.birth_date !== undefined ? { error: fields.birth_date } : {})}
         />
         <Field

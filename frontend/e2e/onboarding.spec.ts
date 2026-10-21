@@ -61,20 +61,81 @@ test("onboarding keeps the name, reports a bad date, and returns the sign", asyn
     };
   }, raw);
 
+  let releaseSession = () => {};
+  const sessionGate = new Promise<void>((resolve) => {
+    releaseSession = resolve;
+  });
+  await page.route("**/api/v1/session", async (route) => {
+    await sessionGate;
+    await route.continue();
+  });
+
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "добро пожаловать" })).toBeVisible();
+  const logo = page.getByRole("img", { name: "логотип starflow" });
+  const loadingWord = page.locator(".loading-word");
+  await expect(logo).toBeVisible();
+  await expect(loadingWord).toContainText("загрузка");
+  const logoBox = await logo.boundingBox();
+  const wordBox = await loadingWord.boundingBox();
+  expect(logoBox).not.toBeNull();
+  expect(wordBox).not.toBeNull();
+  expect(Math.abs(logoBox!.x + logoBox!.width / 2 - (wordBox!.x + wordBox!.width / 2))).toBeLessThan(6);
+  releaseSession();
+  const begin = page.getByRole("button", { name: "начать" });
+  const startLogo = page.getByRole("img", { name: "логотип starflow" });
+  const phrase = page.locator(".start-phrase");
+  await expect(begin).toBeVisible();
+  await expect(page.getByRole("heading", { name: "добро пожаловать" })).toHaveCount(0);
+  await expect(phrase).toBeVisible();
+  await expect(phrase).toHaveCSS("color", "rgb(184, 184, 184)");
+  const startMain = await page.locator("main").boundingBox();
+  const startLogoBox = await startLogo.boundingBox();
+  const beginBox = await begin.boundingBox();
+  const phraseBox = await phrase.boundingBox();
+  expect(startMain).not.toBeNull();
+  expect(startLogoBox).not.toBeNull();
+  expect(beginBox).not.toBeNull();
+  expect(phraseBox).not.toBeNull();
+  expect(startLogoBox!.y + startLogoBox!.height).toBeLessThanOrEqual(beginBox!.y);
+  expect(
+    Math.abs(beginBox!.x + beginBox!.width / 2 - (startMain!.x + startMain!.width / 2)),
+  ).toBeLessThan(8);
+  expect(phraseBox!.y).toBeGreaterThan(beginBox!.y + beginBox!.height);
+  expect(phraseBox!.y + phraseBox!.height).toBeGreaterThan(startMain!.y + startMain!.height - 96);
+  await begin.click();
+  const welcome = page.getByRole("heading", { name: "добро пожаловать" });
+  await expect(welcome).toBeVisible();
+  await expect(page.locator(".surface")).toHaveCount(0);
+  await expect(welcome).toHaveCSS("text-align", "left");
+  const welcomeBox = await page.locator(".onboarding-body").boundingBox();
+  const welcomeMain = await page.locator("main").boundingBox();
+  expect(welcomeBox).not.toBeNull();
+  expect(welcomeMain).not.toBeNull();
+  expect(
+    Math.abs(
+      welcomeBox!.y + welcomeBox!.height / 2 - (welcomeMain!.y + welcomeMain!.height / 2),
+    ),
+  ).toBeLessThan(80);
   await page.getByRole("button", { name: "далее" }).click();
-  await page.getByLabel("как к вам обращаться").fill("Мария");
+  await expect(page.getByRole("heading", { name: "как к вам обращаться?" })).toBeVisible();
+  await expect(page.getByText("как к вам обращаться", { exact: true })).toHaveCount(0);
+  await page.getByLabel("как к вам обращаться?").fill("Мария");
+  await expect(page.getByRole("button", { name: "отмена" })).toHaveCount(0);
   await page.getByRole("button", { name: "далее" }).click();
-  await page.getByLabel("дата рождения").fill("32.13.1990");
+  const birthDate = page.getByLabel("дата рождения");
+  await birthDate.pressSequentially("32131990");
+  await expect(birthDate).toHaveValue("32.13.1990");
   await page.getByRole("button", { name: "далее" }).click();
   await expect(page.getByRole("alert")).toContainText("дата в формате дд.мм.гггг");
+  await expect(page.getByRole("button", { name: "отмена" })).toHaveCount(0);
   await page.getByRole("button", { name: "назад" }).click();
-  await expect(page.getByLabel("как к вам обращаться")).toHaveValue("Мария");
+  await expect(page.getByLabel("как к вам обращаться?")).toHaveValue("Мария");
   await page.getByRole("button", { name: "далее" }).click();
-  await page.getByLabel("дата рождения").fill("02.01.1990");
+  await birthDate.pressSequentially("02011990");
+  await expect(birthDate).toHaveValue("02.01.1990");
   await page.getByRole("button", { name: "далее" }).click();
-  await page.getByRole("button", { name: "не знаю" }).click();
+  await expect(page.getByRole("button", { name: "не знаю" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "время рождения" })).toBeVisible();
   await page.getByRole("button", { name: "далее" }).click();
   const sign = page.getByRole("img", { name: "козерог" });
   const profile = page.getByRole("button", { name: "профиль" });
@@ -86,6 +147,17 @@ test("onboarding keeps the name, reports a bad date, and returns the sign", asyn
   expect(signBox).not.toBeNull();
   expect(profileBox).not.toBeNull();
   expect(signBox!.x + signBox!.width).toBeLessThanOrEqual(profileBox!.x + 4);
+  const plan = page.getByRole("img", { name: "бесплатная" });
+  const tray = page.locator(".profile-tray");
+  const planBox = await plan.boundingBox();
+  const trayBox = await tray.boundingBox();
+  const mainBox = await page.locator("main").boundingBox();
+  expect(planBox).not.toBeNull();
+  expect(trayBox).not.toBeNull();
+  expect(mainBox).not.toBeNull();
+  expect(profileBox!.x + profileBox!.width).toBeLessThanOrEqual(planBox!.x + 4);
+  expect(planBox!.x + planBox!.width).toBeLessThanOrEqual(trayBox!.x + trayBox!.width + 1);
+  expect(Math.abs(trayBox!.x + trayBox!.width / 2 - (mainBox!.x + mainBox!.width / 2))).toBeLessThan(8);
   await page.getByRole("button", { name: "карта" }).click();
   await expect(page.getByRole("heading", { name: "карта" })).toBeVisible();
   await expect(page.getByText("время рождения неизвестно")).toBeVisible();
@@ -120,4 +192,17 @@ test("onboarding keeps the name, reports a bad date, and returns the sign", asyn
   await page.mouse.move(150, 424, { steps: 12 });
   await page.mouse.up();
   await expect(page.getByRole("button", { name: "карта" })).toBeVisible();
+  await page.getByRole("button", { name: "сегодня" }).click();
+  await expect(page.getByRole("heading", { name: "сегодня" })).toBeVisible();
+  await expect(page.getByText("показан запасной текст")).toBeVisible();
+  const fallback = page.getByText(
+    "сегодняшний фон спокойный. это развлекательный набросок, не обещание события.",
+  );
+  await expect(fallback).toBeVisible();
+  await expect(fallback).toHaveText(
+    "сегодняшний фон спокойный. это развлекательный набросок, не обещание события.",
+  );
+  await expect(fallback).toHaveCSS("text-transform", "none");
+  await expect(page.locator("body")).not.toContainText("TESTTOKEN");
+  await expect(page.locator("body")).not.toContainText("initData");
 });

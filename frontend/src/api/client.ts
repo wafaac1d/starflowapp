@@ -157,6 +157,137 @@ export async function deleteProfile(fetchImpl: typeof fetch = fetch): Promise<vo
   await requestJson<unknown>("/api/v1/profile", { method: "DELETE" }, fetchImpl);
 }
 
+export type ReadingResponse = {
+  status: string;
+  title: string | null;
+  body: string | null;
+  greeting: string | null;
+  user_sign: string | null;
+  shared_facts: string | null;
+  history_id: string | null;
+  streak: number | null;
+  replayed: boolean;
+  reset_at: string | null;
+};
+
+export type HistoryEntry = {
+  history_id: string;
+  kind: string;
+  period_date: string;
+  title: string;
+};
+
+export type FavoriteEntry = {
+  history_id: string;
+  title: string;
+};
+
+export type RelatedEntry = {
+  related_id: string;
+  display_name: string;
+  birth_date: string | null;
+};
+
+export type ReferralResponse = {
+  code: string;
+  link: string;
+};
+
+export async function startReading(
+  kind: string,
+  idempotencyKey: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ReadingResponse> {
+  return requestJson<ReadingResponse>(
+    `/api/v1/readings/${kind}`,
+    { method: "POST", headers: { "Idempotency-Key": idempotencyKey } },
+    fetchImpl,
+  );
+}
+
+export async function getReading(
+  kind: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ReadingResponse> {
+  return requestJson<ReadingResponse>(`/api/v1/readings/${kind}`, { method: "GET" }, fetchImpl);
+}
+
+export async function sendFeedback(
+  historyId: string,
+  score: number,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  await requestJson<unknown>(
+    `/api/v1/readings/${historyId}/feedback`,
+    { method: "POST", body: JSON.stringify({ score }) },
+    fetchImpl,
+  );
+}
+
+export async function getShare(historyId: string, fetchImpl: typeof fetch = fetch): Promise<string> {
+  const payload = await requestJson<{ text: string }>(
+    `/api/v1/share/${historyId}`,
+    { method: "GET" },
+    fetchImpl,
+  );
+  return payload.text;
+}
+
+export async function getHistory(fetchImpl: typeof fetch = fetch): Promise<HistoryEntry[]> {
+  return requestJson<HistoryEntry[]>("/api/v1/history", { method: "GET" }, fetchImpl);
+}
+
+export async function getFavorites(fetchImpl: typeof fetch = fetch): Promise<FavoriteEntry[]> {
+  return requestJson<FavoriteEntry[]>("/api/v1/favorites", { method: "GET" }, fetchImpl);
+}
+
+export async function saveFavorite(
+  historyId: string,
+  idempotencyKey: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  await requestJson<unknown>(
+    "/api/v1/favorites",
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ target_id: historyId }),
+    },
+    fetchImpl,
+  );
+}
+
+export async function getRelated(fetchImpl: typeof fetch = fetch): Promise<RelatedEntry[]> {
+  return requestJson<RelatedEntry[]>("/api/v1/related", { method: "GET" }, fetchImpl);
+}
+
+export async function addRelated(
+  displayName: string,
+  birthDate: string,
+  idempotencyKey: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<RelatedEntry> {
+  return requestJson<RelatedEntry>(
+    "/api/v1/related",
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ display_name: displayName, birth_date: birthDate }),
+    },
+    fetchImpl,
+  );
+}
+
+export async function getReferral(fetchImpl: typeof fetch = fetch): Promise<ReferralResponse> {
+  return requestJson<ReferralResponse>("/api/v1/referral", { method: "GET" }, fetchImpl);
+}
+
+export function readingKey(): string {
+  const stamp = Date.now().toString(36);
+  const salt = Math.random().toString(36).slice(2, 12);
+  return `read${stamp}${salt}`;
+}
+
 async function requestJson<T>(
   path: string,
   init: RequestInit,
