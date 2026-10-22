@@ -20,7 +20,7 @@
 | Данные | `src/starflow/db`, `src/starflow/repositories` | SQLAlchemy, unit of work, запросы |
 | Внешние порты | `src/starflow/ai`, `src/starflow/astro`, `src/starflow/cache` | DeepSeek, чистая астрометрия, память процесса |
 | Тексты | `resources/texts/ru`, `resources/prompts`, `src/starflow/i18n` | Копирайт, промпты, загрузка |
-| Тарифы | `resources/plans.yaml` | Цены, длительности, лимиты |
+| Тарифы | `resources/plans.yaml` | Длительности и лимиты. Цена Stars — `PREMIUM_PRICE_STARS` |
 
 Frontend живёт в `frontend/` и в рантайме является набором статических файлов. Отдельного frontend-сервиса нет.
 

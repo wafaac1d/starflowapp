@@ -25,6 +25,7 @@ from starflow.domain.segments import facts_text
 from starflow.domain.time import now_utc
 from starflow.i18n.catalog import Catalog
 from starflow.i18n.guard import contains_emoji
+from starflow.logging import get_logger
 from starflow.repositories.sql import (
     AiRequestRepository,
     AssistantMessageRepository,
@@ -33,6 +34,7 @@ from starflow.repositories.sql import (
 from starflow.services.chart import ChartView
 from starflow.services.quota import QuotaStore, ResultWriter, StoredResult
 
+_LOG = get_logger("assistant")
 _REPAIR = "прошлый ответ не подошёл. верни один json-объект с полем reply, строчным и без emoji."
 
 
@@ -268,7 +270,10 @@ class AssistantService:
             await self._log(user_id, "error", None, type(exc).__name__)
             return None
         await self._log(user_id, "ok", reply, None)
-        return _parse_reply(reply.content)
+        parsed = _parse_reply(reply.content)
+        if parsed is None:
+            _LOG.warning("model_reply_rejected", kind="assistant", model=self._model_name)
+        return parsed
 
     async def _log(
         self,

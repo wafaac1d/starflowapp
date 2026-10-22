@@ -12,6 +12,10 @@ from openai.types.chat import ChatCompletion, ChatCompletionMessageParam
 
 from starflow.ai.prompts import PromptLibrary
 from starflow.config import Settings
+from starflow.i18n.guard import scrub_text
+from starflow.logging import get_logger
+
+_LOG = get_logger("ai")
 
 
 class CircuitOpen(RuntimeError):
@@ -120,7 +124,7 @@ class DeepSeekClient:
                 json_mode=json_mode,
             )
 
-        response = await self._run(call)
+        response = await self._run(call, model)
         return self._reply(response, started)
 
     async def complete_messages(
@@ -154,7 +158,7 @@ class DeepSeekClient:
                 json_mode=json_mode,
             )
 
-        response = await self._run(call)
+        response = await self._run(call, model)
         return self._reply(response, started)
 
     async def _create(
@@ -198,9 +202,15 @@ class DeepSeekClient:
             latency_ms=int((time.monotonic() - started) * 1000),
         )
 
-    async def _run(self, call: Callable[[], Awaitable[ChatCompletion]]) -> ChatCompletion:
+    async def _run(
+        self,
+        call: Callable[[], Awaitable[ChatCompletion]],
+        model: str,
+    ) -> ChatCompletion:
         if not self._breaker.allow():
-            raise CircuitOpen("circuit is open")
+            error = CircuitOpen("circuit is open")
+            _log_failure(model, error)
+            raise error
         delay = 0.2
         last: BaseException | None = None
         for attempt in range(self._attempts):
@@ -210,6 +220,7 @@ class DeepSeekClient:
                 last = exc
                 if not _retryable(exc) or attempt + 1 == self._attempts:
                     self._breaker.failure()
+                    _log_failure(model, exc)
                     raise
                 await self._sleep(delay + random.uniform(0, delay))
                 delay *= 2
@@ -217,8 +228,29 @@ class DeepSeekClient:
             self._breaker.success()
             return response
         if last is not None:
+            _log_failure(model, last)
             raise last
-        raise RuntimeError("model call did not run")
+        missed = RuntimeError("model call did not run")
+        _log_failure(model, missed)
+        raise missed
+
+
+def _log_failure(model: str, exc: BaseException) -> None:
+    status = getattr(exc, "status_code", None)
+    _LOG.warning(
+        "model_call_failed",
+        model=model,
+        error_type=type(exc).__name__,
+        status_code=status if isinstance(status, int) else None,
+        detail=_detail(exc),
+    )
+
+
+def _detail(exc: BaseException) -> str:
+    text = scrub_text(str(exc)).replace("\n", " ").strip()
+    if len(text) > 180:
+        return text[:180]
+    return text
 
 
 def _retryable(exc: BaseException) -> bool:

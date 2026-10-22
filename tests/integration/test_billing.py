@@ -43,13 +43,14 @@ class FakeStars:
         self.refunds: list[tuple[int, str]] = []
         self.fail_edit = False
         self.delay = 0.0
+        self.allowed_amount = 250
 
     async def create_invoice_link(self, draft: InvoiceDraft) -> str:
         if self.delay:
             await asyncio.sleep(self.delay)
         if draft.subscription_period not in (None, 2592000):
             raise AssertionError(draft.subscription_period)
-        if draft.amount != 250:
+        if draft.amount != self.allowed_amount:
             raise AssertionError(draft.amount)
         self.drafts.append(draft)
         return f"https://t.me/invoice/{len(self.drafts)}"
@@ -139,11 +140,12 @@ def _service(
     factory: async_sessionmaker[AsyncSession],
     gateway: FakeStars,
     clock: Clock,
+    price: int = 250,
 ) -> BillingService:
     return BillingService(
         lambda: SqlUnitOfWork(factory),
         gateway,
-        load_plans(ROOT / "resources" / "plans.yaml", price_stars=250),
+        load_plans(ROOT / "resources" / "plans.yaml", price_stars=price),
         "p" * 32,
         load_catalog(ROOT / "resources", "ru", MemoryCache(4)),
         "https://app.example",
@@ -250,6 +252,28 @@ async def test_checkout_payment_and_ignored_client_status(
     assert cancelled.subscription_state == "cancel_scheduled"
     await service.set_canceled(user.id, False)
     assert gateway.edits[-1] == (user.telegram_id, "charge-1", False)
+
+
+@pytest.mark.asyncio
+async def test_open_invoice_takes_the_current_price(
+    factory: async_sessionmaker[AsyncSession],
+) -> None:
+    clock = Clock(datetime(2026, 10, 21, 12, tzinfo=UTC))
+    gateway = FakeStars()
+    user = await _user(factory)
+    first = _service(factory, gateway, clock)
+    await first.create_invoice(user.id, "subscription", "idem-price-01")
+    assert gateway.drafts[-1].amount == 250
+    gateway.allowed_amount = 90
+    second = _service(factory, gateway, clock, price=90)
+    view = await second.create_invoice(user.id, "subscription", "idem-price-01")
+    assert gateway.drafts[-1].amount == 90
+    assert len(gateway.drafts) == 2
+    assert view.price_stars == 90
+    payload = gateway.drafts[-1].payload
+    await second.pre_checkout("old-amount", user.telegram_id, "XTR", 250, payload)
+    await second.pre_checkout("current", user.telegram_id, "XTR", 90, payload)
+    assert [item[1] for item in gateway.answers] == [False, True]
 
 
 @pytest.mark.asyncio

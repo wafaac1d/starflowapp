@@ -45,6 +45,7 @@ from starflow.domain.segments import (
 )
 from starflow.domain.time import local_date, now_utc
 from starflow.i18n.catalog import Catalog
+from starflow.logging import get_logger
 from starflow.repositories.protocols import UserRepository
 from starflow.repositories.sql import (
     AiRequestRepository,
@@ -71,6 +72,7 @@ _PREMIUM = frozenset(
     }
 )
 _KINDS = _OPEN | _PREMIUM
+_LOG = get_logger("forecast")
 _REPAIR = (
     "прошлый ответ не подошёл. верни один json-объект со строчными полями title и body, "
     "без emoji и без html."
@@ -387,6 +389,7 @@ class ForecastService:
         if parsed is None:
             parsed = await self._ask(user_id, kind, model_name, prompt.system, _REPAIR, prompt)
         if parsed is None:
+            _LOG.warning("reading_uses_fallback", kind=kind, model=model_name)
             return {
                 "title": self._catalog.text(f"ui.reading.{kind}"),
                 "body": self._catalog.text(f"ui.reading.fallback_{kind}"),
@@ -422,7 +425,10 @@ class ForecastService:
             await self._log(user_id, model_name, kind, "error", None, type(exc).__name__)
             return None
         await self._log(user_id, reply.model or model_name, kind, "ok", reply, None)
-        return _parse_reply(reply.content)
+        parsed = _parse_reply(reply.content)
+        if parsed is None:
+            _LOG.warning("model_reply_rejected", kind=kind, model=reply.model or model_name)
+        return parsed
 
     async def _improve(
         self,
@@ -832,6 +838,7 @@ class ForecastService:
             )
             accepted = None if parsed is None else accept_calendar(year, month, parsed)
         if accepted is None:
+            _LOG.warning("reading_uses_fallback", kind="calendar", model=model_name)
             return {
                 "title": self._catalog.text("ui.reading.calendar"),
                 "body": self._catalog.text("ui.reading.fallback_calendar"),
@@ -875,6 +882,7 @@ class ForecastService:
         try:
             return cast(object, json.loads(reply.content))
         except json.JSONDecodeError:
+            _LOG.warning("model_reply_rejected", kind=kind, model=reply.model or model_name)
             return None
 
     async def _natal_signs(self, user_id: UUID) -> tuple[str | None, str | None]:

@@ -230,6 +230,20 @@ class BillingRepository:
         row.updated_at = now
         await self._session.flush()
 
+    async def replace_open_price(self, order_id: UUID, amount: int, now: datetime) -> bool:
+        row = await self._session.get(OrderRow, order_id)
+        if row is None or row.status not in {"link_pending", "open", "link_failed"}:
+            return False
+        if row.amount_stars == amount:
+            return False
+        row.amount_stars = amount
+        row.invoice_link = None
+        row.status = "link_pending"
+        row.sync_state = "idle"
+        row.updated_at = now
+        await self._session.flush()
+        return True
+
     async def mark_link_failed(self, order_id: UUID, now: datetime) -> None:
         row = await self._session.get(OrderRow, order_id)
         if row is None:

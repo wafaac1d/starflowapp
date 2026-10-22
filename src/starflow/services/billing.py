@@ -118,6 +118,14 @@ class BillingService:
             reusable = keyed
             if reusable is None and kind == "subscription":
                 reusable = await uow.billing.latest_unpaid(user_id, kind)
+            price = self._plans.premium.price_stars
+            if reusable is not None and reusable.amount_stars != price:
+                fresh_claim = now - timedelta(seconds=LINK_CLAIM_SEC)
+                busy = reusable.sync_state == "creating_link" and reusable.updated_at > fresh_claim
+                if not busy and await uow.billing.replace_open_price(reusable.id, price, now):
+                    refreshed = await uow.billing.get_order(reusable.id)
+                    if refreshed is not None:
+                        reusable = refreshed
             if reusable is not None and reusable.invoice_link:
                 return await self._view(uow, user_id, now)
             fresh = now - timedelta(seconds=LINK_CLAIM_SEC)

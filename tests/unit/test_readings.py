@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx2 as httpx
 import pytest
+import structlog
 from openai import APIStatusError
 
 from starflow.ai.client import CircuitOpen, DeepSeekClient
@@ -185,6 +186,34 @@ async def test_circuit_opens_after_five_failed_series() -> None:
         )
     await client.aclose()
     assert calls == 5
+
+
+@pytest.mark.asyncio
+async def test_failed_model_call_is_logged() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, json={"error": {"message": "model not found"}})
+
+    client = DeepSeekClient(
+        make_settings(deepseek_max_retries=0),
+        http_client=httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+        sleep=_asleep,
+    )
+    with structlog.testing.capture_logs() as logs, pytest.raises(APIStatusError):
+        await client.complete_forecast(
+            model="deepseek-flash",
+            system="system",
+            user="user",
+            temperature=0.2,
+            max_tokens=32,
+            json_mode=True,
+        )
+    await client.aclose()
+    failed = [item for item in logs if item.get("event") == "model_call_failed"]
+    assert len(failed) == 1
+    assert failed[0]["error_type"] == "BadRequestError"
+    assert failed[0]["status_code"] == 400
+    assert "model not found" in str(failed[0]["detail"])
+    assert "user" not in str(failed[0]["detail"])
 
 
 async def _asleep(_delay: float) -> None:
