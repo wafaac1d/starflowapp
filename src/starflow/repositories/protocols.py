@@ -28,6 +28,8 @@ class UserRepository(Protocol):
 
     async def lock(self, user_id: UUID) -> None: ...
 
+    async def mark_blocked(self, telegram_id: int) -> None: ...
+
 
 class OutboxRepository(Protocol):
     async def enqueue(
@@ -37,13 +39,22 @@ class OutboxRepository(Protocol):
         text_key: str,
         local_date: date,
         scheduled_for: datetime,
+        event_key: str | None = None,
+        page: str = "",
+        planet: str = "",
     ) -> UUID: ...
 
-    async def claim_due(self, now: datetime, limit: int = 20) -> list[OutboxJob]: ...
+    async def claim_due(self, now: datetime, limit: int = 25) -> list[OutboxJob]: ...
 
     async def mark_sent(self, outbox_id: UUID, sent_at: datetime) -> None: ...
 
-    async def mark_failed(self, outbox_id: UUID, error_name: str, failed_at: datetime) -> None: ...
+    async def mark_failed(
+        self,
+        outbox_id: UUID,
+        error_name: str,
+        failed_at: datetime,
+        retry_at: datetime | None = None,
+    ) -> None: ...
 
 
 class UnitOfWork(Protocol):

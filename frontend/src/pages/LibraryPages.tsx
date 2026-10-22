@@ -4,6 +4,8 @@ import { useNavigate } from "react-router";
 
 import {
   addRelated,
+  allowRelated,
+  deleteRelated,
   getFavorites,
   getHistory,
   getReferral,
@@ -59,12 +61,14 @@ export function RelatedPage({ fetchImpl = fetch }: FetchProps) {
   const client = useQueryClient();
   const [name, setName] = useState("");
   const [born, setBorn] = useState("");
+  const [consent, setConsent] = useState(false);
   const related = useQuery({ queryKey: ["related"], queryFn: () => getRelated(fetchImpl) });
   const add = useMutation({
-    mutationFn: () => addRelated(name, born, readingKey(), fetchImpl),
+    mutationFn: () => addRelated(name, born, readingKey(), fetchImpl, consent),
     onSuccess: async () => {
       setName("");
       setBorn("");
+      setConsent(false);
       await client.invalidateQueries({ queryKey: ["related"] });
     },
   });
@@ -83,15 +87,56 @@ export function RelatedPage({ fetchImpl = fetch }: FetchProps) {
         <EmptyState title={text("ui.empty.related")} />
       ) : null}
       {related.data?.map((item) => (
-        <p key={item.related_id}>
-          {item.display_name}
-          {item.birth_date === null ? "" : ` · ${item.birth_date}`}
-        </p>
+        <div key={item.related_id}>
+          <p>
+            {item.display_name}
+            {item.birth_date === null ? "" : ` · ${item.birth_date}`}
+          </p>
+          {item.consent ? (
+            <Button
+              tone="outline"
+              label={text("ui.reading.synastry")}
+              onClick={() => {
+                void navigate(`/reading/synastry?related_id=${item.related_id}`);
+              }}
+            />
+          ) : (
+            <Button
+              tone="outline"
+              label={text("ui.synastry.allow")}
+              onClick={() => {
+                void allowRelated(item.related_id, fetchImpl).then(() =>
+                  client.invalidateQueries({ queryKey: ["related"] }),
+                );
+              }}
+            />
+          )}
+          <Button
+            tone="danger"
+            label={text("ui.synastry.remove")}
+            onClick={() => {
+              void deleteRelated(item.related_id, fetchImpl).then(() =>
+                client.invalidateQueries({ queryKey: ["related"] }),
+              );
+            }}
+          />
+        </div>
       ))}
       <Field label={text("ui.onboarding.name_title")} value={name} onChange={setName} />
       <Field label={text("ui.onboarding.date_title")} value={born} onChange={setBorn} />
+      <label className="consent-row">
+        <input
+          type="checkbox"
+          checked={consent}
+          onChange={(event) => {
+            setConsent(event.target.checked);
+          }}
+        />
+        {text("ui.synastry.consent")}
+      </label>
       <Button
         label={text("ui.reading.add_related")}
+        disabled={!consent || name.trim() === "" || born.trim() === ""}
         onClick={() => {
           add.mutate();
         }}

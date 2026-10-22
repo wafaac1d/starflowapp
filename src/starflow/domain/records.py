@@ -67,10 +67,43 @@ class PaymentCharge:
 
 
 @dataclass(frozen=True)
+class ModelUsage:
+    model: str
+    calls: int
+    prompt_tokens: int
+    completion_tokens: int
+    errors: int
+    latency_p50_ms: int | None
+
+
+@dataclass(frozen=True)
+class FeedbackCount:
+    forecast_type: str
+    prompt_version: str
+    count: int
+
+
+@dataclass(frozen=True)
+class AdminSnapshot:
+    active_users: int
+    open_accounts: int
+    payments: int
+    stars: int
+    refunds: int
+    sources: tuple[tuple[str, int], ...]
+    models: tuple[ModelUsage, ...]
+    cache_rows: int
+    cache_hits: int
+    feedback: tuple[FeedbackCount, ...]
+
+
+@dataclass(frozen=True)
 class OutboxJob:
     id: UUID
     telegram_id: int
     text_key: str
+    page: str = ""
+    planet: str = ""
 
 
 @dataclass(frozen=True)
@@ -90,6 +123,19 @@ class RelatedBirth:
     id: UUID
     display_name: str
     birth_date: date | None
+    consent: bool = False
+
+
+@dataclass(frozen=True)
+class RelatedProfile:
+    id: UUID
+    display_name: str
+    birth_date: date | None
+    birth_time_unknown: bool
+    birth_place: str | None
+    latitude: Decimal | None
+    longitude: Decimal | None
+    consent: bool
 
 
 @dataclass(frozen=True)

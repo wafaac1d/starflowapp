@@ -3,7 +3,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import and_, delete, func, or_, select, text
+from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,9 +32,13 @@ from starflow.db.tables import (
 )
 from starflow.domain.entitlement import Grant, access_end
 from starflow.domain.errors import Conflict, QuotaExceeded
+from starflow.domain.notify_clock import LEASE
 from starflow.domain.profile import ensure_birth_time
 from starflow.domain.records import (
+    AdminSnapshot,
+    FeedbackCount,
     IdempotencyRecord,
+    ModelUsage,
     Order,
     OutboxJob,
     PaymentCharge,
@@ -42,9 +46,21 @@ from starflow.domain.records import (
     Profile,
     ProfileDraft,
     RelatedBirth,
+    RelatedProfile,
     UsageCounter,
     User,
 )
+from starflow.domain.retention import (
+    AI_DAYS,
+    ASSISTANT_DAYS,
+    CACHE_DAYS,
+    GEOCODE_DAYS,
+    HISTORY_DAYS,
+    IDEMPOTENCY_DAYS,
+    OUTBOX_DAYS,
+    cutoff,
+)
+from starflow.domain.streak import next_streak
 from starflow.domain.time import now_utc
 
 
@@ -145,10 +161,35 @@ class SqlUserRepository:
         return True
 
     async def delete(self, user_id: UUID) -> None:
+        charges = await self._session.execute(
+            select(PaymentChargeRow).where(PaymentChargeRow.user_id == user_id)
+        )
+        for charge in charges.scalars():
+            charge.provider_payload = {
+                "currency": charge.currency,
+                "amount_stars": charge.amount_stars,
+            }
+        orders = await self._session.execute(select(OrderRow).where(OrderRow.user_id == user_id))
+        for order in orders.scalars():
+            order.invoice_link = None
+        await self._session.flush()
         row = await self._session.get(UserRow, user_id)
         if row is None:
             return
+        row.username = None
+        row.pending_start_param = None
         await self._session.delete(row)
+        await self._session.flush()
+
+    async def mark_blocked(self, telegram_id: int) -> None:
+        result = await self._session.execute(
+            select(UserRow).where(UserRow.telegram_id == telegram_id)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return
+        row.is_blocked = True
+        row.updated_at = now_utc()
         await self._session.flush()
 
 
@@ -248,13 +289,7 @@ class ProfileRepository:
 
     async def touch_streak(self, user_id: UUID, today: date) -> int:
         row = await self._row(user_id)
-        last = row.streak_last_date
-        if last == today:
-            return row.streak_count
-        if last is not None and last == today - timedelta(days=1):
-            row.streak_count += 1
-        else:
-            row.streak_count = 1
+        row.streak_count = next_streak(row.streak_last_date, today, row.streak_count)
         row.streak_last_date = today
         row.updated_at = now_utc()
         await self._session.flush()
@@ -274,12 +309,13 @@ class RelatedProfileRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def add(self, owner_user_id: UUID, draft: ProfileDraft) -> UUID:
+    async def add(self, owner_user_id: UUID, draft: ProfileDraft, *, consent: bool = False) -> UUID:
         ensure_birth_time(draft.birth_time, draft.birth_time_unknown)
         row = RelatedProfileRow(
             owner_user_id=owner_user_id,
             display_name=draft.display_name,
             timezone=draft.timezone,
+            consent=consent,
         )
         _apply_related(row, draft)
         await _save(self._session, row)
@@ -298,9 +334,45 @@ class RelatedProfileRepository:
             select(RelatedProfileRow).where(RelatedProfileRow.owner_user_id == owner_user_id)
         )
         return tuple(
-            RelatedBirth(id=row.id, display_name=row.display_name, birth_date=row.birth_date)
+            RelatedBirth(
+                id=row.id,
+                display_name=row.display_name,
+                birth_date=row.birth_date,
+                consent=row.consent,
+            )
             for row in result.scalars()
         )
+
+    async def get_owned(self, owner_user_id: UUID, related_id: UUID) -> RelatedProfile | None:
+        row = await self._session.get(RelatedProfileRow, related_id)
+        if row is None or row.owner_user_id != owner_user_id:
+            return None
+        return RelatedProfile(
+            id=row.id,
+            display_name=row.display_name,
+            birth_date=row.birth_date,
+            birth_time_unknown=row.birth_time_unknown,
+            birth_place=row.birth_place,
+            latitude=row.latitude,
+            longitude=row.longitude,
+            consent=row.consent,
+        )
+
+    async def set_consent(self, owner_user_id: UUID, related_id: UUID, consent: bool) -> bool:
+        row = await self._session.get(RelatedProfileRow, related_id)
+        if row is None or row.owner_user_id != owner_user_id:
+            return False
+        row.consent = consent
+        await self._session.flush()
+        return True
+
+    async def delete_owned(self, owner_user_id: UUID, related_id: UUID) -> bool:
+        row = await self._session.get(RelatedProfileRow, related_id)
+        if row is None or row.owner_user_id != owner_user_id:
+            return False
+        await self._session.delete(row)
+        await self._session.flush()
+        return True
 
 
 class SubscriptionRepository:
@@ -349,6 +421,13 @@ class SubscriptionRepository:
     async def has_active(self, user_id: UUID, now: datetime) -> bool:
         grants = await self.list_for_user(user_id)
         return access_end(grants, now) is not None
+
+    async def premium_user_ids(self, now: datetime) -> set[UUID]:
+        result = await self._session.execute(select(SubscriptionRow))
+        grouped: dict[UUID, list[Grant]] = {}
+        for row in result.scalars():
+            grouped.setdefault(row.user_id, []).append(_grant(row))
+        return {user_id for user_id, grants in grouped.items() if access_end(tuple(grants), now)}
 
 
 class SubscriptionEventRepository:
@@ -559,6 +638,13 @@ class ForecastCacheRepository:
         await _save(self._session, row)
         return row.id
 
+    async def peek(self, cache_key: str, now: datetime) -> bool:
+        result = await self._session.execute(
+            select(ForecastCacheRow.valid_until).where(ForecastCacheRow.cache_key == cache_key)
+        )
+        until = result.scalar_one_or_none()
+        return until is not None and until > now
+
     async def get(self, cache_key: str) -> dict[str, object] | None:
         result = await self._session.execute(
             select(ForecastCacheRow).where(ForecastCacheRow.cache_key == cache_key)
@@ -759,6 +845,56 @@ class NotificationSettingsRepository:
         row.updated_at = now_utc()
         await self._session.flush()
 
+    async def save_preferences(
+        self,
+        user_id: UUID,
+        local_time: time,
+        timezone: str,
+        *,
+        day: bool,
+        moon: bool,
+        retro: bool,
+    ) -> None:
+        row = await self._session.get(NotificationSettingsRow, user_id)
+        enabled = day or moon or retro
+        if row is None:
+            await _save(
+                self._session,
+                NotificationSettingsRow(
+                    user_id=user_id,
+                    digest_enabled=enabled,
+                    digest_local_time=local_time,
+                    timezone=timezone,
+                    day_enabled=day,
+                    moon_enabled=moon,
+                    retro_enabled=retro,
+                ),
+            )
+            return
+        row.digest_enabled = enabled
+        row.digest_local_time = local_time
+        row.timezone = timezone
+        row.day_enabled = day
+        row.moon_enabled = moon
+        row.retro_enabled = retro
+        row.updated_at = now_utc()
+        await self._session.flush()
+
+    async def read(self, user_id: UUID) -> NotificationSettingsRow | None:
+        return await self._session.get(NotificationSettingsRow, user_id)
+
+    async def enabled(self) -> list[NotificationSettingsRow]:
+        result = await self._session.execute(
+            select(NotificationSettingsRow).where(
+                or_(
+                    NotificationSettingsRow.day_enabled.is_(True),
+                    NotificationSettingsRow.moon_enabled.is_(True),
+                    NotificationSettingsRow.retro_enabled.is_(True),
+                )
+            )
+        )
+        return list(result.scalars())
+
 
 class AssistantMessageRepository:
     def __init__(self, session: AsyncSession) -> None:
@@ -783,6 +919,25 @@ class AssistantMessageRepository:
     async def owned(self, user_id: UUID, message_id: UUID) -> bool:
         row = await self._session.get(AssistantMessageRow, message_id)
         return row is not None and row.user_id == user_id
+
+    async def recent(
+        self,
+        user_id: UUID,
+        limit: int,
+        before: datetime | None,
+    ) -> tuple[tuple[UUID, datetime, str, str], ...]:
+        statement = (
+            select(AssistantMessageRow)
+            .where(AssistantMessageRow.user_id == user_id)
+            .order_by(AssistantMessageRow.created_at.desc())
+            .limit(limit)
+        )
+        if before is not None:
+            statement = statement.where(AssistantMessageRow.created_at < before)
+        result = await self._session.execute(statement)
+        rows = list(result.scalars())
+        rows.reverse()
+        return tuple((row.id, row.created_at, row.role, row.content) for row in rows)
 
 
 class ForecastFeedbackRepository:
@@ -1061,11 +1216,15 @@ class SqlOutboxRepository:
         text_key: str,
         local_date: date,
         scheduled_for: datetime,
+        event_key: str | None = None,
+        page: str = "",
+        planet: str = "",
     ) -> UUID:
         row = NotificationOutboxRow(
             user_id=user_id,
             kind=kind,
-            payload={"text_key": text_key},
+            event_key=event_key or local_date.isoformat(),
+            payload={"text_key": text_key, "page": page, "planet": planet},
             local_date=local_date,
             status="pending",
             attempts=0,
@@ -1074,39 +1233,66 @@ class SqlOutboxRepository:
         await _save(self._session, row)
         return row.id
 
-    async def claim_due(self, now: datetime, limit: int = 20) -> list[OutboxJob]:
-        stale_before = now - timedelta(minutes=5)
-        statement = (
-            select(NotificationOutboxRow, UserRow.telegram_id)
-            .join(UserRow, UserRow.id == NotificationOutboxRow.user_id)
-            .where(
-                or_(
-                    and_(
-                        NotificationOutboxRow.status == "pending",
-                        NotificationOutboxRow.scheduled_for <= now,
-                    ),
-                    and_(
-                        NotificationOutboxRow.status == "sending",
-                        NotificationOutboxRow.updated_at <= stale_before,
-                    ),
+    async def claim_due(self, now: datetime, limit: int = 25) -> list[OutboxJob]:
+        stale = now - timedelta(minutes=5)
+        statement = text(
+            """
+            UPDATE notification_outbox AS o
+            SET status = 'reserved',
+                leased_until = :lease,
+                attempts = o.attempts + 1,
+                updated_at = :now
+            FROM users AS u
+            WHERE u.id = o.user_id
+              AND o.id IN (
+                SELECT o2.id
+                FROM notification_outbox AS o2
+                JOIN users AS u2 ON u2.id = o2.user_id
+                WHERE u2.is_blocked = false
+                  AND u2.deleted_at IS NULL
+                  AND (
+                    (o2.status = 'pending' AND o2.scheduled_for <= :now)
+                    OR (
+                      o2.status IN ('reserved', 'sending')
+                      AND o2.leased_until IS NOT NULL
+                      AND o2.leased_until <= :now
+                    )
+                    OR (
+                      o2.status = 'sending'
+                      AND o2.leased_until IS NULL
+                      AND o2.updated_at <= :stale
+                    )
+                  )
+                ORDER BY o2.scheduled_for
+                LIMIT :limit
+                FOR UPDATE OF o2 SKIP LOCKED
+              )
+            RETURNING o.id, u.telegram_id, o.payload
+            """
+        )
+        rows = await self._session.execute(
+            statement,
+            {"now": now, "lease": now + LEASE, "stale": stale, "limit": limit},
+        )
+        jobs: list[OutboxJob] = []
+        for item in rows.mappings():
+            payload = item["payload"]
+            if not isinstance(payload, dict):
+                continue
+            text_key = payload.get("text_key")
+            page = payload.get("page")
+            planet = payload.get("planet")
+            if not isinstance(text_key, str) or text_key == "":
+                continue
+            jobs.append(
+                OutboxJob(
+                    id=item["id"],
+                    telegram_id=int(item["telegram_id"]),
+                    text_key=text_key,
+                    page=page if isinstance(page, str) else "",
+                    planet=planet if isinstance(planet, str) else "",
                 )
             )
-            .order_by(NotificationOutboxRow.scheduled_for)
-            .limit(limit)
-            .with_for_update(skip_locked=True)
-        )
-        rows = await self._session.execute(statement)
-        jobs: list[OutboxJob] = []
-        for outbox, telegram_id in rows.all():
-            text_key = outbox.payload.get("text_key")
-            outbox.updated_at = now
-            outbox.attempts += 1
-            if not isinstance(text_key, str) or not text_key:
-                outbox.status = "failed"
-                outbox.last_error = "missing text_key"
-                continue
-            outbox.status = "sending"
-            jobs.append(OutboxJob(id=outbox.id, telegram_id=int(telegram_id), text_key=text_key))
         await self._session.flush()
         return jobs
 
@@ -1114,20 +1300,166 @@ class SqlOutboxRepository:
         row = await self._session.get(NotificationOutboxRow, outbox_id)
         if row is None:
             raise Conflict("outbox row is missing")
+        if row.status == "sent":
+            return
         row.status = "sent"
         row.sent_at = sent_at
+        row.leased_until = None
         row.updated_at = sent_at
         row.last_error = None
         await self._session.flush()
 
-    async def mark_failed(self, outbox_id: UUID, error_name: str, failed_at: datetime) -> None:
+    async def mark_failed(
+        self,
+        outbox_id: UUID,
+        error_name: str,
+        failed_at: datetime,
+        retry_at: datetime | None = None,
+    ) -> None:
         row = await self._session.get(NotificationOutboxRow, outbox_id)
         if row is None:
             raise Conflict("outbox row is missing")
-        row.status = "pending" if row.attempts < 5 else "failed"
+        if row.status == "sent":
+            return
+        terminal = error_name == "DeliveryBlocked" or (retry_at is None and row.attempts >= 5)
+        row.status = "failed" if terminal else "pending"
+        if not terminal:
+            row.scheduled_for = retry_at or (failed_at + timedelta(seconds=30 * row.attempts))
+        row.leased_until = None
         row.last_error = error_name[:200]
         row.updated_at = failed_at
+        row.sent_at = None
         await self._session.flush()
+
+
+class OpsRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def purge(self, now: datetime) -> None:
+        await self._session.execute(
+            delete(ForecastCacheRow).where(ForecastCacheRow.valid_until < cutoff(now, CACHE_DAYS))
+        )
+        await self._session.execute(
+            delete(ForecastHistoryRow).where(
+                ForecastHistoryRow.created_at < cutoff(now, HISTORY_DAYS)
+            )
+        )
+        await self._session.execute(
+            delete(AiRequestRow).where(AiRequestRow.created_at < cutoff(now, AI_DAYS))
+        )
+        await self._session.execute(
+            delete(NotificationOutboxRow).where(
+                NotificationOutboxRow.status.in_(("sent", "failed")),
+                NotificationOutboxRow.updated_at < cutoff(now, OUTBOX_DAYS),
+            )
+        )
+        await self._session.execute(
+            delete(IdempotencyKeyRow).where(
+                IdempotencyKeyRow.status == "committed",
+                IdempotencyKeyRow.created_at < cutoff(now, IDEMPOTENCY_DAYS),
+            )
+        )
+        await self._session.execute(
+            delete(AssistantMessageRow).where(
+                AssistantMessageRow.created_at < cutoff(now, ASSISTANT_DAYS)
+            )
+        )
+        await self._session.execute(
+            delete(GeocodeCacheRow).where(GeocodeCacheRow.created_at < cutoff(now, GEOCODE_DAYS))
+        )
+        await self._session.flush()
+
+    async def snapshot(self, start: datetime, end: datetime) -> AdminSnapshot:
+        active = await self._session.scalar(
+            select(func.count(func.distinct(ForecastHistoryRow.user_id))).where(
+                ForecastHistoryRow.created_at >= start,
+                ForecastHistoryRow.created_at < end,
+            )
+        )
+        accounts = await self._session.scalar(
+            select(func.count()).select_from(UserRow).where(UserRow.deleted_at.is_(None))
+        )
+        payments = await self._session.execute(
+            select(
+                func.count(),
+                func.coalesce(func.sum(PaymentChargeRow.amount_stars), 0),
+            ).where(PaymentChargeRow.charged_at >= start, PaymentChargeRow.charged_at < end)
+        )
+        payment_count, stars = payments.one()
+        refunds = await self._session.scalar(
+            select(func.count())
+            .select_from(PaymentChargeRow)
+            .where(
+                PaymentChargeRow.refunded_at.is_not(None),
+                PaymentChargeRow.refunded_at >= start,
+                PaymentChargeRow.refunded_at < end,
+            )
+        )
+        source_rows = await self._session.execute(
+            select(SubscriptionRow.source, func.count())
+            .where(
+                SubscriptionRow.current_period_start < end,
+                SubscriptionRow.current_period_end > start,
+            )
+            .group_by(SubscriptionRow.source)
+        )
+        model_rows = await self._session.execute(
+            select(
+                AiRequestRow.model,
+                func.count(),
+                func.coalesce(func.sum(AiRequestRow.prompt_tokens), 0),
+                func.coalesce(func.sum(AiRequestRow.completion_tokens), 0),
+                func.count().filter(AiRequestRow.status != "ok"),
+                func.percentile_cont(0.5).within_group(AiRequestRow.latency_ms),
+            )
+            .where(AiRequestRow.created_at >= start, AiRequestRow.created_at < end)
+            .group_by(AiRequestRow.model)
+        )
+        cache = await self._session.execute(
+            select(func.count(), func.coalesce(func.sum(ForecastCacheRow.hits), 0)).where(
+                ForecastCacheRow.created_at >= start,
+                ForecastCacheRow.created_at < end,
+            )
+        )
+        cache_rows, cache_hits = cache.one()
+        version = func.coalesce(ForecastHistoryRow.payload["prompt_version"].astext, "")
+        feedback_rows = await self._session.execute(
+            select(ForecastHistoryRow.kind, version, func.count())
+            .select_from(ForecastFeedbackRow)
+            .join(
+                ForecastHistoryRow,
+                ForecastHistoryRow.id == ForecastFeedbackRow.forecast_history_id,
+            )
+            .where(ForecastFeedbackRow.created_at >= start, ForecastFeedbackRow.created_at < end)
+            .group_by(ForecastHistoryRow.kind, version)
+        )
+        loaded_models = model_rows.all()
+        return AdminSnapshot(
+            active_users=int(active or 0),
+            open_accounts=int(accounts or 0),
+            payments=int(payment_count or 0),
+            stars=int(stars or 0),
+            refunds=int(refunds or 0),
+            sources=tuple((str(source), int(count)) for source, count in source_rows.all()),
+            models=tuple(
+                ModelUsage(
+                    str(model),
+                    int(calls),
+                    int(prompt_tokens),
+                    int(completion_tokens),
+                    int(errors),
+                    None if latency is None else int(latency),
+                )
+                for model, calls, prompt_tokens, completion_tokens, errors, latency in loaded_models
+            ),
+            cache_rows=int(cache_rows or 0),
+            cache_hits=int(cache_hits or 0),
+            feedback=tuple(
+                FeedbackCount(str(kind), str(prompt_version), int(count))
+                for kind, prompt_version, count in feedback_rows.all()
+            ),
+        )
 
 
 def _apply_profile(row: ProfileRow, draft: ProfileDraft) -> None:

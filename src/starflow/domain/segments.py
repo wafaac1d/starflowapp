@@ -17,6 +17,7 @@ _OPEN_PERIOD = {
     "compatibility": "week",
     "personal_day": "date",
     "personal_week": "week",
+    "personal_month": "month",
     "topics": "date",
     "calendar": "month",
     "synastry": "date",
@@ -107,12 +108,16 @@ def calendar_segment(sun: str, moon: str, ascendant: str | None, month: str) -> 
 def representative_facts(kind: str, segment: str) -> dict[str, object]:
     if kind in _SUN:
         return {"sun": segment}
-    if kind in {"personal_day", "personal_week", "topics"}:
+    if kind in {"personal_day", "personal_week", "personal_month", "topics"}:
         sun, moon, ascendant = segment.split("+")
         return {"sun": sun, "moon": moon, "ascendant": ascendant}
     if kind in _DETAIL:
         sun, moon, decan = segment.split("+")
-        return {"sun": sun, "moon": moon, "decan": int(decan)}
+        decoded: object = int(decan) if decan.isdigit() else "unknown"
+        return {"sun": sun, "moon": moon, "decan": decoded}
+    if kind == "synastry":
+        left, right = segment.split("|")
+        return {"pair": [left, right]}
     if kind == "compatibility":
         left, right = segment.split("|")
         return {"signs": [left, right]}

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, Request
+from fastapi import APIRouter, Header, Query, Request
 from pydantic import BaseModel
 
 from starflow.api.actor import actor_from_cookie, require_intent
@@ -15,8 +15,14 @@ from starflow.domain.onboarding import parse_birth_date, parse_display_name
 from starflow.domain.quota import LimitReached, PremiumRequired
 from starflow.domain.records import ProfileDraft
 from starflow.domain.time import now_utc
-from starflow.services.forecast import ReadingView
+from starflow.services.forecast import ReadingScope, ReadingView
 from starflow.services.quota import QuotaStore, StoredResult
+
+
+class DayBody(BaseModel):
+    date: str
+    scores: dict[str, int]
+    note: str
 
 
 class ReadingBody(BaseModel):
@@ -30,6 +36,8 @@ class ReadingBody(BaseModel):
     streak: int | None = None
     replayed: bool = False
     reset_at: datetime | None = None
+    days: list[DayBody] = []
+    limitations: list[str] = []
 
 
 class HistoryItem(BaseModel):
@@ -60,12 +68,14 @@ class ReferralBody(BaseModel):
 class RelatedBody(BaseModel):
     display_name: str
     birth_date: str
+    consent: bool = False
 
 
 class RelatedItem(BaseModel):
     related_id: UUID
     display_name: str
     birth_date: str | None
+    consent: bool = False
 
 
 def register_forecast_routes(router: APIRouter, container: Container) -> None:
@@ -76,20 +86,33 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
         kind: str,
         request: Request,
         idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+        topic: Annotated[str, Query()] = "",
+        month: Annotated[str, Query()] = "",
+        related_id: Annotated[UUID | None, Query()] = None,
     ) -> ReadingBody:
         require_intent(request, unauthorized)
         actor = await actor_from_cookie(request, container, unauthorized)
+        scope = ReadingScope(topic=topic, month=month, related_id=related_id)
         try:
-            view = await container.forecast_service.start(actor.view.user_id, kind, idempotency_key)
+            view = await container.forecast_service.start(
+                actor.view.user_id, kind, idempotency_key, scope
+            )
         except FieldInvalid as error:
             raise _field_error(container, error) from error
         return _reading(view)
 
     @router.get("/readings/{kind}", response_model=ReadingBody)
-    async def read_reading(kind: str, request: Request) -> ReadingBody:
+    async def read_reading(
+        kind: str,
+        request: Request,
+        topic: Annotated[str, Query()] = "",
+        month: Annotated[str, Query()] = "",
+        related_id: Annotated[UUID | None, Query()] = None,
+    ) -> ReadingBody:
         actor = await actor_from_cookie(request, container, unauthorized)
+        scope = ReadingScope(topic=topic, month=month, related_id=related_id)
         try:
-            view = await container.forecast_service.current(actor.view.user_id, kind)
+            view = await container.forecast_service.current(actor.view.user_id, kind, scope)
         except FieldInvalid as error:
             raise _field_error(container, error) from error
         return _reading(view)
@@ -144,6 +167,7 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
                 related_id=item.id,
                 display_name=item.display_name,
                 birth_date=None if item.birth_date is None else item.birth_date.isoformat(),
+                consent=item.consent,
             )
             for item in rows
         ]
@@ -173,11 +197,14 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
         )
 
         async def producer(store: QuotaStore) -> dict[str, object]:
-            related_id = await store.related_profiles.add(actor.view.user_id, draft)
+            related_id = await store.related_profiles.add(
+                actor.view.user_id, draft, consent=body.consent
+            )
             return {
                 "related_id": str(related_id),
                 "display_name": name,
                 "birth_date": born.isoformat(),
+                "consent": body.consent,
             }
 
         try:
@@ -203,7 +230,24 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
             related_id=UUID(str(result.body["related_id"])),
             display_name=str(result.body["display_name"]),
             birth_date=str(result.body["birth_date"]),
+            consent=bool(result.body.get("consent")),
         )
+
+    @router.post("/related/{related_id}/consent", status_code=204)
+    async def allow_related(related_id: UUID, request: Request) -> None:
+        require_intent(request, unauthorized)
+        actor = await actor_from_cookie(request, container, unauthorized)
+        allowed = await container.forecast_service.allow_related(actor.view.user_id, related_id)
+        if not allowed:
+            raise ApiError(404, "not_found", container.catalog.text("errors.not_found"))
+
+    @router.delete("/related/{related_id}", status_code=204)
+    async def remove_related(related_id: UUID, request: Request) -> None:
+        require_intent(request, unauthorized)
+        actor = await actor_from_cookie(request, container, unauthorized)
+        deleted = await container.forecast_service.delete_related(actor.view.user_id, related_id)
+        if not deleted:
+            raise ApiError(404, "not_found", container.catalog.text("errors.not_found"))
 
 
 def _reading(view: ReadingView) -> ReadingBody:
@@ -218,6 +262,10 @@ def _reading(view: ReadingView) -> ReadingBody:
         streak=view.streak,
         replayed=view.replayed,
         reset_at=view.reset_at,
+        days=[
+            DayBody(date=mark.day, scores=dict(mark.scores), note=mark.note) for mark in view.days
+        ],
+        limitations=list(view.limitations),
     )
 
 

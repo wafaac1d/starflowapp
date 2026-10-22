@@ -28,6 +28,7 @@ from starflow.domain.records import IdempotencyRecord, UsageCounter
 from starflow.domain.time import now_utc
 from starflow.repositories.protocols import UserRepository
 from starflow.repositories.sql import (
+    AssistantMessageRepository,
     FavoriteRepository,
     ForecastHistoryRepository,
     IdempotencyRepository,
@@ -55,6 +56,7 @@ class QuotaStore(Protocol):
     favorites: FavoriteRepository
     forecast_history: ForecastHistoryRepository
     related_profiles: RelatedProfileRepository
+    assistant_messages: AssistantMessageRepository
 
     async def commit(self) -> None: ...
 
@@ -127,10 +129,40 @@ class QuotaService:
         if isinstance(reserved, StoredResult) or not isinstance(reserved, Allowed):
             return reserved
         try:
-            return await self._commit(user_id, feature, key, producer)
+            return await self._commit(user_id, feature, key, producer, charge=True)
         except Exception:
             await self._release(user_id, key)
             raise
+
+    async def hold(self, user_id: UUID, feature: str, key: str) -> StoredResult | QuotaDecision:
+        if not idempotency_key_ok(key):
+            raise FieldInvalid("idempotency_key", "errors.idempotency_key")
+        return await self._reserve(user_id, feature, key)
+
+    async def finish(
+        self,
+        user_id: UUID,
+        feature: str,
+        key: str,
+        producer: ResultWriter,
+        *,
+        charge: bool,
+    ) -> StoredResult:
+        return await self._commit(user_id, feature, key, producer, charge=charge)
+
+    async def release_hold(self, user_id: UUID, key: str) -> None:
+        await self._release(user_id, key)
+
+    async def remaining(self, user_id: UUID, feature: str) -> int | None:
+        rule = self._plans.rule(feature)
+        async with self._uow_factory() as uow:
+            window = await _window(uow, user_id, rule, self._clock())
+            if not isinstance(window, tuple):
+                return None
+            start, _end, limit, counter_key = window
+            counter = await uow.usage.find(user_id, counter_key, start)
+            used = 0 if counter is None else counter.used + counter.reserved
+            return max(0, limit - used)
 
     async def _reserve(
         self,
@@ -188,6 +220,8 @@ class QuotaService:
         feature: str,
         key: str,
         producer: ResultWriter,
+        *,
+        charge: bool,
     ) -> StoredResult:
         rule = self._plans.rule(feature)
         async with self._uow_factory() as uow:
@@ -203,7 +237,8 @@ class QuotaService:
                 counter_id = _counter_id(current.result)
                 if counter_id is None:
                     raise Conflict("usage counter is missing")
-                await uow.usage.change(counter_id, used_delta=1, reserved_delta=-1)
+                used_delta = 1 if charge else 0
+                await uow.usage.change(counter_id, used_delta=used_delta, reserved_delta=-1)
             await uow.idempotency.complete(current.id, body)
             await uow.commit()
             return StoredResult(body, False)

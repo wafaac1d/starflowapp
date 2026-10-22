@@ -136,6 +136,13 @@ export type ChartResponse = {
   phase_name: string | null;
   limitations: string[];
   natal_access: string;
+  sections?: ChartSection[];
+};
+
+export type ChartSection = {
+  id: string;
+  title: string;
+  body: string;
 };
 
 export type SkyResponse = {
@@ -168,6 +175,20 @@ export type ReadingResponse = {
   streak: number | null;
   replayed: boolean;
   reset_at: string | null;
+  days?: CalendarDay[];
+  limitations?: string[];
+};
+
+export type CalendarDay = {
+  date: string;
+  scores: Record<string, number>;
+  note: string;
+};
+
+export type ReadingQuery = {
+  topic?: string;
+  month?: string;
+  relatedId?: string;
 };
 
 export type HistoryEntry = {
@@ -186,6 +207,7 @@ export type RelatedEntry = {
   related_id: string;
   display_name: string;
   birth_date: string | null;
+  consent?: boolean;
 };
 
 export type ReferralResponse = {
@@ -197,9 +219,10 @@ export async function startReading(
   kind: string,
   idempotencyKey: string,
   fetchImpl: typeof fetch = fetch,
+  query: ReadingQuery = {},
 ): Promise<ReadingResponse> {
   return requestJson<ReadingResponse>(
-    `/api/v1/readings/${kind}`,
+    readingPath(kind, query),
     { method: "POST", headers: { "Idempotency-Key": idempotencyKey } },
     fetchImpl,
   );
@@ -208,8 +231,9 @@ export async function startReading(
 export async function getReading(
   kind: string,
   fetchImpl: typeof fetch = fetch,
+  query: ReadingQuery = {},
 ): Promise<ReadingResponse> {
-  return requestJson<ReadingResponse>(`/api/v1/readings/${kind}`, { method: "GET" }, fetchImpl);
+  return requestJson<ReadingResponse>(readingPath(kind, query), { method: "GET" }, fetchImpl);
 }
 
 export async function sendFeedback(
@@ -266,13 +290,149 @@ export async function addRelated(
   birthDate: string,
   idempotencyKey: string,
   fetchImpl: typeof fetch = fetch,
+  consent = false,
 ): Promise<RelatedEntry> {
   return requestJson<RelatedEntry>(
     "/api/v1/related",
     {
       method: "POST",
       headers: { "Idempotency-Key": idempotencyKey },
-      body: JSON.stringify({ display_name: displayName, birth_date: birthDate }),
+      body: JSON.stringify({ display_name: displayName, birth_date: birthDate, consent }),
+    },
+    fetchImpl,
+  );
+}
+
+export async function allowRelated(
+  relatedId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  await requestJson<unknown>(`/api/v1/related/${relatedId}/consent`, { method: "POST" }, fetchImpl);
+}
+
+export async function deleteRelated(
+  relatedId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  await requestJson<unknown>(`/api/v1/related/${relatedId}`, { method: "DELETE" }, fetchImpl);
+}
+
+export type NoticePrefs = {
+  local_time: string;
+  timezone: string;
+  day: boolean;
+  moon: boolean;
+  retro: boolean;
+};
+
+export const NOTICE_SLOTS: readonly string[] = Array.from({ length: 48 }, (_, index) => {
+  const hour = Math.floor(index / 2)
+    .toString()
+    .padStart(2, "0");
+  const minute = index % 2 === 0 ? "00" : "30";
+  return `${hour}:${minute}`;
+});
+
+export async function getNotifications(fetchImpl: typeof fetch = fetch): Promise<NoticePrefs> {
+  return requestJson<NoticePrefs>("/api/v1/notifications", { method: "GET" }, fetchImpl);
+}
+
+export async function saveNotifications(
+  body: NoticePrefs,
+  fetchImpl: typeof fetch = fetch,
+): Promise<NoticePrefs> {
+  return requestJson<NoticePrefs>(
+    "/api/v1/notifications",
+    { method: "PUT", body: JSON.stringify(body) },
+    fetchImpl,
+  );
+}
+
+export type RetroStation = {
+  planet: string;
+  start: string;
+  local_date: string;
+};
+
+export async function getRetro(fetchImpl: typeof fetch = fetch): Promise<RetroStation[]> {
+  return requestJson<RetroStation[]>("/api/v1/retro", { method: "GET" }, fetchImpl);
+}
+
+export type AdminOverview = {
+  start: string;
+  end: string;
+  active_users: number;
+  open_accounts: number;
+  payments: number;
+  stars: number;
+  refunds: number;
+  sources: { source: string; count: number }[];
+  models: {
+    model: string;
+    calls: number;
+    prompt_tokens: number;
+    completion_tokens: number;
+    errors: number;
+    latency_p50_ms: number | null;
+  }[];
+  cache: {
+    l1_hits: number;
+    l1_misses: number;
+    l2_hits: number;
+    process_generations: number;
+    rows_in_range: number;
+    hits_in_range: number;
+  };
+  feedback: { forecast_type: string; prompt_version: string; count: number }[];
+  definitions: Record<string, string>;
+};
+
+export async function getAdminOverview(
+  start: string,
+  end: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<AdminOverview> {
+  const params = new URLSearchParams();
+  if (start) {
+    params.set("start", start);
+  }
+  if (end) {
+    params.set("end", end);
+  }
+  const suffix = params.size > 0 ? `?${params.toString()}` : "";
+  return requestJson<AdminOverview>(`/api/v1/admin/overview${suffix}`, { method: "GET" }, fetchImpl);
+}
+
+export async function grantAdminPeriod(
+  userId: string,
+  days: number,
+  reason: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  await requestJson<unknown>(
+    "/api/v1/billing/admin-grants",
+    {
+      method: "POST",
+      body: JSON.stringify({ user_id: userId, days, reason, confirm: true }),
+    },
+    fetchImpl,
+  );
+}
+
+export async function refundCharge(
+  chargeId: string,
+  reason: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  await requestJson<unknown>(
+    "/api/v1/billing/refunds",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        telegram_payment_charge_id: chargeId,
+        reason,
+        confirm: true,
+      }),
     },
     fetchImpl,
   );
@@ -362,10 +522,68 @@ export async function redeemGift(
   );
 }
 
+export type AssistantMessage = {
+  id: string;
+  role: string;
+  content: string;
+  created_at: string;
+};
+
+export type AssistantReply = {
+  status: string;
+  reply: string | null;
+  remaining: number | null;
+  replayed: boolean;
+  code: string | null;
+};
+
+export async function getAssistantMessages(
+  fetchImpl: typeof fetch = fetch,
+  before?: string,
+): Promise<AssistantMessage[]> {
+  const suffix = before === undefined ? "" : `?before=${encodeURIComponent(before)}`;
+  return requestJson<AssistantMessage[]>(
+    `/api/v1/assistant/messages${suffix}`,
+    { method: "GET" },
+    fetchImpl,
+  );
+}
+
+export async function askAssistant(
+  text: string,
+  idempotencyKey: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<AssistantReply> {
+  return requestJson<AssistantReply>(
+    "/api/v1/assistant/messages",
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ text }),
+    },
+    fetchImpl,
+  );
+}
+
 export function readingKey(): string {
   const stamp = Date.now().toString(36);
   const salt = Math.random().toString(36).slice(2, 12);
   return `read${stamp}${salt}`;
+}
+
+function readingPath(kind: string, query: ReadingQuery): string {
+  const params = new URLSearchParams();
+  if (query.topic) {
+    params.set("topic", query.topic);
+  }
+  if (query.month) {
+    params.set("month", query.month);
+  }
+  if (query.relatedId) {
+    params.set("related_id", query.relatedId);
+  }
+  const suffix = params.size > 0 ? `?${params.toString()}` : "";
+  return `/api/v1/readings/${kind}${suffix}`;
 }
 
 async function requestJson<T>(

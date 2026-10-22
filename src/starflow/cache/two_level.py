@@ -50,6 +50,10 @@ class TwoLevelCache:
         self._store = store
         self._clock = clock or now_utc
         self._locks: dict[str, asyncio.Lock] = {}
+        self.l1_hits = 0
+        self.l1_misses = 0
+        self.l2_hits = 0
+        self.generations = 0
 
     async def get_or_create(
         self,
@@ -61,25 +65,30 @@ class TwoLevelCache:
         now = self._clock()
         cached = self._memory.get(key, now)
         if cached is not None:
+            self.l1_hits += 1
             still = await self._store.note_hit(key, now)
             if still is not None:
                 return CacheHit(still.payload, still.expires_at, False)
             self._memory.drop(key)
+        self.l1_misses += 1
         lock = self._locks.setdefault(key, asyncio.Lock())
         try:
             async with lock:
                 now = self._clock()
                 fresh = await self._store.read(key, now)
                 if fresh is not None:
+                    self.l2_hits += 1
                     self._memory.put(key, fresh)
                     return CacheHit(fresh.payload, fresh.expires_at, False)
                 produced = await producer()
                 now = self._clock()
                 again = await self._store.read(key, now)
                 if again is not None:
+                    self.l2_hits += 1
                     self._memory.put(key, again)
                     return CacheHit(again.payload, again.expires_at, False)
                 stored = await self._store.write(key, kind, produced, expires_at)
+                self.generations += 1
                 remembered = CachedValue(stored.payload, stored.expires_at)
                 self._memory.put(key, remembered)
                 return CacheHit(remembered.payload, remembered.expires_at, True)

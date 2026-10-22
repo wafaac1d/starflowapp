@@ -6,9 +6,13 @@ import { openSession } from "./api/client";
 import { ErrorState, LoadingScreen } from "./components/ui/controls";
 import { EdgeSwipe } from "./components/ui/EdgeSwipe";
 import { HelpPage, PaySupportPage, PremiumPage, SettingsPage, TermsPage } from "./pages/InfoPages";
+import { AdminPage } from "./pages/AdminPage";
+import { DeletePage } from "./pages/DeletePage";
+import { RetroPage } from "./pages/RetroPage";
 import { FavoritesPage, HistoryPage, ReferralPage, RelatedPage } from "./pages/LibraryPages";
 import { CalendarPage, MonthPage } from "./pages/CalendarPage";
 import { ChartPage } from "./pages/ChartPage";
+import { AssistantPage } from "./pages/AssistantPage";
 import { BottomNavigation } from "./components/ui/editorial";
 import { HomePage } from "./pages/HomePage";
 import { ReadingPage } from "./pages/ReadingPage";
@@ -80,7 +84,11 @@ function AuthedApp({ initData }: { initData: string }) {
       <Route path="/related" element={<RelatedPage />} />
       <Route path="/referral" element={<ReferralPage />} />
       <Route path="/profile" element={<ProfilePage profile={profile} />} />
+      <Route path="/assistant" element={<AssistantPage />} />
       <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/delete" element={<DeletePage />} />
+      <Route path="/retro" element={<RetroPage />} />
+      <Route path="/admin" element={<AdminPage isAdmin={profile.is_admin} />} />
       <Route path="/premium" element={<PremiumPage profile={profile} />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/help" element={<HelpPage />} />

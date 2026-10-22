@@ -44,6 +44,9 @@ class UserRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    is_blocked: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
 
 
 class ProfileRow(Base):
@@ -104,6 +107,9 @@ class RelatedProfileRow(Base):
     latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     timezone: Mapped[str] = mapped_column(Text, nullable=False)
+    consent: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
 
@@ -275,6 +281,15 @@ class NotificationSettingsRow(Base):
     digest_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
     digest_local_time: Mapped[time] = mapped_column(Time, nullable=False)
     timezone: Mapped[str] = mapped_column(Text, nullable=False)
+    day_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    moon_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    retro_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
 
@@ -396,17 +411,19 @@ class GiftCodeRow(Base):
 class NotificationOutboxRow(Base):
     __tablename__ = "notification_outbox"
     __table_args__ = (
-        UniqueConstraint("user_id", "kind", "local_date", name="notification_outbox_once_uq"),
+        UniqueConstraint("user_id", "kind", "event_key", name="notification_outbox_event_uq"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     kind: Mapped[str] = mapped_column(Text, nullable=False)
+    event_key: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     payload: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
     local_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     scheduled_for: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    leased_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)

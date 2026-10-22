@@ -86,4 +86,19 @@ describe("chart page", () => {
     expect(screen.getByRole("heading", { name: text("ui.paywall.title") })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
+
+  it("navigates sections in words and hides houses when they were not calculated", async () => {
+    renderChart({
+      ...unknownChart(),
+      natal_access: "allowed",
+      sections: [
+        { id: "sun", title: "солнце", body: "солнце в знаке козерог." },
+        { id: "planets", title: "светила", body: "солнце, козерог" },
+      ],
+    });
+    expect(await screen.findByRole("navigation", { name: text("ui.chart.sections") })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "солнце" })).toHaveAttribute("href", "#chart-sun");
+    expect(screen.getByText("солнце, козерог")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "дома" })).not.toBeInTheDocument();
+  });
 });

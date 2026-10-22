@@ -17,6 +17,7 @@ from starflow.repositories.sql import (
     GiftCodeRepository,
     IdempotencyRepository,
     NotificationSettingsRepository,
+    OpsRepository,
     OrderRepository,
     PaymentChargeRepository,
     ProfileRepository,
@@ -52,6 +53,7 @@ class SqlUnitOfWork:
     idempotency: IdempotencyRepository
     sessions: AuthSessionRepository
     outbox: OutboxRepository
+    ops: OpsRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
@@ -82,6 +84,7 @@ class SqlUnitOfWork:
         self.idempotency = IdempotencyRepository(session)
         self.sessions = AuthSessionRepository(session)
         self.outbox = SqlOutboxRepository(session)
+        self.ops = OpsRepository(session)
         return self
 
     async def __aexit__(

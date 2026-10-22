@@ -4,14 +4,12 @@ import { useNavigate } from "react-router";
 
 import {
   ApiRequestError,
-  deleteProfile,
   editProfile,
-  openSession,
   type DraftPayload,
   type ProfileResponse,
 } from "../api/client";
 import { maskBirthDate } from "../birthDate";
-import { BackHome, Button, Input, Modal } from "../components/ui/controls";
+import { BackHome, Button, Input } from "../components/ui/controls";
 import { EditorialListRow } from "../components/ui/editorial";
 import { text, type TextKey } from "../resources";
 import { readWebApp } from "../telegram";
@@ -22,12 +20,20 @@ type ProfilePageProps = {
 
 const HUB: { to: string; label: TextKey }[] = [
   { to: "/chart", label: "ui.chart.title" },
+  { to: "/reading/today_detail", label: "ui.reading.today_detail" },
+  { to: "/reading/tomorrow", label: "ui.reading.tomorrow" },
+  { to: "/reading/personal_day", label: "ui.reading.personal_day" },
+  { to: "/reading/personal_week", label: "ui.reading.personal_week" },
+  { to: "/reading/personal_month", label: "ui.reading.personal_month" },
+  { to: "/reading/topics?topic=отношения", label: "ui.reading.topics" },
+  { to: "/assistant", label: "ui.assistant.title" },
   { to: "/reading/week", label: "ui.reading.week" },
   { to: "/reading/compatibility", label: "ui.reading.compatibility" },
   { to: "/history", label: "ui.reading.history" },
   { to: "/favorites", label: "ui.reading.favorites" },
   { to: "/referral", label: "ui.reading.referral" },
   { to: "/settings", label: "ui.settings.title" },
+  { to: "/retro", label: "ui.retro.title" },
   { to: "/premium", label: "ui.premium.title" },
   { to: "/help", label: "ui.help.title" },
   { to: "/terms", label: "ui.terms.title" },
@@ -41,7 +47,6 @@ export function ProfilePage({ profile }: ProfilePageProps) {
   const [birthDate, setBirthDate] = useState(profile.birth_date ?? "");
   const [birthTime, setBirthTime] = useState(profile.birth_time ?? "");
   const [fields, setFields] = useState<Record<string, string>>({});
-  const [confirming, setConfirming] = useState(false);
   const dirty =
     name !== (profile.display_name ?? "") ||
     birthDate !== (profile.birth_date ?? "") ||
@@ -76,21 +81,6 @@ export function ProfilePage({ profile }: ProfilePageProps) {
     },
     onError: (error: unknown) => {
       setFields(error instanceof ApiRequestError ? error.fields : {});
-    },
-  });
-  const remove = useMutation({
-    mutationFn: async () => {
-      await deleteProfile();
-      const webApp = readWebApp();
-      if (webApp === null) {
-        return null;
-      }
-      return openSession(webApp.initData);
-    },
-    onSuccess: (next) => {
-      if (next !== null) {
-        client.setQueryData(["session"], next);
-      }
     },
   });
 
@@ -163,31 +153,22 @@ export function ProfilePage({ profile }: ProfilePageProps) {
           ))}
         </div>
       </section>
+      {profile.is_admin ? (
+        <Button
+          tone="outline"
+          label={text("ui.admin.title")}
+          onClick={() => {
+            void navigate("/admin");
+          }}
+        />
+      ) : null}
       <Button
         tone="danger"
         label={text("ui.profile.delete")}
-        disabled={remove.isPending}
         onClick={() => {
-          setConfirming(true);
+          void navigate("/delete");
         }}
       />
-      <Modal
-        open={confirming}
-        title={text("ui.profile.delete")}
-        onClose={() => {
-          setConfirming(false);
-        }}
-      >
-        <p>{text("ui.profile.delete_confirm")}</p>
-        <Button
-          tone="danger"
-          label={text("ui.profile.delete_confirm")}
-          loading={remove.isPending}
-          onClick={() => {
-            void remove.mutateAsync();
-          }}
-        />
-      </Modal>
     </main>
   );
 }

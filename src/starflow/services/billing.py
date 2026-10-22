@@ -311,10 +311,11 @@ class BillingService:
         user_id: UUID,
         days: int,
         reason: str,
+        confirm: bool,
     ) -> None:
         if not actor_is_admin:
             raise FieldInvalid("admin", "errors.unauthorized")
-        if not reason.strip() or days < 1 or days > 366:
+        if not confirm or not reason.strip() or days < 1 or days > 366:
             raise FieldInvalid("reason", "errors.payment_confirm")
         now = self._now()
         async with self._uow_factory() as uow:

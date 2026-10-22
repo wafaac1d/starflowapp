@@ -1,10 +1,14 @@
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import { describeIso, isoInZone, monthDays, shiftMonth } from "../almanacDate";
-import { Divider, TimelineItem, WeekDaySelector } from "../components/ui/editorial";
+import { getReading, readingKey, startReading, type CalendarDay } from "../api/client";
+import { Divider, EditorialListRow, TimelineItem, WeekDaySelector } from "../components/ui/editorial";
 import { Button, IconButton } from "../components/ui/controls";
 import { deviceTimezone } from "../deviceZone";
 import { formatText, text } from "../resources";
+import { ScoreLegend, scoreWord } from "./ReadingPage";
 
 export function CalendarPage() {
   const navigate = useNavigate();
@@ -61,6 +65,22 @@ export function CalendarPage() {
           }}
         />
       </div>
+      <div className="editorial-list">
+        <EditorialListRow
+          label={text("ui.reading.today_detail")}
+          arrow
+          onClick={() => {
+            void navigate("/reading/today_detail");
+          }}
+        />
+        <EditorialListRow
+          label={text("ui.reading.tomorrow")}
+          arrow
+          onClick={() => {
+            void navigate("/reading/tomorrow");
+          }}
+        />
+      </div>
       <div className="actions">
         <Button
           tone="outline"
@@ -82,6 +102,8 @@ export function MonthPage() {
   const anchor = params.get("month") ?? today;
   const current = describeIso(anchor, zone);
   const days = monthDays(anchor, zone);
+  const month = anchor.slice(0, 7);
+  const marks = useMonthMarks(month);
 
   function move(delta: number) {
     const next = new URLSearchParams(params);
@@ -110,20 +132,55 @@ export function MonthPage() {
           />
         </div>
       </div>
+      <ScoreLegend />
+      {marks.status === "premium" ? <p>{text("ui.paywall.lead")}</p> : null}
       <div className="month-grid">
-        {days.map((item) => (
-          <button
-            key={item.iso}
-            type="button"
-            className={item.iso === today ? "week-day week-day-active" : "week-day"}
-            onClick={() => {
-              void navigate(`/calendar?day=${item.iso}`);
-            }}
-          >
-            <strong>{item.day}</strong>
-          </button>
-        ))}
+        {days.map((item) => {
+          const mark = marks.byDay.get(item.iso);
+          const label = mark === undefined ? String(item.day) : `${item.day}, ${scoreWord(mark)}`;
+          return (
+            <button
+              key={item.iso}
+              type="button"
+              className={item.iso === today ? "week-day week-day-active" : "week-day"}
+              aria-label={label}
+              onClick={() => {
+                void navigate(`/calendar?day=${item.iso}`);
+              }}
+            >
+              <strong>{item.day}</strong>
+              {mark === undefined ? null : <span>{scoreWord(mark)}</span>}
+            </button>
+          );
+        })}
       </div>
     </main>
   );
+}
+
+function useMonthMarks(month: string): { status: string; byDay: Map<string, number> } {
+  const [attempt] = useState(0);
+  const start = useMutation({
+    mutationFn: () => startReading("calendar", readingKey(), fetch, { month }),
+  });
+  useEffect(() => {
+    start.mutate();
+    // The month key is the request identity; the mutation object is not.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month, attempt]);
+  const reading = useQuery({
+    queryKey: ["calendar-month", month],
+    queryFn: () => getReading("calendar", fetch, { month }),
+    enabled: start.isSuccess,
+    refetchInterval: (query) => (query.state.data?.status === "pending" ? 700 : false),
+  });
+  const byDay = new Map<string, number>();
+  const days: CalendarDay[] = reading.data?.days ?? start.data?.days ?? [];
+  for (const day of days) {
+    const values = Object.values(day.scores);
+    if (values.length > 0) {
+      byDay.set(day.date, Math.round(values.reduce((sum, item) => sum + item, 0) / values.length));
+    }
+  }
+  return { status: reading.data?.status ?? start.data?.status ?? "idle", byDay };
 }

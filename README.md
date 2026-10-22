@@ -19,7 +19,7 @@ Telegram Mini App. API, статика и планировщик отдаютс�
 
 Новую иконку кладут SVG-файлом в `static/icons/svg` и добавляют имя в реестр `frontend/src/components/ui/icons.tsx`. Страницы путь к файлу не пишут.
 
-`frontend/scripts/copy-logo.mjs` перед `dev` и `build` копирует логотип в `frontend/public/logo.png`, а SVG иконок и иллюстраций — в `frontend/public/icons` и `frontend/public/illustrations`. Vite забирает `public` в `frontend/dist`. Тот же `dist` попадает в образ `app` и отдаётся вместе с API. После сборки файлы проверяются в `frontend/dist/icons` и `frontend/dist/illustrations`, не только в dev-сервере.
+`frontend/scripts/copy-logo.mjs` перед `dev` и `build` копирует логотип в `frontend/public/logo.png`, а иллюстрации — в `frontend/public/illustrations`. Иконки компонент берёт прямо из `static/icons/svg`, и Vite кладёт их в `frontend/dist/assets`. `public` и `assets` попадают в `dist`, тот же каталог отдаёт образ `app`. После сборки проверяются `frontend/dist/assets` и `frontend/dist/illustrations`, не только dev-сервер.
 
 ## Проверки интерфейса
 
@@ -30,4 +30,4 @@ Telegram Mini App. API, статика и планировщик отдаютс�
 - `corepack pnpm build`
 - `corepack pnpm e2e`
 
-Сборка должна содержать `/logo.png`, `/icons/sun.svg` и `/illustrations/three-circles-cream.svg`.
+Сборка должна содержать `/logo.png` и `/illustrations/three-circles-cream.svg`. Иконки из `static/icons/svg` вшиваются в клиентский бандл как изображения этих файлов.

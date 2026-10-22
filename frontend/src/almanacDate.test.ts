@@ -14,6 +14,12 @@ describe("almanac dates", () => {
     expect(selected.weekday).toBe("четверг");
   });
 
+  it("keeps a leap february at 29 days and the next one at 28", () => {
+    expect(monthDays("2024-02-10", "Europe/Moscow")).toHaveLength(29);
+    expect(monthDays("2026-02-10", "Europe/Moscow")).toHaveLength(28);
+    expect(shiftMonth("2024-02-10", 1)).toBe("2024-03-01");
+  });
+
   it("moves to the neighbouring month", () => {
     expect(shiftMonth("2026-10-22", 1)).toBe("2026-11-01");
     expect(shiftMonth("2026-01-02", -1)).toBe("2025-12-01");

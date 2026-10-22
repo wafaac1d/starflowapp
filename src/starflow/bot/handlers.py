@@ -1,4 +1,5 @@
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
 import structlog
@@ -16,8 +17,11 @@ from aiogram.types import (
 )
 
 from starflow.bot.screens import SCREENS, screen_url
+from starflow.domain.errors import FieldInvalid
+from starflow.domain.time import now_utc
 from starflow.i18n.catalog import Catalog
 from starflow.services.billing import BillingService
+from starflow.services.ops import OpsService
 from starflow.services.session import SessionService
 
 
@@ -44,7 +48,11 @@ def register_handlers(
     catalog: Catalog,
     mini_app_url: str,
     billing: BillingService,
+    ops: OpsService,
+    admins: frozenset[int],
 ) -> None:
+    pending_refund: dict[int, tuple[str, str]] = {}
+
     @router.pre_checkout_query()
     async def on_pre_checkout(query: PreCheckoutQuery) -> None:
         await billing.pre_checkout(
@@ -106,6 +114,61 @@ def register_handlers(
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[[button]]),
         )
 
+    @router.message(Command("stats"))
+    async def on_stats(message: Message) -> None:
+        await _stats(message, catalog, ops, admins, False)
+
+    @router.message(Command("cache_stats"))
+    async def on_cache_stats(message: Message) -> None:
+        await _stats(message, catalog, ops, admins, True)
+
+    @router.message(Command("refund"))
+    async def on_refund(message: Message, command: CommandObject) -> None:
+        user = message.from_user
+        if user is None or user.id not in admins:
+            await message.answer(catalog.text("bot.admin_denied"))
+            return
+        raw = (command.args or "").strip()
+        if raw == "":
+            await message.answer(catalog.text("bot.refund_page"))
+            return
+        charge, _, reason = raw.partition(" ")
+        if reason.strip() == "":
+            await message.answer(catalog.text("bot.refund_need_reason"))
+            return
+        pending_refund[user.id] = (charge, reason.strip())
+        button = InlineKeyboardButton(
+            text=catalog.text("bot.refund_confirm"),
+            callback_data="refund_confirm",
+        )
+        await message.answer(
+            catalog.text("bot.refund_ask"),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[button]]),
+        )
+
+    @router.callback_query(F.data == "refund_confirm")
+    async def on_refund_confirmed(query: CallbackQuery) -> None:
+        user = query.from_user
+        if user.id not in admins:
+            await query.answer(catalog.text("bot.admin_denied"), show_alert=False)
+            return
+        pending = pending_refund.pop(user.id, None)
+        await query.answer()
+        if pending is None or query.message is None:
+            return
+        charge, reason = pending
+        try:
+            await billing.refund(
+                actor_is_admin=True,
+                charge_id=charge,
+                confirm=True,
+                reason=reason,
+            )
+        except FieldInvalid:
+            await query.message.answer(catalog.text("errors.not_found"))
+            return
+        await query.message.answer(catalog.text("bot.refund_done"))
+
     @router.message(F.text)
     async def on_text(message: Message) -> None:
         user = message.from_user
@@ -140,6 +203,41 @@ def _register_screen(router: Router, catalog: Catalog, mini_app_url: str, screen
             f"bot.{screen}",
             "bot.start_without_app",
         )
+
+
+async def _stats(
+    message: Message,
+    catalog: Catalog,
+    ops: OpsService,
+    admins: frozenset[int],
+    cache: bool,
+) -> None:
+    user = message.from_user
+    if user is None or user.id not in admins:
+        await message.answer(catalog.text("bot.admin_denied"))
+        return
+    today = now_utc().date()
+    start = datetime.combine(today - timedelta(days=30), time.min, tzinfo=UTC)
+    end = datetime.combine(today + timedelta(days=1), time.min, tzinfo=UTC)
+    snap = await ops.snapshot(start, end)
+    if cache:
+        await message.answer(
+            catalog.format(
+                "bot.cache_stats",
+                rows=snap.cache_rows,
+                hits=snap.cache_hits,
+            )
+        )
+        return
+    errors = sum(item.errors for item in snap.models)
+    await message.answer(
+        catalog.format(
+            "bot.stats",
+            users=snap.active_users,
+            payments=snap.payments,
+            errors=errors,
+        )
+    )
 
 
 async def _open(

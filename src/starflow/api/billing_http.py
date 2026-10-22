@@ -62,6 +62,7 @@ class AdminGrantBody(BaseModel):
     user_id: UUID
     days: int
     reason: str = Field(max_length=500)
+    confirm: bool
 
 
 def register_billing_routes(router: APIRouter, container: Container) -> None:
@@ -162,6 +163,7 @@ def register_billing_routes(router: APIRouter, container: Container) -> None:
                 user_id=body.user_id,
                 days=body.days,
                 reason=body.reason,
+                confirm=body.confirm,
             )
         except FieldInvalid as error:
             raise _field(container, error) from error

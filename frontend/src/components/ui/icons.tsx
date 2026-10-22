@@ -1,22 +1,37 @@
-import type { CSSProperties } from "react";
+import arrowLeft from "../../../../static/icons/svg/arrow-left.svg";
+import arrowRight from "../../../../static/icons/svg/arrow-right.svg";
+import bookmark from "../../../../static/icons/svg/bookmark.svg";
+import calendar from "../../../../static/icons/svg/calendar.svg";
+import chat from "../../../../static/icons/svg/chat.svg";
+import close from "../../../../static/icons/svg/close.svg";
+import gift from "../../../../static/icons/svg/gift.svg";
+import history from "../../../../static/icons/svg/history.svg";
+import moon from "../../../../static/icons/svg/moon.svg";
+import natalChart from "../../../../static/icons/svg/natal-chart.svg";
+import people from "../../../../static/icons/svg/people.svg";
+import premium from "../../../../static/icons/svg/premium.svg";
+import profile from "../../../../static/icons/svg/profile.svg";
+import settings from "../../../../static/icons/svg/settings.svg";
+import share from "../../../../static/icons/svg/share.svg";
+import sun from "../../../../static/icons/svg/sun.svg";
 
 const ICONS = {
-  sun: "/icons/sun.svg",
-  calendar: "/icons/calendar.svg",
-  people: "/icons/people.svg",
-  profile: "/icons/profile.svg",
-  "arrow-right": "/icons/arrow-right.svg",
-  "arrow-left": "/icons/arrow-left.svg",
-  moon: "/icons/moon.svg",
-  history: "/icons/history.svg",
-  "natal-chart": "/icons/natal-chart.svg",
-  premium: "/icons/premium.svg",
-  gift: "/icons/gift.svg",
-  close: "/icons/close.svg",
-  chat: "/icons/chat.svg",
-  bookmark: "/icons/bookmark.svg",
-  settings: "/icons/settings.svg",
-  share: "/icons/share.svg",
+  sun,
+  calendar,
+  people,
+  profile,
+  "arrow-right": arrowRight,
+  "arrow-left": arrowLeft,
+  moon,
+  history,
+  "natal-chart": natalChart,
+  premium,
+  gift,
+  close,
+  chat,
+  bookmark,
+  settings,
+  share,
 } as const;
 
 export type IconName = keyof typeof ICONS;
@@ -26,8 +41,7 @@ type IconProps = {
 };
 
 export function Icon({ name }: IconProps) {
-  const style = { "--icon": `url("${ICONS[name]}")` } as CSSProperties;
-  return <span className="icon" style={style} aria-hidden="true" />;
+  return <img className="icon" src={ICONS[name]} alt="" />;
 }
 
 export const illustrationCream = "/illustrations/three-circles-cream.svg";

@@ -28,11 +28,13 @@ from starflow.logging import configure_logging, get_logger
 from starflow.repositories.uow import SqlUnitOfWork
 from starflow.scheduler.runtime import SchedulerRuntime
 from starflow.services.access import AccessService
+from starflow.services.assistant import AssistantService
 from starflow.services.billing import BillingService
 from starflow.services.chart import ChartService
 from starflow.services.forecast import ForecastService
 from starflow.services.health import HealthService
 from starflow.services.nominatim import NominatimLookup
+from starflow.services.ops import OpsService
 from starflow.services.outbox import OutboxService
 from starflow.services.places import PlaceService, RequestPace
 from starflow.services.profile import ProfileService
@@ -72,6 +74,23 @@ REQUIRED_TEXTS = (
     "bot.command_terms",
     "bot.command_paysupport",
     "bot.command_delete_me",
+    "bot.command_stats",
+    "bot.command_cache_stats",
+    "bot.command_refund",
+    "bot.day_ready",
+    "bot.day_fallback",
+    "bot.moon_ready",
+    "bot.moon_fallback",
+    "bot.retro_preview",
+    "bot.retro_start",
+    "bot.admin_denied",
+    "bot.stats",
+    "bot.cache_stats",
+    "bot.refund_page",
+    "bot.refund_need_reason",
+    "bot.refund_ask",
+    "bot.refund_confirm",
+    "bot.refund_done",
     "errors.unauthorized",
     "errors.not_found",
     "errors.validation",
@@ -181,11 +200,14 @@ class Container:
     quota_service: QuotaService
     chart_service: ChartService
     forecast_service: ForecastService
+    assistant_service: AssistantService
     billing_service: BillingService
     sky_service: SkyService
     uow_factory: Callable[[], SqlUnitOfWork]
     health_service: HealthService
     outbox_service: OutboxService
+    ops_service: OpsService
+    forecast_cache: TwoLevelCache
     verifier: TelegramInitDataVerifier
     bot: Bot
     dispatcher: Dispatcher
@@ -257,8 +279,29 @@ def build_container(settings: Settings) -> Container:
         zone_name=settings.default_timezone,
         locale=settings.default_locale,
         mini_app_url=settings.mini_app_url,
+        chart=chart_service,
+    )
+    assistant_service = AssistantService(
+        uow_factory,
+        deepseek,
+        quota_service,
+        catalog,
+        system=PromptLibrary(settings.resources_dir / "prompts").assistant_system(),
+        model_name=settings.deepseek_model_pro,
+        chart=chart_service,
     )
     outbox_service = OutboxService(uow_factory, catalog)
+    ops_service = OpsService(
+        uow_factory,
+        prompts,
+        forecast_cache,
+        deepseek,
+        ephemeris,
+        zone_name=settings.default_timezone,
+        locale=settings.default_locale,
+        fast_model=settings.deepseek_model_fast,
+        pro_model=settings.deepseek_model_pro,
+    )
     health_service = HealthService(engine)
     verifier = TelegramInitDataVerifier(
         settings.bot_token, settings.auth_max_age_sec, settings.auth_future_skew_sec
@@ -276,8 +319,6 @@ def build_container(settings: Settings) -> Container:
     dispatcher = Dispatcher()
     dispatcher.update.middleware(UpdateContextMiddleware())
     router = Router()
-    register_handlers(router, session_service, catalog, settings.mini_app_url, billing_service)
-    dispatcher.include_router(router)
     commands = tuple(
         BotCommand(command=name, description=catalog.text(key))
         for name, key in (
@@ -289,10 +330,36 @@ def build_container(settings: Settings) -> Container:
             ("terms", "bot.command_terms"),
             ("paysupport", "bot.command_paysupport"),
             ("delete_me", "bot.command_delete_me"),
+            ("stats", "bot.command_stats"),
+            ("cache_stats", "bot.command_cache_stats"),
+            ("refund", "bot.command_refund"),
         )
     )
-    bot_runtime = BotRuntime(settings, bot, dispatcher, commands, catalog.text("bot.menu"))
-    scheduler_runtime = SchedulerRuntime(settings, outbox_service, bot_runtime, billing_service)
+    bot_runtime = BotRuntime(
+        settings,
+        bot,
+        dispatcher,
+        commands,
+        catalog.text("bot.menu"),
+        catalog,
+    )
+    register_handlers(
+        router,
+        session_service,
+        catalog,
+        settings.mini_app_url,
+        billing_service,
+        ops_service,
+        frozenset(settings.admin_ids),
+    )
+    dispatcher.include_router(router)
+    scheduler_runtime = SchedulerRuntime(
+        settings,
+        outbox_service,
+        bot_runtime,
+        billing_service,
+        ops_service,
+    )
     return Container(
         settings=settings,
         plans=plans,
@@ -306,11 +373,14 @@ def build_container(settings: Settings) -> Container:
         quota_service=quota_service,
         chart_service=chart_service,
         forecast_service=forecast_service,
+        assistant_service=assistant_service,
         billing_service=billing_service,
         sky_service=sky_service,
         uow_factory=uow_factory,
         health_service=health_service,
         outbox_service=outbox_service,
+        ops_service=ops_service,
+        forecast_cache=forecast_cache,
         verifier=verifier,
         bot=bot,
         dispatcher=dispatcher,

@@ -11,6 +11,7 @@ from starflow.api.actor import (
     clear_session_cookie,
     require_intent,
 )
+from starflow.api.assistant_http import register_assistant_routes
 from starflow.api.billing_http import register_billing_routes
 from starflow.api.chart_http import register_chart_routes
 from starflow.api.forecast_http import register_forecast_routes
@@ -25,6 +26,7 @@ from starflow.api.http import (
     translate_auth,
 )
 from starflow.api.middleware import RequestIdMiddleware
+from starflow.api.ops_http import register_ops_routes
 from starflow.api.profile_http import ProfileBody, profile_body, register_profile_routes
 from starflow.bootstrap import Container
 from starflow.domain.errors import AuthFailure
@@ -152,6 +154,8 @@ def _api_router(container: Container) -> APIRouter:
     register_chart_routes(router, container)
     register_forecast_routes(router, container)
     register_billing_routes(router, container)
+    register_assistant_routes(router, container)
+    register_ops_routes(router, container)
     return router
 
 

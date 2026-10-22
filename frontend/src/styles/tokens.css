@@ -201,9 +201,8 @@ p {
   width: 22px;
   height: 22px;
   display: block;
-  background: currentColor;
-  mask: var(--icon) center / contain no-repeat;
-  -webkit-mask: var(--icon) center / contain no-repeat;
+  object-fit: contain;
+  flex: 0 0 auto;
 }
 
 .field {
@@ -217,12 +216,17 @@ p {
   color: var(--color-text);
 }
 
-.field input {
+.field input,
+.field select {
   min-height: var(--size-touch);
   border: 1px solid var(--color-divider);
   border-radius: var(--radius-control);
   background: transparent;
   padding: 0 var(--space-4);
+}
+
+.as-typed {
+  text-transform: none;
 }
 
 .field-error {
@@ -746,6 +750,89 @@ p {
 
 .reading-copy {
   white-space: pre-wrap;
+}
+
+.section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.section-nav a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.legend-mark {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border: 1px solid var(--color-text);
+}
+
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 44px;
+  align-items: center;
+}
+
+.chat-shell {
+  padding-bottom: calc(160px + var(--keyboard-inset, 0px) + env(safe-area-inset-bottom));
+}
+
+.chat-dock {
+  position: sticky;
+  bottom: var(--keyboard-inset, 0px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0 calc(var(--space-3) + env(safe-area-inset-bottom));
+  background: var(--color-bg);
+}
+
+.chat-input {
+  width: 100%;
+  min-height: 88px;
+  border: 0;
+  border-bottom: 1px solid var(--color-divider);
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-transform: none;
+  resize: vertical;
+}
+
+.chat-user,
+.chat-reply {
+  white-space: pre-wrap;
+}
+
+.consent-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+}
+
+html[data-keyboard="open"] .chat-dock {
+  position: sticky;
+  bottom: var(--keyboard-inset, 0px);
 }
 
 html[data-keyboard="open"] .tabbar {

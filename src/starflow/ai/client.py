@@ -125,6 +125,50 @@ class DeepSeekClient:
             )
 
         response = await self._run(call)
+        return self._reply(response, started)
+
+    async def complete_messages(
+        self,
+        *,
+        model: str,
+        messages: list[dict[str, str]],
+        temperature: float,
+        max_tokens: int,
+        json_mode: bool,
+    ) -> ModelReply:
+        """В вызов не передаются tools: текст пользователя не запускает код и чужие чтения."""
+        payload: list[ChatCompletionMessageParam] = []
+        for item in messages:
+            role = item.get("role")
+            content = item.get("content", "")
+            if role == "system":
+                payload.append({"role": "system", "content": content})
+            elif role == "user":
+                payload.append({"role": "user", "content": content})
+            elif role == "assistant":
+                payload.append({"role": "assistant", "content": content})
+        started = time.monotonic()
+
+        async def call() -> ChatCompletion:
+            if json_mode:
+                return await self._sdk.chat.completions.create(
+                    model=model,
+                    messages=payload,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    response_format={"type": "json_object"},
+                )
+            return await self._sdk.chat.completions.create(
+                model=model,
+                messages=payload,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+
+        response = await self._run(call)
+        return self._reply(response, started)
+
+    def _reply(self, response: ChatCompletion, started: float) -> ModelReply:
         content = response.choices[0].message.content
         if not content:
             raise RuntimeError("model returned an empty message")

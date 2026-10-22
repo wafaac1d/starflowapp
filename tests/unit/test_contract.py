@@ -45,13 +45,30 @@ async def test_deepseek_client_posts_the_configured_model() -> None:
         user_text="верни json",
         json_mode=True,
     )
-    await client.aclose()
     assert text == '{"reply":"строчный ответ"}'
     body = seen["body"]
     assert isinstance(body, dict)
     assert body["model"] == "deepseek-flash"
     assert body["response_format"] == {"type": "json_object"}
+    assert "tools" not in body
     assert "api.deepseek.com" in str(seen["url"])
+    seen.clear()
+    await client.complete_messages(
+        model=settings.deepseek_model_fast,
+        messages=[
+            {"role": "system", "content": "системный текст"},
+            {"role": "user", "content": "Что с Луной?"},
+        ],
+        temperature=0.2,
+        max_tokens=400,
+        json_mode=True,
+    )
+    chat = seen["body"]
+    assert isinstance(chat, dict)
+    assert "tools" not in chat
+    assert chat["messages"][0]["content"] == "системный текст"
+    assert chat["messages"][1] == {"role": "user", "content": "Что с Луной?"}
+    await client.aclose()
 
 
 def test_openapi_document_matches_the_committed_contract() -> None:

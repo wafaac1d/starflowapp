@@ -697,6 +697,43 @@
             }
           },
           {
+            "name": "topic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Topic"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Month"
+            }
+          },
+          {
+            "name": "related_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Related Id"
+            }
+          },
+          {
             "name": "Idempotency-Key",
             "in": "header",
             "required": true,
@@ -740,6 +777,43 @@
             "schema": {
               "type": "string",
               "title": "Kind"
+            }
+          },
+          {
+            "name": "topic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Topic"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Month"
+            }
+          },
+          {
+            "name": "related_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Related Id"
             }
           }
         ],
@@ -945,6 +1019,72 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/related/{related_id}/consent": {
+      "post": {
+        "summary": "Allow Related",
+        "operationId": "allow_related_api_v1_related__related_id__consent_post",
+        "parameters": [
+          {
+            "name": "related_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Related Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/related/{related_id}": {
+      "delete": {
+        "summary": "Remove Related",
+        "operationId": "remove_related_api_v1_related__related_id__delete",
+        "parameters": [
+          {
+            "name": "related_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Related Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -1232,6 +1372,254 @@
         }
       }
     },
+    "/api/v1/assistant/messages": {
+      "post": {
+        "summary": "Ask Assistant",
+        "operationId": "ask_assistant_api_v1_assistant_messages_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuestionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "List Assistant",
+        "operationId": "list_assistant_api_v1_assistant_messages_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssistantMessageBody"
+                  },
+                  "title": "Response List Assistant Api V1 Assistant Messages Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "summary": "Read Notifications",
+        "operationId": "read_notifications_api_v1_notifications_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoticeBody"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Write Notifications",
+        "operationId": "write_notifications_api_v1_notifications_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoticeWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoticeBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/retro": {
+      "get": {
+        "summary": "Read Retro",
+        "operationId": "read_retro_api_v1_retro_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StationBody"
+                  },
+                  "type": "array",
+                  "title": "Response Read Retro Api V1 Retro Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/overview": {
+      "get": {
+        "summary": "Admin Overview",
+        "operationId": "admin_overview_api_v1_admin_overview_get",
+        "parameters": [
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/telegram/webhook": {
       "post": {
         "summary": "Telegram Webhook",
@@ -1281,6 +1669,87 @@
         ],
         "title": "AccessBody"
       },
+      "AdminBody": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          },
+          "active_users": {
+            "type": "integer",
+            "title": "Active Users"
+          },
+          "open_accounts": {
+            "type": "integer",
+            "title": "Open Accounts"
+          },
+          "payments": {
+            "type": "integer",
+            "title": "Payments"
+          },
+          "stars": {
+            "type": "integer",
+            "title": "Stars"
+          },
+          "refunds": {
+            "type": "integer",
+            "title": "Refunds"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceCount"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/ModelCount"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "cache": {
+            "$ref": "#/components/schemas/CacheCount"
+          },
+          "feedback": {
+            "items": {
+              "$ref": "#/components/schemas/FeedbackCountBody"
+            },
+            "type": "array",
+            "title": "Feedback"
+          },
+          "definitions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Definitions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "active_users",
+          "open_accounts",
+          "payments",
+          "stars",
+          "refunds",
+          "sources",
+          "models",
+          "cache",
+          "feedback",
+          "definitions"
+        ],
+        "title": "AdminBody"
+      },
       "AdminGrantBody": {
         "properties": {
           "user_id": {
@@ -1296,15 +1765,101 @@
             "type": "string",
             "maxLength": 500,
             "title": "Reason"
+          },
+          "confirm": {
+            "type": "boolean",
+            "title": "Confirm"
           }
         },
         "type": "object",
         "required": [
           "user_id",
           "days",
-          "reason"
+          "reason",
+          "confirm"
         ],
         "title": "AdminGrantBody"
+      },
+      "AssistantBody": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "reply": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          },
+          "replayed": {
+            "type": "boolean",
+            "title": "Replayed",
+            "default": false
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "AssistantBody"
+      },
+      "AssistantMessageBody": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "content",
+          "created_at"
+        ],
+        "title": "AssistantMessageBody"
       },
       "BillingBody": {
         "properties": {
@@ -1469,6 +2024,44 @@
         ],
         "title": "BillingBody"
       },
+      "CacheCount": {
+        "properties": {
+          "l1_hits": {
+            "type": "integer",
+            "title": "L1 Hits"
+          },
+          "l1_misses": {
+            "type": "integer",
+            "title": "L1 Misses"
+          },
+          "l2_hits": {
+            "type": "integer",
+            "title": "L2 Hits"
+          },
+          "process_generations": {
+            "type": "integer",
+            "title": "Process Generations"
+          },
+          "rows_in_range": {
+            "type": "integer",
+            "title": "Rows In Range"
+          },
+          "hits_in_range": {
+            "type": "integer",
+            "title": "Hits In Range"
+          }
+        },
+        "type": "object",
+        "required": [
+          "l1_hits",
+          "l1_misses",
+          "l2_hits",
+          "process_generations",
+          "rows_in_range",
+          "hits_in_range"
+        ],
+        "title": "CacheCount"
+      },
       "CancelBody": {
         "properties": {
           "is_canceled": {
@@ -1588,6 +2181,14 @@
           "natal_access": {
             "type": "string",
             "title": "Natal Access"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/SectionBody"
+            },
+            "type": "array",
+            "title": "Sections",
+            "default": []
           }
         },
         "type": "object",
@@ -1654,6 +2255,32 @@
           "replayed"
         ],
         "title": "CompatibilityResult"
+      },
+      "DayBody": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "scores": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Scores"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "scores",
+          "note"
+        ],
+        "title": "DayBody"
       },
       "DraftBody": {
         "properties": {
@@ -1781,6 +2408,29 @@
         ],
         "title": "FeedbackBody"
       },
+      "FeedbackCountBody": {
+        "properties": {
+          "forecast_type": {
+            "type": "string",
+            "title": "Forecast Type"
+          },
+          "prompt_version": {
+            "type": "string",
+            "title": "Prompt Version"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "forecast_type",
+          "prompt_version",
+          "count"
+        ],
+        "title": "FeedbackCountBody"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1860,6 +2510,121 @@
           "mini_app_configured"
         ],
         "title": "MetaResponse"
+      },
+      "ModelCount": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "prompt_tokens": {
+            "type": "integer",
+            "title": "Prompt Tokens"
+          },
+          "completion_tokens": {
+            "type": "integer",
+            "title": "Completion Tokens"
+          },
+          "errors": {
+            "type": "integer",
+            "title": "Errors"
+          },
+          "latency_p50_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency P50 Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "calls",
+          "prompt_tokens",
+          "completion_tokens",
+          "errors",
+          "latency_p50_ms"
+        ],
+        "title": "ModelCount"
+      },
+      "NoticeBody": {
+        "properties": {
+          "local_time": {
+            "type": "string",
+            "title": "Local Time"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "day": {
+            "type": "boolean",
+            "title": "Day"
+          },
+          "moon": {
+            "type": "boolean",
+            "title": "Moon"
+          },
+          "retro": {
+            "type": "boolean",
+            "title": "Retro"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_time",
+          "timezone",
+          "day",
+          "moon",
+          "retro"
+        ],
+        "title": "NoticeBody"
+      },
+      "NoticeWrite": {
+        "properties": {
+          "local_time": {
+            "type": "string",
+            "maxLength": 5,
+            "minLength": 5,
+            "title": "Local Time"
+          },
+          "timezone": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Timezone"
+          },
+          "day": {
+            "type": "boolean",
+            "title": "Day"
+          },
+          "moon": {
+            "type": "boolean",
+            "title": "Moon"
+          },
+          "retro": {
+            "type": "boolean",
+            "title": "Retro"
+          }
+        },
+        "type": "object",
+        "required": [
+          "local_time",
+          "timezone",
+          "day",
+          "moon",
+          "retro"
+        ],
+        "title": "NoticeWrite"
       },
       "OrderBody": {
         "properties": {
@@ -2168,6 +2933,19 @@
         ],
         "title": "ProfileBody"
       },
+      "QuestionBody": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "QuestionBody"
+      },
       "ReadingBody": {
         "properties": {
           "status": {
@@ -2268,6 +3046,22 @@
               }
             ],
             "title": "Reset At"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/DayBody"
+            },
+            "type": "array",
+            "title": "Days",
+            "default": []
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations",
+            "default": []
           }
         },
         "type": "object",
@@ -2343,6 +3137,11 @@
           "birth_date": {
             "type": "string",
             "title": "Birth Date"
+          },
+          "consent": {
+            "type": "boolean",
+            "title": "Consent",
+            "default": false
           }
         },
         "type": "object",
@@ -2373,6 +3172,11 @@
               }
             ],
             "title": "Birth Date"
+          },
+          "consent": {
+            "type": "boolean",
+            "title": "Consent",
+            "default": false
           }
         },
         "type": "object",
@@ -2382,6 +3186,29 @@
           "birth_date"
         ],
         "title": "RelatedItem"
+      },
+      "SectionBody": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "body"
+        ],
+        "title": "SectionBody"
       },
       "ShareBody": {
         "properties": {
@@ -2426,6 +3253,48 @@
           "bodies"
         ],
         "title": "SkyBody"
+      },
+      "SourceCount": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "count"
+        ],
+        "title": "SourceCount"
+      },
+      "StationBody": {
+        "properties": {
+          "planet": {
+            "type": "string",
+            "title": "Planet"
+          },
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "local_date": {
+            "type": "string",
+            "title": "Local Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "planet",
+          "start",
+          "local_date"
+        ],
+        "title": "StationBody"
       },
       "ValidationError": {
         "properties": {

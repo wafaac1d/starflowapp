@@ -43,7 +43,6 @@ async function copySvg(from, to) {
   });
 }
 
-await copySvg(path.join(repoRoot, "static", "icons", "svg"), path.join(frontendRoot, "public", "icons"));
 await copySvg(
   path.join(repoRoot, "static", "illustrations"),
   path.join(frontendRoot, "public", "illustrations"),

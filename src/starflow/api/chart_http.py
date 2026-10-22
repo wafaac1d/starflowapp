@@ -1,5 +1,6 @@
 """Карта, небо и допуск. Проверка paywall ничего не резервирует."""
 
+from collections.abc import Callable
 from datetime import datetime
 from typing import Annotated
 from uuid import UUID
@@ -12,6 +13,7 @@ from starflow.api.http import ApiError
 from starflow.bootstrap import Container
 from starflow.domain.astrology import facts_for_longitude
 from starflow.domain.calendar_sign import calendar_sign
+from starflow.domain.chart_sections import chart_sections
 from starflow.domain.errors import Conflict, FieldInvalid
 from starflow.domain.local_time import user_week
 from starflow.domain.quota import Allowed, LimitReached, PremiumRequired, QuotaDecision
@@ -33,6 +35,12 @@ class PlanetBody(BaseModel):
     exact: bool
 
 
+class SectionBody(BaseModel):
+    id: str
+    title: str
+    body: str
+
+
 class ChartBody(BaseModel):
     sun_sign: str | None
     sun_sign_source: str
@@ -46,6 +54,7 @@ class ChartBody(BaseModel):
     phase_name: str | None
     limitations: list[str]
     natal_access: str
+    sections: list[SectionBody] = []
 
 
 class SkyBody(BaseModel):
@@ -87,7 +96,7 @@ def register_chart_routes(router: APIRouter, container: Container) -> None:
     async def read_chart(request: Request) -> ChartBody:
         actor = await actor_from_cookie(request, container, unauthorized)
         view = await container.chart_service.read(actor.view.user_id)
-        return _chart(view)
+        return _chart(view, container.catalog.text)
 
     @router.get("/sky", response_model=SkyBody)
     async def read_sky(request: Request) -> SkyBody:
@@ -228,7 +237,7 @@ def _field_error(container: Container, error: FieldInvalid) -> ApiError:
     )
 
 
-def _chart(view: ChartView) -> ChartBody:
+def _chart(view: ChartView, line: Callable[[str], str]) -> ChartBody:
     return ChartBody(
         sun_sign=view.sun_sign,
         sun_sign_source=view.sun_sign_source,
@@ -242,7 +251,21 @@ def _chart(view: ChartView) -> ChartBody:
         phase_name=view.phase_name,
         limitations=list(view.limitations),
         natal_access=view.natal_access,
+        sections=_sections(view, line),
     )
+
+
+def _sections(view: ChartView, line: Callable[[str], str]) -> list[SectionBody]:
+    built = chart_sections(
+        sun_sign=view.sun_sign,
+        moon_sign=view.moon_sign,
+        ascendant_sign=view.ascendant_sign,
+        houses=view.houses,
+        planets=tuple((item.name, item.sign) for item in view.planets),
+        aspects=view.aspects,
+        line=line,
+    )
+    return [SectionBody(id=item.id, title=item.title, body=item.body) for item in built]
 
 
 def _planet(item: PlanetPlacement) -> PlanetBody:

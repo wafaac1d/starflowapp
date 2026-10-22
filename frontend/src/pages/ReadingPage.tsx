@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 
 import {
   getReading,
@@ -8,6 +9,8 @@ import {
   saveFavorite,
   sendFeedback,
   startReading,
+  type CalendarDay,
+  type ReadingQuery,
   type ReadingResponse,
 } from "../api/client";
 import { BackHome, Button, Skeleton } from "../components/ui/controls";
@@ -19,6 +22,14 @@ const TITLES: Record<string, TextKey> = {
   advice: "ui.reading.advice",
   moon: "ui.reading.moon",
   compatibility: "ui.reading.compatibility",
+  today_detail: "ui.reading.today_detail",
+  tomorrow: "ui.reading.tomorrow",
+  personal_day: "ui.reading.personal_day",
+  personal_week: "ui.reading.personal_week",
+  personal_month: "ui.reading.personal_month",
+  topics: "ui.reading.topics",
+  calendar: "ui.reading.calendar",
+  synastry: "ui.reading.synastry",
 };
 
 type ReadingPageProps = {
@@ -28,13 +39,28 @@ type ReadingPageProps = {
 };
 
 export function ReadingPage({ kind, fetchImpl = fetch, pollMs = 700 }: ReadingPageProps) {
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const topic = params.get("topic");
+  const month = params.get("month");
+  const relatedId = params.get("related_id");
+  const query: ReadingQuery = {};
+  if (topic) {
+    query.topic = topic;
+  }
+  if (month) {
+    query.month = month;
+  }
+  if (relatedId) {
+    query.relatedId = relatedId;
+  }
   const [attempt, setAttempt] = useState(0);
   const [postedAttempt, setPostedAttempt] = useState<number | null>(null);
   const [shareText, setShareText] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const title = text(TITLES[kind] ?? "ui.reading.day");
   const start = useMutation({
-    mutationFn: (_next: number) => startReading(kind, readingKey(), fetchImpl),
+    mutationFn: (_next: number) => startReading(kind, readingKey(), fetchImpl, query),
     onSuccess: (_data, next) => {
       setPostedAttempt(next);
     },
@@ -43,10 +69,10 @@ export function ReadingPage({ kind, fetchImpl = fetch, pollMs = 700 }: ReadingPa
     start.mutate(attempt);
     // Listing the mutation object here would post again on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempt, kind]);
+  }, [attempt, kind, topic, month, relatedId]);
   const reading = useQuery({
     queryKey: ["reading", kind, attempt],
-    queryFn: () => getReading(kind, fetchImpl),
+    queryFn: () => getReading(kind, fetchImpl, query),
     enabled: postedAttempt === attempt,
     refetchInterval: (query) => (query.state.data?.status === "pending" ? pollMs : false),
   });
@@ -87,6 +113,15 @@ export function ReadingPage({ kind, fetchImpl = fetch, pollMs = 700 }: ReadingPa
       {data?.status === "blocked" || data?.status === "limit" || data?.status === "premium" ? (
         <p role="alert">{data.body || text("ui.common.error")}</p>
       ) : null}
+      {data?.status === "premium" ? (
+        <Button
+          label={text("ui.premium.title")}
+          onClick={() => {
+            void navigate("/premium");
+          }}
+        />
+      ) : null}
+      {data?.days !== undefined && data.days.length > 0 ? <DayScores days={data.days} /> : null}
       <BackHome />
     </main>
   );
@@ -178,6 +213,57 @@ function ReadingBody({ data, saved, shareText, fetchImpl, onSaved, onShare }: Bo
       ) : null}
     </>
   );
+}
+
+function DayScores({ days }: { days: CalendarDay[] }) {
+  return (
+    <>
+      <ScoreLegend />
+      {days.map((day) => (
+        <article key={day.date}>
+          <h2>{day.date}</h2>
+          {Object.entries(day.scores).map(([theme, score]) => (
+            <p key={theme} className="score-row">
+              <span>{theme}</span>
+              <span>
+                {score} · {scoreWord(score)}
+              </span>
+            </p>
+          ))}
+          <p>{day.note}</p>
+        </article>
+      ))}
+    </>
+  );
+}
+
+export function ScoreLegend() {
+  return (
+    <ul className="legend" aria-label={text("ui.calendar.legend")}>
+      <li>
+        <span className="legend-mark" aria-hidden="true" />
+        {text("ui.calendar.low")} 1–2
+      </li>
+      <li>
+        <span className="legend-mark" aria-hidden="true" />
+        {text("ui.calendar.mid")} 3
+      </li>
+      <li>
+        <span className="legend-mark" aria-hidden="true" />
+        {text("ui.calendar.high")} 4–5
+      </li>
+    </ul>
+  );
+}
+
+export function scoreWord(score: number): string {
+  if (score <= 2) {
+    return text("ui.calendar.low");
+  }
+  if (score === 3) {
+    return text("ui.calendar.mid");
+  }
+  return text("ui.calendar.high");
 }
 
 function Thumb({ direction }: { direction: "up" | "down" }) {

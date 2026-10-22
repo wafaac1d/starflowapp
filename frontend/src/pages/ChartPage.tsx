@@ -116,6 +116,23 @@ function ChartDetails({ chart }: { chart: ChartResponse }) {
           </ul>
         </>
       ) : null}
+      {chart.sections !== undefined && chart.sections.length > 0 ? (
+        <>
+          <nav className="section-nav" aria-label={text("ui.chart.sections")}>
+            {chart.sections.map((section) => (
+              <a key={section.id} href={`#chart-${section.id}`}>
+                {section.title}
+              </a>
+            ))}
+          </nav>
+          {chart.sections.map((section) => (
+            <section key={section.id} id={`chart-${section.id}`}>
+              <h2>{section.title}</h2>
+              <p>{section.body}</p>
+            </section>
+          ))}
+        </>
+      ) : null}
       {chart.natal_access === "premium_required" ? (
         <>
           <h2>{text("ui.paywall.title")}</h2>

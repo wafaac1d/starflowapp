@@ -36,3 +36,15 @@ class PremiumRequired(DomainError):
 
 class PaymentUnavailable(DomainError):
     """Telegram не подтвердил вызов. Доступ от этого вызова не меняется."""
+
+
+class DeliveryRetry(DomainError):
+    """Telegram просит подождать. Сообщение остаётся неотправлённым."""
+
+    def __init__(self, delay_sec: float) -> None:
+        super().__init__("retry")
+        self.delay_sec = delay_sec
+
+
+class DeliveryBlocked(DomainError):
+    """Получатель запретил бота. Повторно это сообщение не шлётся."""

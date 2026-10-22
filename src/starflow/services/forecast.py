@@ -4,9 +4,9 @@ import asyncio
 import json
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from types import TracebackType
-from typing import Protocol
+from typing import Protocol, cast
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -16,19 +16,32 @@ from starflow.ai.catalog import PromptCatalog, PromptSpec
 from starflow.ai.client import CircuitOpen, ModelReply
 from starflow.ai.guard import guarded_copy
 from starflow.cache.two_level import TwoLevelCache
+from starflow.domain.astrology import facts_for_longitude
+from starflow.domain.calendar_reading import DayMark, accept_calendar, parse_month
 from starflow.domain.calendar_sign import calendar_sign
 from starflow.domain.errors import Conflict, FieldInvalid
-from starflow.domain.quota import LimitReached, QuotaDecision, idempotency_key_ok
+from starflow.domain.features import TOPICS
+from starflow.domain.quota import (
+    Allowed,
+    LimitReached,
+    PremiumRequired,
+    QuotaDecision,
+    idempotency_key_ok,
+)
 from starflow.domain.records import RelatedBirth
 from starflow.domain.segments import (
+    calendar_segment,
+    detail_segment,
     expires_at,
     facts_text,
     forecast_cache_key,
     moon_segment,
     pair_segment,
     period_key,
+    personal_segment,
     representative_facts,
     sun_segment,
+    synastry_segment,
 )
 from starflow.domain.time import local_date, now_utc
 from starflow.i18n.catalog import Catalog
@@ -41,9 +54,23 @@ from starflow.repositories.sql import (
     ProfileRepository,
     RelatedProfileRepository,
 )
+from starflow.services.chart import ChartView
 from starflow.services.quota import QuotaStore, ResultWriter, StoredResult
 
-_KINDS = frozenset({"day", "week", "advice", "moon", "compatibility"})
+_OPEN = frozenset({"day", "week", "advice", "moon", "compatibility"})
+_PREMIUM = frozenset(
+    {
+        "today_detail",
+        "tomorrow",
+        "personal_day",
+        "personal_week",
+        "personal_month",
+        "topics",
+        "calendar",
+        "synastry",
+    }
+)
+_KINDS = _OPEN | _PREMIUM
 _REPAIR = (
     "прошлый ответ не подошёл. верни один json-объект со строчными полями title и body, "
     "без emoji и без html."
@@ -67,6 +94,15 @@ class ReadingView:
     streak: int | None = None
     replayed: bool = False
     reset_at: datetime | None = None
+    days: tuple[DayMark, ...] = ()
+    limitations: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ReadingScope:
+    topic: str = ""
+    month: str = ""
+    related_id: UUID | None = None
 
 
 @dataclass
@@ -88,7 +124,13 @@ class TextModel(Protocol):
     ) -> ModelReply: ...
 
 
+class NatalFacts(Protocol):
+    async def read(self, user_id: UUID) -> ChartView: ...
+
+
 class QuotaPort(Protocol):
+    async def preview(self, user_id: UUID, feature: str) -> QuotaDecision: ...
+
     async def execute(
         self,
         user_id: UUID,
@@ -143,6 +185,7 @@ class ForecastService:
         mini_app_url: str,
         clock: Callable[[], datetime] | None = None,
         background: bool = True,
+        chart: NatalFacts | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._cache = cache
@@ -157,48 +200,68 @@ class ForecastService:
         self._mini_app_url = mini_app_url
         self._clock = clock or now_utc
         self._background = background
+        self._chart = chart
         self._jobs: dict[tuple[UUID, str, str], _Job] = {}
-        self._idempotency: dict[tuple[UUID, str], tuple[UUID, str, str]] = {}
+        self._answers: dict[tuple[UUID, str], ReadingView] = {}
         self._background_keys: set[str] = set()
         self._tasks: set[asyncio.Task[None]] = set()
 
-    async def start(self, user_id: UUID, kind: str, idempotency_key: str) -> ReadingView:
+    async def start(
+        self,
+        user_id: UUID,
+        kind: str,
+        idempotency_key: str,
+        scope: ReadingScope | None = None,
+    ) -> ReadingView:
+        scope = scope or ReadingScope()
         self._check_kind(kind)
+        self._check_scope(kind, scope)
         if not idempotency_key_ok(idempotency_key):
             raise FieldInvalid("idempotency_key", "errors.idempotency_key")
         moment = self._clock()
-        key = period_key(kind, moment, self._zone_name)
-        identity = (user_id, kind, key)
-        known = self._idempotency.get((user_id, idempotency_key))
-        if known is not None:
-            return self._job_view(known)
+        storage, day, identity_key = self._slot(kind, moment, scope)
+        identity = (user_id, storage, identity_key)
+        answered = self._answers.get((user_id, idempotency_key))
+        if answered is not None:
+            return answered
         current = self._jobs.get(identity)
-        if current is not None and current.status != "error":
-            self._idempotency[(user_id, idempotency_key)] = identity
-            return current.view or _pending()
-        saved = await self._saved(user_id, kind, _period_day(kind, moment, self._zone_name))
+        if current is not None and current.status == "pending":
+            return _pending()
+        if current is not None and current.status == "ready" and current.view is not None:
+            self._answers[(user_id, idempotency_key)] = current.view
+            return current.view
+        saved = await self._saved(user_id, storage, day)
         if saved is not None:
+            self._answers[(user_id, idempotency_key)] = saved
             return saved
         blocked = await self._blocked(user_id, kind)
         if blocked is not None:
+            self._answers[(user_id, idempotency_key)] = blocked
             return blocked
         await self.accept_referral(user_id)
         job = _Job()
         self._jobs[identity] = job
-        self._idempotency[(user_id, idempotency_key)] = identity
-        self._spawn(self._fill(job, user_id, kind, idempotency_key, moment))
+        self._spawn(self._fill(job, user_id, kind, idempotency_key, moment, scope))
         return _pending()
 
-    async def current(self, user_id: UUID, kind: str) -> ReadingView:
+    async def current(
+        self,
+        user_id: UUID,
+        kind: str,
+        scope: ReadingScope | None = None,
+    ) -> ReadingView:
+        scope = scope or ReadingScope()
         self._check_kind(kind)
+        self._check_scope(kind, scope)
         moment = self._clock()
-        identity = (user_id, kind, period_key(kind, moment, self._zone_name))
+        storage, day, identity_key = self._slot(kind, moment, scope)
+        identity = (user_id, storage, identity_key)
         job = self._jobs.get(identity)
         if job is not None and job.view is not None:
             return job.view
         if job is not None:
             return _pending()
-        saved = await self._saved(user_id, kind, _period_day(kind, moment, self._zone_name))
+        saved = await self._saved(user_id, storage, day)
         if saved is not None:
             return saved
         return ReadingView(status="idle")
@@ -210,9 +273,12 @@ class ForecastService:
         kind: str,
         idempotency_key: str,
         moment: datetime,
+        scope: ReadingScope,
     ) -> None:
         try:
-            if kind == "compatibility":
+            if kind in _PREMIUM:
+                view = await self._premium(user_id, kind, moment, scope)
+            elif kind == "compatibility":
                 view = await self._compatibility(user_id, idempotency_key, moment)
             else:
                 view = await self._open(user_id, kind, moment)
@@ -220,6 +286,7 @@ class ForecastService:
             view = ReadingView(status="error", body=self._catalog.text("errors.reading_failed"))
         job.status = view.status
         job.view = view
+        self._answers[(user_id, idempotency_key)] = view
 
     async def _open(self, user_id: UUID, kind: str, moment: datetime) -> ReadingView:
         prepared = await self._prepare(user_id, kind, moment)
@@ -278,13 +345,15 @@ class ForecastService:
         segment: str,
         facts: dict[str, object],
         moment: datetime,
+        *,
+        topic: str = "",
     ) -> tuple[dict[str, object], str]:
         prompt = self._prompts.get(kind)
         key = forecast_cache_key(
             kind,
             period_key(kind, moment, self._zone_name),
             segment,
-            "",
+            topic,
             self._locale,
             prompt.version,
         )
@@ -425,9 +494,16 @@ class ForecastService:
         moment: datetime,
         payload: dict[str, object],
         profile: object,
+        *,
+        day: date | None = None,
     ) -> tuple[UUID, int | None]:
-        day = _period_day(kind, moment, self._zone_name)
+        day = _period_day(kind, moment, self._zone_name) if day is None else day
         zone = getattr(profile, "timezone", None) or self._zone_name
+        version = self._prompt_version(kind)
+        stored = dict(payload)
+        if version is not None:
+            stored["prompt_version"] = version
+        payload = stored
         try:
             async with self._uow_factory() as uow:
                 found = await uow.forecast_history.find(user_id, kind, day)
@@ -464,10 +540,12 @@ class ForecastService:
             history_id=history_id,
             streak=profile.streak_count if kind == "day" else None,
             replayed=True,
+            days=_marks(payload.get("days")),
+            limitations=_texts(payload.get("limitations")),
         )
 
     async def _blocked(self, user_id: UUID, kind: str) -> ReadingView | None:
-        if kind == "moon":
+        if kind in {"moon", "today_detail", "tomorrow"}:
             return None
         async with self._uow_factory() as uow:
             profile = await uow.profiles.ensure(user_id)
@@ -485,6 +563,7 @@ class ForecastService:
         history_id: UUID | None,
         streak: int | None,
         replayed: bool = False,
+        limitations: tuple[str, ...] = (),
     ) -> ReadingView:
         sign = getattr(profile, "birth_date", None)
         user_sign = None if sign is None else calendar_sign(sign)
@@ -499,6 +578,8 @@ class ForecastService:
             history_id=history_id,
             streak=streak,
             replayed=replayed,
+            days=_marks(payload.get("days")),
+            limitations=limitations or _texts(payload.get("limitations")),
         )
 
     async def _log(
@@ -576,6 +657,20 @@ class ForecastService:
         async with self._uow_factory() as uow:
             return await uow.related_profiles.list_births(user_id)
 
+    async def allow_related(self, user_id: UUID, related_id: UUID) -> bool:
+        async with self._uow_factory() as uow:
+            allowed = await uow.related_profiles.set_consent(user_id, related_id, True)
+            if allowed:
+                await uow.commit()
+            return allowed
+
+    async def delete_related(self, user_id: UUID, related_id: UUID) -> bool:
+        async with self._uow_factory() as uow:
+            deleted = await uow.related_profiles.delete_owned(user_id, related_id)
+            if deleted:
+                await uow.commit()
+            return deleted
+
     async def referral(self, user_id: UUID) -> tuple[str, str]:
         async with self._uow_factory() as uow:
             code = await uow.users.ensure_referral_code(user_id)
@@ -589,15 +684,238 @@ class ForecastService:
             await uow.users.bind_referrer(user_id, param)
             await uow.commit()
 
+    async def _premium(
+        self,
+        user_id: UUID,
+        kind: str,
+        moment: datetime,
+        scope: ReadingScope,
+    ) -> ReadingView:
+        decision = await self._quota.preview(user_id, kind)
+        if isinstance(decision, PremiumRequired):
+            return ReadingView(status="premium", body=self._catalog.text("ui.paywall.lead"))
+        if not isinstance(decision, Allowed):
+            reset = decision.reset_at if isinstance(decision, LimitReached) else None
+            return ReadingView(status="limit", reset_at=reset)
+        prepared = await self._prepare_premium(user_id, kind, moment, scope)
+        if isinstance(prepared, ReadingView):
+            return prepared
+        segment, facts, profile, limitations, storage, day, when = prepared
+        if kind == "calendar":
+            payload, shared = await self._calendar_text(user_id, segment, facts, when, scope)
+        else:
+            payload, shared = await self._shared(
+                user_id, kind, segment, facts, when, topic=scope.topic
+            )
+        payload = _with_limits(payload, limitations, self._catalog)
+        if payload.get("source") != "model":
+            return self._view(profile, payload, shared, None, None, limitations=limitations)
+        history_id, streak = await self._remember(user_id, storage, when, payload, profile, day=day)
+        return self._view(
+            profile,
+            payload,
+            shared,
+            history_id,
+            streak,
+            limitations=limitations,
+        )
+
+    async def _prepare_premium(
+        self,
+        user_id: UUID,
+        kind: str,
+        moment: datetime,
+        scope: ReadingScope,
+    ) -> ReadingView | tuple[str, dict[str, object], object, tuple[str, ...], str, date, datetime]:
+        storage, day, _identity = self._slot(kind, moment, scope)
+        when = _scoped_moment(kind, moment, self._zone_name, scope)
+        async with self._uow_factory() as uow:
+            profile = await uow.profiles.ensure(user_id)
+            related = None
+            if scope.related_id is not None:
+                related = await uow.related_profiles.get_owned(user_id, scope.related_id)
+        if kind in {"today_detail", "tomorrow"}:
+            sky_day = when.astimezone(ZoneInfo(self._zone_name)).date()
+            sky = await self._sky.for_date(sky_day)
+            segment, facts = _sky_facts(kind, sky, sky_day)
+            return segment, facts, profile, (), storage, day, when
+        if profile.birth_date is None:
+            return ReadingView(
+                status="blocked", body=self._catalog.text("ui.chart.birth_date_missing")
+            )
+        sign = calendar_sign(profile.birth_date)
+        moon, ascendant = await self._natal_signs(user_id)
+        if kind == "synastry":
+            if related is None or related.birth_date is None:
+                return ReadingView(
+                    status="blocked", body=self._catalog.text("errors.related_required")
+                )
+            if not related.consent:
+                return ReadingView(
+                    status="blocked", body=self._catalog.text("errors.consent_required")
+                )
+            left = {"sun": sign, "moon": moon, "asc": ascendant}
+            right = {
+                "sun": calendar_sign(related.birth_date),
+                "moon": None,
+                "asc": None,
+            }
+            segment = synastry_segment(left, right)
+            limitations = _synastry_limits(profile, related)
+            return (
+                segment,
+                representative_facts(kind, segment),
+                profile,
+                limitations,
+                storage,
+                day,
+                when,
+            )
+        if kind == "calendar":
+            sky = await self._sky.for_date(day)
+            sky_moon = sky.get("moon_sign")
+            moon_sign = sky_moon if isinstance(sky_moon, str) else (moon or "unknown")
+            segment = calendar_segment(sign, moon_sign, ascendant, scope.month)
+            facts = representative_facts(kind, segment)
+            return segment, facts, profile, (), storage, day, when
+        segment = personal_segment(sign, moon, ascendant)
+        facts = representative_facts(kind, segment)
+        if kind == "topics":
+            facts = {**facts, "topic": scope.topic}
+        return segment, facts, profile, (), storage, day, when
+
+    async def _calendar_text(
+        self,
+        user_id: UUID,
+        segment: str,
+        facts: dict[str, object],
+        moment: datetime,
+        scope: ReadingScope,
+    ) -> tuple[dict[str, object], str]:
+        prompt = self._prompts.get("calendar")
+        key = forecast_cache_key(
+            "calendar",
+            scope.month,
+            segment,
+            "",
+            self._locale,
+            prompt.version,
+        )
+
+        async def produce() -> dict[str, object]:
+            return await self._calendar_payload(user_id, facts, scope)
+
+        hit = await self._cache.get_or_create(
+            key, "calendar", expires_at("calendar", moment, self._zone_name), produce
+        )
+        return hit.payload, facts_text(facts)
+
+    async def _calendar_payload(
+        self,
+        user_id: UUID,
+        facts: dict[str, object],
+        scope: ReadingScope,
+    ) -> dict[str, object]:
+        prompt = self._prompts.get("calendar")
+        model_name = self._models[prompt.tier]
+        user = prompt.user.replace("{facts}", facts_text(facts))
+        year, month = parse_month(scope.month)
+        parsed = await self._ask_raw(user_id, "calendar", model_name, prompt.system, user, prompt)
+        accepted = None if parsed is None else accept_calendar(year, month, parsed)
+        if accepted is None:
+            repair = (
+                "прошлый json не покрыл месяц. верни title и days на каждый день этого месяца, "
+                "оценки от 1 до 5, без чужих дат."
+            )
+            parsed = await self._ask_raw(
+                user_id, "calendar", model_name, prompt.system, repair, prompt
+            )
+            accepted = None if parsed is None else accept_calendar(year, month, parsed)
+        if accepted is None:
+            return {
+                "title": self._catalog.text("ui.reading.calendar"),
+                "body": self._catalog.text("ui.reading.fallback_calendar"),
+                "source": "fallback",
+            }
+        title, days = accepted
+        return {
+            "title": title,
+            "body": self._catalog.text("ui.reading.calendar"),
+            "days": [
+                {"date": mark.day, "scores": dict(mark.scores), "note": mark.note} for mark in days
+            ],
+            "source": "model",
+        }
+
+    async def _ask_raw(
+        self,
+        user_id: UUID,
+        kind: str,
+        model_name: str,
+        system: str,
+        user: str,
+        prompt: PromptSpec,
+    ) -> object | None:
+        try:
+            reply = await self._model.complete_forecast(
+                model=model_name,
+                system=system,
+                user=user,
+                temperature=float(prompt.temperature),
+                max_tokens=int(prompt.max_tokens),
+                json_mode=True,
+            )
+        except CircuitOpen:
+            await self._log(user_id, model_name, kind, "circuit_open", None, "circuit_open")
+            return None
+        except Exception as exc:
+            await self._log(user_id, model_name, kind, "error", None, type(exc).__name__)
+            return None
+        await self._log(user_id, reply.model or model_name, kind, "ok", reply, None)
+        try:
+            return cast(object, json.loads(reply.content))
+        except json.JSONDecodeError:
+            return None
+
+    async def _natal_signs(self, user_id: UUID) -> tuple[str | None, str | None]:
+        if self._chart is None:
+            return None, None
+        view = await self._chart.read(user_id)
+        if view.natal_access != "allowed":
+            return None, None
+        return view.moon_sign, view.ascendant_sign
+
+    def _slot(self, kind: str, moment: datetime, scope: ReadingScope) -> tuple[str, date, str]:
+        day = _target_day(kind, moment, self._zone_name, scope)
+        storage = kind
+        if kind == "topics":
+            storage = f"topics:{scope.topic}"
+        elif kind == "synastry" and scope.related_id is not None:
+            storage = f"synastry:{scope.related_id}"
+        return storage, day, f"{day.isoformat()}|{scope.topic}|{scope.month}"
+
+    def _check_scope(self, kind: str, scope: ReadingScope) -> None:
+        if kind == "topics" and scope.topic not in TOPICS:
+            raise FieldInvalid("topic", "errors.validation")
+        if kind == "calendar":
+            try:
+                parse_month(scope.month)
+            except ValueError as error:
+                raise FieldInvalid("month", "errors.validation") from error
+        if kind == "synastry" and scope.related_id is None:
+            raise FieldInvalid("related_id", "errors.related_required")
+
+    def _prompt_version(self, kind: str) -> int | None:
+        for name in (kind, kind.split(":", 1)[0]):
+            try:
+                return self._prompts.get(name).version
+            except KeyError:
+                continue
+        return None
+
     def _check_kind(self, kind: str) -> None:
         if kind not in _KINDS:
             raise FieldInvalid("kind", "errors.not_found")
-
-    def _job_view(self, identity: tuple[UUID, str, str]) -> ReadingView:
-        job = self._jobs.get(identity)
-        if job is None or job.view is None:
-            return _pending()
-        return job.view
 
     def _spawn(self, work: Coroutine[object, object, None]) -> None:
         task: asyncio.Task[None] = asyncio.create_task(work)
@@ -640,3 +958,106 @@ def _as_text(value: object) -> str | None:
     if not isinstance(value, str) or value == "":
         return None
     return value
+
+
+def _target_day(kind: str, moment: datetime, zone_name: str, scope: ReadingScope) -> date:
+    local = moment.astimezone(ZoneInfo(zone_name)).date()
+    if kind == "tomorrow":
+        return local + timedelta(days=1)
+    if kind == "calendar":
+        year, month = parse_month(scope.month)
+        return date(year, month, 1)
+    if kind in {"week", "personal_week", "compatibility"}:
+        return local - timedelta(days=local.weekday())
+    if kind in {"personal_month"}:
+        return date(local.year, local.month, 1)
+    return local
+
+
+def _scoped_moment(kind: str, moment: datetime, zone_name: str, scope: ReadingScope) -> datetime:
+    zone = ZoneInfo(zone_name)
+    if kind == "tomorrow":
+        day = _target_day(kind, moment, zone_name, scope)
+        return datetime.combine(day, time.min, tzinfo=zone)
+    if kind == "calendar":
+        year, month = parse_month(scope.month)
+        return datetime(year, month, 1, tzinfo=zone)
+    return moment
+
+
+def _sky_facts(kind: str, sky: dict[str, object], day: date) -> tuple[str, dict[str, object]]:
+    sun = sky.get("sun_sign")
+    moon = sky.get("moon_sign")
+    sun_sign = sun if isinstance(sun, str) else "unknown"
+    moon_sign = moon if isinstance(moon, str) else "unknown"
+    decan = "unknown"
+    bodies = sky.get("bodies")
+    if isinstance(bodies, list):
+        for body in bodies:
+            if not isinstance(body, dict) or body.get("name") != "солнце":
+                continue
+            longitude = body.get("longitude")
+            if isinstance(longitude, int | float):
+                decan = str(facts_for_longitude(float(longitude)).decan)
+    segment = (
+        detail_segment(sun_sign, moon_sign, int(decan))
+        if decan.isdigit()
+        else (f"{sun_sign}+{moon_sign}+unknown")
+    )
+    facts = representative_facts(kind, segment)
+    facts["date"] = day.isoformat()
+    return segment, facts
+
+
+def _synastry_limits(profile: object, related: object) -> tuple[str, ...]:
+    notes: list[str] = []
+    if getattr(profile, "birth_time", None) is None:
+        notes.append("owner_time_unknown")
+    if getattr(profile, "latitude", None) is None or getattr(profile, "longitude", None) is None:
+        notes.append("owner_place_missing")
+    if getattr(related, "birth_time_unknown", True):
+        notes.append("related_time_unknown")
+    if getattr(related, "latitude", None) is None or getattr(related, "longitude", None) is None:
+        notes.append("related_place_missing")
+    return tuple(notes)
+
+
+def _with_limits(
+    payload: dict[str, object],
+    limitations: tuple[str, ...],
+    catalog: Catalog,
+) -> dict[str, object]:
+    if not limitations:
+        return payload
+    notes = [catalog.text(f"ui.synastry.{code}") for code in limitations]
+    body = payload.get("body")
+    text = body if isinstance(body, str) else ""
+    merged = "\n".join(part for part in (text, *notes) if part)
+    return {**payload, "body": merged, "limitations": list(limitations)}
+
+
+def _marks(value: object) -> tuple[DayMark, ...]:
+    if not isinstance(value, list):
+        return ()
+    marks: list[DayMark] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        day = item.get("date")
+        scores = item.get("scores")
+        note = item.get("note")
+        if not isinstance(day, str) or not isinstance(scores, dict) or not isinstance(note, str):
+            continue
+        pairs = tuple(
+            (key, score)
+            for key, score in scores.items()
+            if isinstance(key, str) and isinstance(score, int) and not isinstance(score, bool)
+        )
+        marks.append(DayMark(day, pairs, note))
+    return tuple(marks)
+
+
+def _texts(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+    return tuple(item for item in value if isinstance(item, str))

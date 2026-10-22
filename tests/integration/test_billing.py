@@ -395,7 +395,13 @@ async def test_trial_gift_refund_and_referral(factory: async_sessionmaker[AsyncS
     assert opened.premium is True
     with pytest.raises(FieldInvalid):
         await service.start_trial(trial_user.id)
-    await service.grant_admin(actor_is_admin=True, user_id=buyer.id, days=5, reason="проверка")
+    await service.grant_admin(
+        actor_is_admin=True,
+        user_id=buyer.id,
+        days=5,
+        reason="проверка",
+        confirm=True,
+    )
     with pytest.raises(FieldInvalid):
         await service.refund(
             actor_is_admin=False,

@@ -6,15 +6,18 @@ FORECAST_TYPES = (
     "advice",
     "moon",
     "compatibility",
+    "today_detail",
+    "tomorrow",
     "personal_day",
     "personal_week",
+    "personal_month",
     "topics",
     "natal",
     "calendar",
     "synastry",
     "retrospective",
 )
-TOPICS = ("стихия", "модальность", "управитель")
+TOPICS = ("отношения", "работа", "финансы", "эмоциональное состояние")
 GATES = ("open", "metered", "capacity", "premium")
 PERIODS = ("user_week", "paid_period")
 FEATURE_CODES = (
@@ -23,10 +26,13 @@ FEATURE_CODES = (
     "advice",
     "moon",
     "compatibility",
+    "today_detail",
+    "tomorrow",
     "favorite",
     "related_profile",
     "personal_day",
     "personal_week",
+    "personal_month",
     "topics",
     "natal",
     "calendar",

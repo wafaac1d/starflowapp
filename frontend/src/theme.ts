@@ -65,8 +65,10 @@ export function bindViewportChrome(): void {
     if (viewport === null || viewport === undefined) {
       return;
     }
-    const keyboard = window.innerHeight - viewport.height > 80;
+    const covered = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+    const keyboard = covered > 80;
     document.documentElement.dataset.keyboard = keyboard ? "open" : "closed";
+    document.documentElement.style.setProperty("--keyboard-inset", `${covered}px`);
   };
   apply();
   window.visualViewport?.addEventListener("resize", apply);

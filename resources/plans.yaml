@@ -24,8 +24,11 @@ features:
   compatibility: {gate: metered, limit: 1, window: user_week}
   favorite: {gate: capacity, limit: 3}
   related_profile: {gate: capacity, limit: 3}
+  today_detail: {gate: premium}
+  tomorrow: {gate: premium}
   personal_day: {gate: premium}
   personal_week: {gate: premium}
+  personal_month: {gate: premium}
   topics: {gate: premium}
   natal: {gate: premium}
   calendar: {gate: premium}

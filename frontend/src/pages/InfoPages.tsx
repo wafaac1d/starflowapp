@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
-import { BackHome, BottomSheet, Button } from "../components/ui/controls";
+import { BackHome } from "../components/ui/controls";
 import { text, type TextKey } from "../resources";
-import { applyTheme, readThemeChoice, type ThemeChoice } from "../theme";
 import { readWebApp } from "../telegram";
+
+export { SettingsPage } from "./SettingsPage";
 
 export { PremiumPage } from "./PremiumPage";
 
@@ -18,54 +19,6 @@ export function TextScreen({ title, body }: ScreenProps) {
     <main className="shell">
       <h1>{text(title)}</h1>
       <p className="lead">{body}</p>
-      <BackHome />
-    </main>
-  );
-}
-
-const THEMES: { id: ThemeChoice; label: TextKey }[] = [
-  { id: "light", label: "ui.theme.light" },
-  { id: "dark", label: "ui.theme.dark" },
-  { id: "telegram", label: "ui.theme.telegram" },
-];
-
-export function SettingsPage() {
-  const [open, setOpen] = useState(false);
-  const [choice, setChoice] = useState<ThemeChoice>(readThemeChoice());
-  return (
-    <main className="shell">
-      <h1>{text("ui.settings.title")}</h1>
-      <p className="lead">{text("bot.settings")}</p>
-      <p>{text(THEMES.find((item) => item.id === choice)?.label ?? "ui.theme.light")}</p>
-      <Button
-        tone="outline"
-        label={text("ui.theme.open")}
-        onClick={() => {
-          setOpen(true);
-        }}
-      />
-      <BottomSheet
-        open={open}
-        title={text("ui.theme.title")}
-        onClose={() => {
-          setOpen(false);
-        }}
-      >
-        <div className="stack">
-          {THEMES.map((item) => (
-            <Button
-              key={item.id}
-              {...(item.id === choice ? {} : { tone: "outline" as const })}
-              label={text(item.label)}
-              onClick={() => {
-                applyTheme(item.id);
-                setChoice(item.id);
-                setOpen(false);
-              }}
-            />
-          ))}
-        </div>
-      </BottomSheet>
       <BackHome />
     </main>
   );

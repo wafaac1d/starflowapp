@@ -2,9 +2,19 @@ import asyncio
 
 import structlog
 from aiogram import Bot, Dispatcher
-from aiogram.types import BotCommand, MenuButtonWebApp, WebAppInfo
+from aiogram.exceptions import TelegramForbiddenError, TelegramRetryAfter
+from aiogram.types import (
+    BotCommand,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    MenuButtonWebApp,
+    WebAppInfo,
+)
 
+from starflow.bot.screens import screen_url
 from starflow.config import Settings
+from starflow.domain.errors import DeliveryBlocked, DeliveryRetry
+from starflow.i18n.catalog import Catalog
 
 
 class BotRuntime:
@@ -15,18 +25,36 @@ class BotRuntime:
         dispatcher: Dispatcher,
         commands: tuple[BotCommand, ...],
         menu_text: str,
+        catalog: Catalog,
     ) -> None:
         self._settings = settings
         self._bot = bot
         self._dispatcher = dispatcher
         self._commands = commands
         self._menu_text = menu_text
+        self._catalog = catalog
         self._stopped = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
         self._log = structlog.get_logger("bot")
 
     async def send_text(self, telegram_id: int, text: str) -> None:
-        await self._bot.send_message(telegram_id, text)
+        await self.send_notice(telegram_id, text, "")
+
+    async def send_notice(self, telegram_id: int, text: str, page: str) -> None:
+        markup = None
+        if page and self._settings.mini_app_url:
+            url = screen_url(self._settings.mini_app_url, page)
+            button = InlineKeyboardButton(
+                text=self._catalog.text("bot.open"),
+                web_app=WebAppInfo(url=url),
+            )
+            markup = InlineKeyboardMarkup(inline_keyboard=[[button]])
+        try:
+            await self._bot.send_message(telegram_id, text, reply_markup=markup)
+        except TelegramRetryAfter as error:
+            raise DeliveryRetry(float(error.retry_after)) from error
+        except TelegramForbiddenError as error:
+            raise DeliveryBlocked() from error
 
     async def start(self) -> None:
         if self._task is not None:
