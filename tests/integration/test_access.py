@@ -126,7 +126,7 @@ async def _user(factory: async_sessionmaker[AsyncSession]) -> UUID:
 
 
 def _plans() -> Plans:
-    return load_plans(ROOT / "resources" / "plans.yaml")
+    return load_plans(ROOT / "resources" / "plans.yaml", price_stars=250)
 
 
 @pytest.mark.asyncio

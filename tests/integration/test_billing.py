@@ -143,7 +143,7 @@ def _service(
     return BillingService(
         lambda: SqlUnitOfWork(factory),
         gateway,
-        load_plans(ROOT / "resources" / "plans.yaml"),
+        load_plans(ROOT / "resources" / "plans.yaml", price_stars=250),
         "p" * 32,
         load_catalog(ROOT / "resources", "ru", MemoryCache(4)),
         "https://app.example",

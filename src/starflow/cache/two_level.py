@@ -17,6 +17,10 @@ class CacheHit:
     generated: bool
 
 
+def _reusable(payload: dict[str, object]) -> bool:
+    return payload.get("source") != "fallback"
+
+
 class LevelTwo(Protocol):
     async def read(self, key: str, now: datetime) -> CachedValue | None: ...
 
@@ -64,11 +68,13 @@ class TwoLevelCache:
     ) -> CacheHit:
         now = self._clock()
         cached = self._memory.get(key, now)
-        if cached is not None:
+        if cached is not None and _reusable(cached.payload):
             self.l1_hits += 1
             still = await self._store.note_hit(key, now)
-            if still is not None:
+            if still is not None and _reusable(still.payload):
                 return CacheHit(still.payload, still.expires_at, False)
+            self._memory.drop(key)
+        elif cached is not None:
             self._memory.drop(key)
         self.l1_misses += 1
         lock = self._locks.setdefault(key, asyncio.Lock())
@@ -76,18 +82,25 @@ class TwoLevelCache:
             async with lock:
                 now = self._clock()
                 fresh = await self._store.read(key, now)
-                if fresh is not None:
+                if fresh is not None and _reusable(fresh.payload):
                     self.l2_hits += 1
                     self._memory.put(key, fresh)
                     return CacheHit(fresh.payload, fresh.expires_at, False)
                 produced = await producer()
+                if not _reusable(produced):
+                    return CacheHit(produced, expires_at, False)
                 now = self._clock()
                 again = await self._store.read(key, now)
-                if again is not None:
+                if again is not None and _reusable(again.payload):
                     self.l2_hits += 1
                     self._memory.put(key, again)
                     return CacheHit(again.payload, again.expires_at, False)
-                stored = await self._store.write(key, kind, produced, expires_at)
+                if fresh is not None or (again is not None and not _reusable(again.payload)):
+                    stored = await self._store.overwrite(key, kind, produced, expires_at)
+                else:
+                    stored = await self._store.write(key, kind, produced, expires_at)
+                    if not _reusable(stored.payload):
+                        stored = await self._store.overwrite(key, kind, produced, expires_at)
                 self.generations += 1
                 remembered = CachedValue(stored.payload, stored.expires_at)
                 self._memory.put(key, remembered)

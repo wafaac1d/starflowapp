@@ -10,6 +10,7 @@ from openai import APIStatusError
 from starflow.ai.client import CircuitOpen, DeepSeekClient
 from starflow.ai.guard import guarded_copy, plain_text, telegram_chunks
 from starflow.cache.ttl import CachedValue, TtlCache
+from starflow.cache.two_level import TwoLevelCache
 from starflow.domain.segments import (
     cacheable,
     calendar_segment,
@@ -188,6 +189,77 @@ async def test_circuit_opens_after_five_failed_series() -> None:
 
 async def _asleep(_delay: float) -> None:
     return None
+
+
+class _Store:
+    def __init__(self) -> None:
+        self.rows: dict[str, CachedValue] = {}
+
+    async def read(self, key: str, now: datetime) -> CachedValue | None:
+        found = self.rows.get(key)
+        if found is None or found.expires_at <= now:
+            return None
+        return found
+
+    async def note_hit(self, key: str, now: datetime) -> CachedValue | None:
+        return await self.read(key, now)
+
+    async def write(
+        self,
+        key: str,
+        kind: str,
+        payload: dict[str, object],
+        expires_at: datetime,
+    ) -> CachedValue:
+        del kind
+        found = self.rows.get(key)
+        if found is None:
+            found = CachedValue(payload, expires_at)
+            self.rows[key] = found
+        return found
+
+    async def overwrite(
+        self,
+        key: str,
+        kind: str,
+        payload: dict[str, object],
+        expires_at: datetime,
+    ) -> CachedValue:
+        del kind
+        stored = CachedValue(payload, expires_at)
+        self.rows[key] = stored
+        return stored
+
+
+@pytest.mark.asyncio
+async def test_cached_fallback_does_not_block_the_next_reading() -> None:
+    store = _Store()
+    until = MOMENT + timedelta(hours=6)
+    store.rows["day"] = CachedValue({"source": "fallback", "body": "запас"}, until)
+    cache = TwoLevelCache(TtlCache(8), store, clock=lambda: MOMENT)
+    calls = 0
+
+    async def produce() -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        return {"source": "model", "body": "текст модели"}
+
+    hit = await cache.get_or_create("day", "day", until, produce)
+    assert hit.payload["body"] == "текст модели"
+    assert calls == 1
+    assert store.rows["day"].payload["source"] == "model"
+
+    async def fallback() -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        return {"source": "fallback", "body": "запас"}
+
+    missed = await cache.get_or_create("moon", "moon", until, fallback)
+    assert missed.payload["source"] == "fallback"
+    assert "moon" not in store.rows
+    again = await cache.get_or_create("moon", "moon", until, fallback)
+    assert again.payload["source"] == "fallback"
+    assert calls == 3
 
 
 def test_guard_json_is_not_imported_as_html() -> None:

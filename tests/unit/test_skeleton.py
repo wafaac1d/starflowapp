@@ -47,9 +47,13 @@ def test_polling_is_the_default_and_webhook_needs_a_secret() -> None:
     assert webhook.webhook_path == "/telegram/webhook"
 
 
-def test_price_must_match_the_plan_file() -> None:
+def test_subscription_price_comes_from_the_environment() -> None:
+    priced = make_settings(premium_price_stars=1)
+    assert priced.runtime_plans().premium.price_stars == 1
     with pytest.raises(ValidationError):
-        make_settings(premium_price_stars=1)
+        make_settings(premium_price_stars=0)
+    with pytest.raises(ValidationError):
+        make_settings(premium_price_stars=10001)
 
 
 def test_example_env_names_the_verified_models() -> None:

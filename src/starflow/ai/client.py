@@ -54,6 +54,9 @@ class CircuitBreaker:
             self._failures = 0
 
 
+_THINKING_OFF = {"thinking": {"type": "disabled"}}
+
+
 class DeepSeekClient:
     """Официальный SDK с выключенными его повторами. JSON-режим — json_object, не схема."""
 
@@ -109,19 +112,12 @@ class DeepSeekClient:
         started = time.monotonic()
 
         async def call() -> ChatCompletion:
-            if json_mode:
-                return await self._sdk.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    response_format={"type": "json_object"},
-                )
-            return await self._sdk.chat.completions.create(
+            return await self._create(
                 model=model,
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                json_mode=json_mode,
             )
 
         response = await self._run(call)
@@ -150,23 +146,44 @@ class DeepSeekClient:
         started = time.monotonic()
 
         async def call() -> ChatCompletion:
-            if json_mode:
-                return await self._sdk.chat.completions.create(
-                    model=model,
-                    messages=payload,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    response_format={"type": "json_object"},
-                )
-            return await self._sdk.chat.completions.create(
+            return await self._create(
                 model=model,
                 messages=payload,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                json_mode=json_mode,
             )
 
         response = await self._run(call)
         return self._reply(response, started)
+
+    async def _create(
+        self,
+        *,
+        model: str,
+        messages: list[ChatCompletionMessageParam],
+        temperature: float,
+        max_tokens: int,
+        json_mode: bool,
+    ) -> ChatCompletion:
+        if json_mode:
+            return await self._sdk.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                reasoning_effort="none",
+                response_format={"type": "json_object"},
+                extra_body=_THINKING_OFF,
+            )
+        return await self._sdk.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            reasoning_effort="none",
+            extra_body=_THINKING_OFF,
+        )
 
     def _reply(self, response: ChatCompletion, started: float) -> ModelReply:
         content = response.choices[0].message.content

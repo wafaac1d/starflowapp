@@ -1,6 +1,5 @@
 premium:
   code: premium
-  price_stars: 250
   period_days: 30
   assistant_questions: 20
   grace_hours: 1

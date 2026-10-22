@@ -68,7 +68,11 @@ class Plans:
             raise KeyError(code) from error
 
 
-def load_plans(path: Path) -> Plans:
+def load_plans(path: Path, *, price_stars: int) -> Plans:
+    if isinstance(price_stars, bool) or not isinstance(price_stars, int):
+        raise ValueError("price_stars must be from 1 to 10000")
+    if price_stars < 1 or price_stars > 10000:
+        raise ValueError("price_stars must be from 1 to 10000")
     loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(loaded, dict):
         raise ValueError("plans.yaml must be a mapping")
@@ -78,10 +82,7 @@ def load_plans(path: Path) -> Plans:
     referral = _mapping(loaded, "referral")
     free = _mapping(loaded, "free")
     features = _features(_mapping(loaded, "features"))
-    price_stars = _positive(premium, "price_stars")
     period_days = _positive(premium, "period_days")
-    if price_stars > 10000:
-        raise ValueError("plans.yaml price_stars must be from 1 to 10000")
     if period_days != 30:
         raise ValueError("plans.yaml period_days must be 30")
     once = trial.get("once")

@@ -209,7 +209,7 @@ def test_local_time_keeps_gap_and_fold_apart() -> None:
 
 
 def test_plans_keep_feature_limits_together() -> None:
-    plans = load_plans(ROOT / "resources" / "plans.yaml")
+    plans = load_plans(ROOT / "resources" / "plans.yaml", price_stars=250)
     assert plans.free.favorites_limit == 3
     assert plans.premium.grace_hours == 1
     assert plans.premium.reminder_days == 3

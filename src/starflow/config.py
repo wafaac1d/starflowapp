@@ -148,7 +148,4 @@ class Settings(BaseSettings):
         return self.app_env == "local" and self.dev_auth_enabled
 
     def runtime_plans(self) -> Plans:
-        loaded = load_plans(self.resources_dir / "plans.yaml")
-        if loaded.premium.price_stars != self.premium_price_stars:
-            raise ValueError("PREMIUM_PRICE_STARS does not match resources/plans.yaml")
-        return loaded
+        return load_plans(self.resources_dir / "plans.yaml", price_stars=self.premium_price_stars)

@@ -50,6 +50,8 @@ async def test_deepseek_client_posts_the_configured_model() -> None:
     assert isinstance(body, dict)
     assert body["model"] == "deepseek-flash"
     assert body["response_format"] == {"type": "json_object"}
+    assert body["thinking"] == {"type": "disabled"}
+    assert body["reasoning_effort"] == "none"
     assert "tools" not in body
     assert "api.deepseek.com" in str(seen["url"])
     seen.clear()
@@ -68,6 +70,8 @@ async def test_deepseek_client_posts_the_configured_model() -> None:
     assert "tools" not in chat
     assert chat["messages"][0]["content"] == "системный текст"
     assert chat["messages"][1] == {"role": "user", "content": "Что с Луной?"}
+    assert chat["thinking"] == {"type": "disabled"}
+    assert chat["reasoning_effort"] == "none"
     await client.aclose()
 
 
