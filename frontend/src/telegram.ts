@@ -14,6 +14,7 @@ type BackButton = {
 
 type RawWebApp = {
   initData?: string;
+  colorScheme?: "light" | "dark";
   ready?: () => void;
   expand?: () => void;
   BackButton?: BackButton;

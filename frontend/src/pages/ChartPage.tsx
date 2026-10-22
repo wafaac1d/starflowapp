@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { getChart, getSky, type ChartResponse } from "../api/client";
-import { BackHome, Button, LoadingScreen } from "../components/ui/controls";
+import { BackHome, ErrorState, LoadingScreen } from "../components/ui/controls";
 import { text, type TextKey } from "../resources";
 
 const LIMITATIONS: Record<string, TextKey> = {
@@ -34,18 +34,15 @@ export function ChartPage({ fetchImpl = fetch }: ChartPageProps) {
   }
   return (
     <main className="shell">
-      <section className="surface">
+      <section>
         <h1>{text("ui.chart.title")}</h1>
         {chart.isError ? (
-          <>
-            <p role="alert">{text("ui.common.error")}</p>
-            <Button
-              label={text("ui.common.retry")}
-              onClick={() => {
-                void chart.refetch();
-              }}
-            />
-          </>
+          <ErrorState
+            message={text("ui.common.error")}
+            onRetry={() => {
+              void chart.refetch();
+            }}
+          />
         ) : null}
         {chart.data !== undefined ? <ChartDetails chart={chart.data} /> : null}
         {sky.data !== undefined ? (

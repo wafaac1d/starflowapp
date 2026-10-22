@@ -10,7 +10,7 @@ import {
   startReading,
   type ReadingResponse,
 } from "../api/client";
-import { BackHome, Button } from "../components/ui/controls";
+import { BackHome, Button, Skeleton } from "../components/ui/controls";
 import { text, type TextKey } from "../resources";
 
 const TITLES: Record<string, TextKey> = {
@@ -58,6 +58,7 @@ export function ReadingPage({ kind, fetchImpl = fetch, pollMs = 700 }: ReadingPa
   return (
     <main className="shell">
       <h1>{title}</h1>
+      {waiting ? <Skeleton /> : null}
       {waiting ? <p>{text("ui.reading.pending")}</p> : null}
       {failed ? (
         <>
@@ -158,13 +159,15 @@ function ReadingBody({ data, saved, shareText, fetchImpl, onSaved, onShare }: Bo
             </button>
           </div>
           <Button
-            label={saved ? text("ui.reading.save") : text("ui.reading.save")}
+            icon="bookmark"
+            label={text("ui.reading.save")}
             onClick={() => {
               keep.mutate();
             }}
             disabled={saved}
           />
           <Button
+            icon="share"
             label={text("ui.reading.share")}
             onClick={() => {
               share.mutate();

@@ -1,98 +1,70 @@
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 
+import { describeIso, isoInZone } from "../almanacDate";
+import { getReading } from "../api/client";
 import type { ProfileResponse } from "../api/client";
-import { Icon } from "../components/ui/icons";
-import { RotatingPhrase } from "../components/ui/RotatingPhrase";
+import { Skeleton } from "../components/ui/controls";
+import { DateHero, EditorialListRow, WineStatement } from "../components/ui/editorial";
+import { deviceTimezone } from "../deviceZone";
 import { text, type TextKey } from "../resources";
-import { signEmoji } from "../signEmoji";
 
 type HomePageProps = {
   profile: ProfileResponse;
 };
 
-const TILES: { to: string; label: TextKey; emoji: string }[] = [
-  { to: "/reading/day", label: "ui.reading.day", emoji: "☀️" },
-  { to: "/reading/week", label: "ui.reading.week", emoji: "📅" },
-  { to: "/reading/advice", label: "ui.reading.advice", emoji: "💡" },
-  { to: "/reading/moon", label: "ui.reading.moon", emoji: "🌙" },
-  { to: "/reading/compatibility", label: "ui.reading.compatibility", emoji: "🤝" },
-  { to: "/chart", label: "ui.chart.title", emoji: "🪐" },
-  { to: "/history", label: "ui.reading.history", emoji: "📜" },
-  { to: "/favorites", label: "ui.reading.favorites", emoji: "⭐" },
-  { to: "/related", label: "ui.reading.related", emoji: "👥" },
-  { to: "/referral", label: "ui.reading.referral", emoji: "🔗" },
-  { to: "/settings", label: "ui.settings.title", emoji: "⚙️" },
-  { to: "/premium", label: "ui.premium.title", emoji: "✨" },
-  { to: "/help", label: "ui.help.title", emoji: "❓" },
-  { to: "/terms", label: "ui.terms.title", emoji: "📋" },
-  { to: "/paysupport", label: "ui.paysupport.title", emoji: "💬" },
+const ROWS: { to: string; label: TextKey; index: string }[] = [
+  { to: "/reading/day", label: "ui.home.row_day", index: "01" },
+  { to: "/reading/moon", label: "ui.home.row_moon", index: "02" },
+  { to: "/reading/advice", label: "ui.home.row_advice", index: "03" },
 ];
 
-export function HomePage({ profile }: HomePageProps) {
+export function HomePage({ profile: _profile }: HomePageProps) {
   const navigate = useNavigate();
-  const letter = profileLetter(profile.display_name);
-  const emoji = signEmoji(profile.calendar_sign);
+  const zone = deviceTimezone();
+  const today = describeIso(isoInZone(new Date(), zone), zone);
+  const reading = useQuery({
+    queryKey: ["reading", "day"],
+    queryFn: () => getReading("day"),
+  });
+  const ready = reading.data?.status === "ready" || reading.data?.status === "fallback";
+  const title = ready ? reading.data?.title : null;
 
   return (
-    <main className="shell screen-fill">
-      <header className="home-top">
-        <div className="profile-tray" data-sign={emoji !== null}>
-          {emoji !== null && profile.calendar_sign !== null ? (
-            <span className="sign-mark" role="img" aria-label={profile.calendar_sign}>
-              <span className="emoji" aria-hidden="true">
-                {emoji}
-              </span>
-            </span>
-          ) : null}
-          <button
-            type="button"
-            className="profile-chip"
-            aria-label={text("ui.profile.title")}
+    <main className="shell">
+      <DateHero
+        month={today.month}
+        weekday={today.weekday}
+        day={today.day}
+        lineOne={text("ui.home.day_line_1")}
+        lineTwo={text("ui.home.day_line_2")}
+      />
+      <WineStatement kicker={text("ui.home.kicker")}>
+        {reading.isPending ? <Skeleton /> : null}
+        {reading.isPending ? null : title !== null && title !== "" ? (
+          title
+        ) : (
+          <>
+            {text("ui.home.statement_1")}
+            <br />
+            {text("ui.home.statement_2")}
+          </>
+        )}
+      </WineStatement>
+      <div className="editorial-list">
+        {ROWS.map((row) => (
+          <EditorialListRow
+            key={row.to}
+            index={row.index}
+            label={text(row.label)}
+            arrow
             onClick={() => {
-              void navigate("/profile");
+              void navigate(row.to);
             }}
-          >
-            {letter === null ? <Icon name="person" /> : letter}
-          </button>
-          <span
-            className="plan-mark"
-            role="img"
-            aria-label={text(profile.is_premium ? "ui.home.plan_premium" : "ui.home.plan_free")}
-          >
-            <span className="emoji" aria-hidden="true">
-              {profile.is_premium ? "✨" : "🆓"}
-            </span>
-          </span>
-        </div>
-      </header>
-      <RotatingPhrase />
-      <div className="tile-grid">
-        {TILES.map((tile) => (
-          <button
-            key={tile.to}
-            type="button"
-            className="tile"
-            onClick={() => {
-              void navigate(tile.to);
-            }}
-          >
-            <span className="emoji" aria-hidden="true">
-              {tile.emoji}
-            </span>
-            <span>{text(tile.label)}</span>
-          </button>
+          />
         ))}
       </div>
       <p className="home-note">{text("ui.home.disclaimer")}</p>
     </main>
   );
-}
-
-function profileLetter(name: string | null): string | null {
-  const trimmed = name?.trim() ?? "";
-  if (trimmed.length === 0) {
-    return null;
-  }
-  const [letter] = Array.from(trimmed);
-  return letter ?? null;
 }

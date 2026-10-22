@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 
 import {
   ApiRequestError,
@@ -10,15 +11,31 @@ import {
   type ProfileResponse,
 } from "../api/client";
 import { maskBirthDate } from "../birthDate";
-import { BackHome, Button, Field } from "../components/ui/controls";
-import { text } from "../resources";
+import { BackHome, Button, Input, Modal } from "../components/ui/controls";
+import { EditorialListRow } from "../components/ui/editorial";
+import { text, type TextKey } from "../resources";
 import { readWebApp } from "../telegram";
 
 type ProfilePageProps = {
   profile: ProfileResponse;
 };
 
+const HUB: { to: string; label: TextKey }[] = [
+  { to: "/chart", label: "ui.chart.title" },
+  { to: "/reading/week", label: "ui.reading.week" },
+  { to: "/reading/compatibility", label: "ui.reading.compatibility" },
+  { to: "/history", label: "ui.reading.history" },
+  { to: "/favorites", label: "ui.reading.favorites" },
+  { to: "/referral", label: "ui.reading.referral" },
+  { to: "/settings", label: "ui.settings.title" },
+  { to: "/premium", label: "ui.premium.title" },
+  { to: "/help", label: "ui.help.title" },
+  { to: "/terms", label: "ui.terms.title" },
+  { to: "/paysupport", label: "ui.paysupport.title" },
+];
+
 export function ProfilePage({ profile }: ProfilePageProps) {
+  const navigate = useNavigate();
   const client = useQueryClient();
   const [name, setName] = useState(profile.display_name ?? "");
   const [birthDate, setBirthDate] = useState(profile.birth_date ?? "");
@@ -80,26 +97,24 @@ export function ProfilePage({ profile }: ProfilePageProps) {
   if (profile.step !== "done") {
     return (
       <main className="shell">
-        <section className="surface">
-          <h1>{text("ui.profile.title")}</h1>
-          <p className="lead">{text("errors.onboarding_incomplete")}</p>
-          <BackHome />
-        </section>
+        <h1>{text("ui.profile.title")}</h1>
+        <p className="lead">{text("errors.onboarding_incomplete")}</p>
+        <BackHome />
       </main>
     );
   }
 
   return (
     <main className="shell screen-fill">
-      <section className="surface">
+      <section>
         <h1>{text("ui.profile.title")}</h1>
-        <Field
+        <Input
           label={text("ui.onboarding.name_title")}
           value={name}
           onChange={setName}
           {...(fields.display_name !== undefined ? { error: fields.display_name } : {})}
         />
-        <Field
+        <Input
           label={text("ui.onboarding.date_title")}
           value={birthDate}
           inputMode="numeric"
@@ -108,7 +123,7 @@ export function ProfilePage({ profile }: ProfilePageProps) {
           }}
           {...(fields.birth_date !== undefined ? { error: fields.birth_date } : {})}
         />
-        <Field
+        <Input
           label={text("ui.onboarding.time_title")}
           value={birthTime}
           onChange={setBirthTime}
@@ -135,19 +150,44 @@ export function ProfilePage({ profile }: ProfilePageProps) {
           ) : null}
           <BackHome />
         </div>
+        <div className="editorial-list">
+          {HUB.map((item) => (
+            <EditorialListRow
+              key={item.to}
+              label={text(item.label)}
+              arrow
+              onClick={() => {
+                void navigate(item.to);
+              }}
+            />
+          ))}
+        </div>
       </section>
       <Button
         tone="danger"
-        label={confirming ? text("ui.profile.delete_confirm") : text("ui.profile.delete")}
+        label={text("ui.profile.delete")}
         disabled={remove.isPending}
         onClick={() => {
-          if (!confirming) {
-            setConfirming(true);
-            return;
-          }
-          void remove.mutateAsync();
+          setConfirming(true);
         }}
       />
+      <Modal
+        open={confirming}
+        title={text("ui.profile.delete")}
+        onClose={() => {
+          setConfirming(false);
+        }}
+      >
+        <p>{text("ui.profile.delete_confirm")}</p>
+        <Button
+          tone="danger"
+          label={text("ui.profile.delete_confirm")}
+          loading={remove.isPending}
+          onClick={() => {
+            void remove.mutateAsync();
+          }}
+        />
+      </Modal>
     </main>
   );
 }

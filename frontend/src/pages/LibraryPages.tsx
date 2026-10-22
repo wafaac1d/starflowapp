@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 
 import {
   addRelated,
@@ -9,7 +10,8 @@ import {
   getRelated,
   readingKey,
 } from "../api/client";
-import { BackHome, Button, Field } from "../components/ui/controls";
+import { BackHome, Button, EmptyState, Field, Skeleton } from "../components/ui/controls";
+import { EditorialListRow } from "../components/ui/editorial";
 import { text } from "../resources";
 
 type FetchProps = {
@@ -21,6 +23,10 @@ export function HistoryPage({ fetchImpl = fetch }: FetchProps) {
   return (
     <main className="shell">
       <h1>{text("ui.reading.history")}</h1>
+      {history.isPending ? <Skeleton /> : null}
+      {history.data !== undefined && history.data.length === 0 ? (
+        <EmptyState title={text("ui.empty.history")} />
+      ) : null}
       {history.data?.map((item) => (
         <p key={item.history_id}>
           {item.title} · {item.period_date}
@@ -36,6 +42,10 @@ export function FavoritesPage({ fetchImpl = fetch }: FetchProps) {
   return (
     <main className="shell">
       <h1>{text("ui.reading.favorites")}</h1>
+      {favorites.isPending ? <Skeleton /> : null}
+      {favorites.data !== undefined && favorites.data.length === 0 ? (
+        <EmptyState title={text("ui.empty.favorites")} />
+      ) : null}
       {favorites.data?.map((item) => (
         <p key={item.history_id}>{item.title}</p>
       ))}
@@ -45,6 +55,7 @@ export function FavoritesPage({ fetchImpl = fetch }: FetchProps) {
 }
 
 export function RelatedPage({ fetchImpl = fetch }: FetchProps) {
+  const navigate = useNavigate();
   const client = useQueryClient();
   const [name, setName] = useState("");
   const [born, setBorn] = useState("");
@@ -60,6 +71,17 @@ export function RelatedPage({ fetchImpl = fetch }: FetchProps) {
   return (
     <main className="shell">
       <h1>{text("ui.reading.related")}</h1>
+      <EditorialListRow
+        label={text("ui.reading.compatibility")}
+        arrow
+        onClick={() => {
+          void navigate("/reading/compatibility");
+        }}
+      />
+      {related.isPending ? <Skeleton /> : null}
+      {related.data !== undefined && related.data.length === 0 ? (
+        <EmptyState title={text("ui.empty.related")} />
+      ) : null}
       {related.data?.map((item) => (
         <p key={item.related_id}>
           {item.display_name}

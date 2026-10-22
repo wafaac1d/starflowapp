@@ -3,11 +3,13 @@ import { useMemo, useState } from "react";
 import { BrowserRouter, Route, Routes, useParams } from "react-router";
 
 import { openSession } from "./api/client";
-import { Button, LoadingScreen } from "./components/ui/controls";
+import { ErrorState, LoadingScreen } from "./components/ui/controls";
 import { EdgeSwipe } from "./components/ui/EdgeSwipe";
 import { HelpPage, PaySupportPage, PremiumPage, SettingsPage, TermsPage } from "./pages/InfoPages";
 import { FavoritesPage, HistoryPage, ReferralPage, RelatedPage } from "./pages/LibraryPages";
+import { CalendarPage, MonthPage } from "./pages/CalendarPage";
 import { ChartPage } from "./pages/ChartPage";
+import { BottomNavigation } from "./components/ui/editorial";
 import { HomePage } from "./pages/HomePage";
 import { ReadingPage } from "./pages/ReadingPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
@@ -48,10 +50,9 @@ function AuthedApp({ initData }: { initData: string }) {
   if (session.isError || session.data === undefined) {
     return (
       <main className="shell">
-        <p role="alert">{text("ui.common.error")}</p>
-        <Button
-          label={text("ui.common.retry")}
-          onClick={() => {
+        <ErrorState
+          message={text("ui.common.error")}
+          onRetry={() => {
             void session.refetch();
           }}
         />
@@ -59,8 +60,9 @@ function AuthedApp({ initData }: { initData: string }) {
     );
   }
   const profile = session.data;
+  const ready = profile.step === "done";
   return (
-    <>
+    <div className={ready ? "app-nav" : undefined}>
       <EdgeSwipe />
       <Routes>
       <Route
@@ -69,6 +71,8 @@ function AuthedApp({ initData }: { initData: string }) {
           profile.step === "done" ? <HomePage profile={profile} /> : <OnboardingPage profile={profile} />
         }
       />
+      <Route path="/calendar" element={<CalendarPage />} />
+      <Route path="/calendar/month" element={<MonthPage />} />
       <Route path="/chart" element={<ChartPage />} />
       <Route path="/reading/:kind" element={<ReadingRoute />} />
       <Route path="/history" element={<HistoryPage />} />
@@ -83,6 +87,7 @@ function AuthedApp({ initData }: { initData: string }) {
       <Route path="/paysupport" element={<PaySupportPage />} />
       <Route path="*" element={<OpenAppPage />} />
     </Routes>
-    </>
+      {ready ? <BottomNavigation /> : null}
+    </div>
   );
 }

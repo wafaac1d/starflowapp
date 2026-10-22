@@ -2,7 +2,11 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
+import { applyTheme, bindViewportChrome, readThemeChoice } from "./theme";
 import "./styles/tokens.css";
+
+applyTheme(readThemeChoice());
+bindViewportChrome();
 
 const root = document.getElementById("root");
 if (root === null) {

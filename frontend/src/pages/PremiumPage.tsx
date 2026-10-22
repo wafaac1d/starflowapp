@@ -16,7 +16,8 @@ import {
   type PlaceHit,
   type ProfileResponse,
 } from "../api/client";
-import { BackHome, Button, Field } from "../components/ui/controls";
+import { BackHome, Button, ErrorState, Field, Skeleton, Toast } from "../components/ui/controls";
+import { EditorialListRow, PremiumHero } from "../components/ui/editorial";
 import { useDebouncedValue } from "../placeQuery";
 import { formatText, pluralText, text } from "../resources";
 import { invoiceGrantsPremium, openInvoice, readWebApp } from "../telegram";
@@ -84,29 +85,35 @@ export function PremiumPage({ profile }: { profile: ProfileResponse }) {
     }
   }
 
+  const subscribed =
+    data?.subscription_state === "active" || data?.subscription_state === "cancel_scheduled";
   return (
     <main className="shell">
-      <section className="surface">
-        <h1>{text("ui.premium.title")}</h1>
-        <h2>{text("ui.premium.compare_title")}</h2>
-        <p className="lead">{text("ui.premium.free_title")}</p>
-        <p>{text("ui.premium.free_body")}</p>
-        <p className="lead">{text("ui.premium.paid_title")}</p>
-        <p>{text("ui.premium.paid_body")}</p>
-        {data ? (
-          <>
-            <p className="lead">
-              {formatText("ui.premium.price_line", {
-                price: String(data.price_stars),
-                days: String(data.period_days),
-              })}
-            </p>
-            <p>{text("ui.premium.renew_line")}</p>
-            <p>{pluralText("ui.premium.questions", data.assistant_questions)}</p>
-          </>
-        ) : null}
+      <PremiumHero
+        kicker={text("ui.premium.kicker")}
+        title={text("ui.premium.hero_title")}
+        lead={text("ui.premium.hero_lead")}
+      />
+      <div className="editorial-list">
+        <EditorialListRow index="01" label={text("ui.premium.benefit_1")} />
+        <EditorialListRow index="02" label={text("ui.premium.benefit_2")} />
+        <EditorialListRow index="03" label={text("ui.premium.benefit_3")} />
+      </div>
+      {billing.isPending ? <Skeleton /> : null}
+      {data ? (
+        <>
+          <p className="price-line">
+            {formatText("ui.premium.price_line", {
+              price: String(data.price_stars),
+              days: String(data.period_days),
+            })}
+          </p>
+          <p>{text("ui.premium.renew_line")}</p>
+          <p>{pluralText("ui.premium.questions", data.assistant_questions)}</p>
+        </>
+      ) : null}
         <StateLine state={data?.subscription_payment_state ?? "none"} />
-        {data?.subscription_state === "active" || data?.subscription_state === "cancel_scheduled" ? (
+        {data !== undefined && subscribed ? (
           <section>
             <h2>{text("ui.premium.manage_title")}</h2>
             {data.period_end ? (
@@ -117,6 +124,7 @@ export function PremiumPage({ profile }: { profile: ProfileResponse }) {
                 <p>{text("ui.premium.cancel_note")}</p>
                 <p>{text("ui.premium.resume_note")}</p>
                 <Button
+                  tone="outline"
                   label={text("ui.premium.resume")}
                   loading={busy === "resume"}
                   onClick={() => {
@@ -128,6 +136,7 @@ export function PremiumPage({ profile }: { profile: ProfileResponse }) {
               <>
                 <p>{text("ui.premium.cancel_note")}</p>
                 <Button
+                  tone="outline"
                   label={text("ui.premium.cancel")}
                   loading={busy === "cancel"}
                   onClick={() => {
@@ -150,6 +159,7 @@ export function PremiumPage({ profile }: { profile: ProfileResponse }) {
         )}
         {data?.subscription_payment_state === "pending" || data?.subscription_payment_state === "failed" ? (
           <Button
+            tone="outline"
             label={text("ui.premium.retry")}
             onClick={() => {
               void billing.refetch();
@@ -168,6 +178,8 @@ export function PremiumPage({ profile }: { profile: ProfileResponse }) {
         ) : null}
         <div className="stack">
           <Button
+            tone="outline"
+            icon="gift"
             label={text("ui.premium.gift_buy")}
             loading={busy === "gift"}
             onClick={() => {
@@ -176,6 +188,7 @@ export function PremiumPage({ profile }: { profile: ProfileResponse }) {
           />
           <Field label={text("ui.premium.gift_code_label")} value={code} onChange={setCode} />
           <Button
+            tone="outline"
             label={text("ui.premium.gift_redeem")}
             loading={busy === "redeem"}
             onClick={() => {
@@ -184,6 +197,7 @@ export function PremiumPage({ profile }: { profile: ProfileResponse }) {
           />
           {data?.trial_available ? (
             <Button
+              tone="outline"
               label={text("ui.premium.trial")}
               loading={busy === "trial"}
               onClick={() => {
@@ -192,30 +206,31 @@ export function PremiumPage({ profile }: { profile: ProfileResponse }) {
             />
           ) : null}
           <Button
+            tone="outline"
             label={text("ui.premium.terms")}
             onClick={() => {
               navigate("/terms");
             }}
           />
           <Button
+            tone="outline"
             label={text("ui.premium.support")}
             onClick={() => {
               navigate("/paysupport");
             }}
           />
         </div>
-        {notice !== "" ? <p role="alert">{notice}</p> : null}
+        <Toast message={notice} />
         {billing.isError ? (
-          <Button
-            label={text("ui.common.retry")}
-            onClick={() => {
+          <ErrorState
+            message={text("ui.common.error")}
+            onRetry={() => {
               void billing.refetch();
             }}
           />
         ) : null}
         {profile.is_premium || data?.premium ? <PlaceSearch /> : null}
         <BackHome />
-      </section>
     </main>
   );
 

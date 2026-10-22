@@ -1,4 +1,5 @@
 .venv/
+.DS_Store
 __pycache__/
 .pytest_cache/
 .mypy_cache/
@@ -8,6 +9,8 @@ __pycache__/
 frontend/node_modules/
 frontend/dist/
 frontend/public/logo.png
+frontend/public/icons/
+frontend/public/illustrations/
 frontend/test-results/
 src/*.egg-info/
 *.pyc
