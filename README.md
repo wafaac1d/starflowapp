@@ -6,7 +6,7 @@ Telegram Mini App. API, статика и планировщик отдаютс�
 
 Визуальный язык — типографический альманах. Спецификация: `docs/DESIGN.md`. Токены: `frontend/src/styles/tokens.css`.
 
-Тема переключается на экране «настройки»: светлая, тёмная или «как в telegram». Выбор хранится в `localStorage` под ключом `starflow-theme`.
+Тема переключается на экране «настройки»: telegram, светлая или тёмная. Выбор хранится в `localStorage` под ключом `starflow-theme`. Режим telegram следует теме Telegram.
 
 ## Ассеты
 

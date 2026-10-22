@@ -1,48 +1,65 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useNavigate } from "react-router";
 
 import {
   askAssistant,
   getAssistantMessages,
   readingKey,
   type AssistantMessage,
+  type AssistantReply,
 } from "../api/client";
-import { BackHome, Button } from "../components/ui/controls";
+import { Button } from "../components/ui/controls";
+import { ChatComposer, ChatMessage, PageHeader } from "../components/ui/editorial";
 import { text } from "../resources";
 
 type FetchProps = {
   fetchImpl?: typeof fetch;
 };
 
+const STORED = new Set(["ready", "off_topic", "injection"]);
+
 export function AssistantPage({ fetchImpl = fetch }: FetchProps) {
+  const navigate = useNavigate();
   const client = useQueryClient();
   const [draft, setDraft] = useState("");
   const [older, setOlder] = useState<AssistantMessage[]>([]);
+  const key = useRef(readingKey());
+  const log = useRef<HTMLDivElement>(null);
   const history = useQuery({
     queryKey: ["assistant"],
     queryFn: () => getAssistantMessages(fetchImpl),
     retry: false,
   });
   const ask = useMutation({
-    mutationFn: (value: string) => askAssistant(value, readingKey(), fetchImpl),
-    onSuccess: async () => {
-      setDraft("");
-      await client.invalidateQueries({ queryKey: ["assistant"] });
+    mutationFn: (value: string) => askAssistant(value, key.current, fetchImpl),
+    onSuccess: async (result) => {
+      if (STORED.has(result.status)) {
+        setDraft("");
+        key.current = readingKey();
+        await client.invalidateQueries({ queryKey: ["assistant"] });
+        window.setTimeout(() => {
+          log.current?.lastElementChild?.scrollIntoView({ block: "nearest" });
+        }, 0);
+      }
     },
   });
   const messages = [...older, ...(history.data ?? [])];
   const earliest = messages[0]?.created_at;
-  const pending = ask.isPending;
-  const tooLong = draft.length > 500;
   const reply = ask.data;
 
   return (
-    <main className="shell chat-shell">
-      <h1>{text("ui.assistant.title")}</h1>
+    <main className="shell page chat-shell">
+      <PageHeader title={text("ui.assistant.title")} backTo="/" />
       <p className="lead">{text("ui.assistant.disclaimer")}</p>
+      {reply?.remaining !== null && reply?.remaining !== undefined ? (
+        <p className="profile-meta">
+          {text("ui.assistant.remaining")}: {reply.remaining}
+        </p>
+      ) : null}
       {history.isPending ? <p>{text("ui.common.loading")}</p> : null}
       {history.isError ? <p role="alert">{text("ui.common.error")}</p> : null}
-      {history.data !== undefined && messages.length === 0 ? (
+      {history.data !== undefined && messages.length === 0 && reply === undefined ? (
         <p>{text("ui.assistant.empty")}</p>
       ) : null}
       {earliest !== undefined ? (
@@ -56,50 +73,77 @@ export function AssistantPage({ fetchImpl = fetch }: FetchProps) {
           }}
         />
       ) : null}
-      <div className="chat-log">
-        {messages.map((message) => (
-          <p key={message.id} className={message.role === "user" ? "chat-user" : "chat-reply"}>
-            {message.content}
-          </p>
+      <div className="chat-log" ref={log}>
+        {messages.map((message, index) => (
+          <MessageBlock key={message.id} message={message} previous={messages[index - 1]} />
         ))}
       </div>
       {reply?.reply && !messages.some((message) => message.content === reply.reply) ? (
-        <p className="chat-reply">{reply.reply}</p>
+        <ChatMessage role="assistant" content={reply.reply} />
       ) : null}
-      {reply?.remaining !== null && reply?.remaining !== undefined ? (
-        <p>
-          {text("ui.assistant.remaining")}: {reply.remaining}
-        </p>
-      ) : null}
-      {ask.isError ? <p role="alert">{text("ui.common.error")}</p> : null}
-      {reply?.status === "premium" || reply?.status === "limit" ? (
-        <p role="alert">{reply.reply || text("ui.assistant.quota")}</p>
-      ) : null}
-      <form
-        className="chat-dock"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (draft.trim() === "" || tooLong || pending) {
-            return;
-          }
+      <ReplyState reply={reply} failed={ask.isError} onPremium={() => void navigate("/premium")} />
+      <ChatComposer
+        value={draft}
+        pending={ask.isPending}
+        onChange={setDraft}
+        onSubmit={() => {
           ask.mutate(draft);
         }}
-      >
-        <label htmlFor="assistant-question">{text("ui.assistant.title")}</label>
-        <textarea
-          id="assistant-question"
-          className="chat-input"
-          value={draft}
-          maxLength={500}
-          onChange={(event) => {
-            setDraft(event.target.value);
-          }}
-        />
-        <button className="button" type="submit" disabled={draft.trim() === "" || tooLong || pending}>
-          {text("ui.assistant.send")}
-        </button>
-      </form>
-      <BackHome />
+      />
     </main>
   );
+}
+
+function MessageBlock({
+  message,
+  previous,
+}: {
+  message: AssistantMessage;
+  previous: AssistantMessage | undefined;
+}) {
+  const day = dayLabel(message.created_at);
+  const showDay = day !== "" && day !== dayLabel(previous?.created_at);
+  return (
+    <>
+      {showDay ? <p className="chat-date">{day}</p> : null}
+      <ChatMessage role={message.role} content={message.content} />
+    </>
+  );
+}
+
+function ReplyState({
+  reply,
+  failed,
+  onPremium,
+}: {
+  reply: AssistantReply | undefined;
+  failed: boolean;
+  onPremium: () => void;
+}) {
+  if (reply?.status === "premium") {
+    return (
+      <>
+        <p role="alert">{text("ui.paywall.title")}</p>
+        <Button label={text("ui.premium.title")} onClick={onPremium} />
+      </>
+    );
+  }
+  if (reply?.status === "limit") {
+    return <p role="alert">{reply.reply || text("ui.assistant.quota")}</p>;
+  }
+  if (reply?.status === "error" || failed) {
+    return <p role="alert">{reply?.reply || text("ui.common.error")}</p>;
+  }
+  return null;
+}
+
+function dayLabel(value: string | undefined): string {
+  if (value === undefined) {
+    return "";
+  }
+  const moment = new Date(value);
+  if (Number.isNaN(moment.getTime())) {
+    return "";
+  }
+  return new Intl.DateTimeFormat("ru", { day: "numeric", month: "long" }).format(moment);
 }

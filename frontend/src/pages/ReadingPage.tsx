@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
 import {
@@ -13,7 +13,10 @@ import {
   type ReadingQuery,
   type ReadingResponse,
 } from "../api/client";
-import { BackHome, Button, Skeleton } from "../components/ui/controls";
+import { describeIso, isoInZone } from "../almanacDate";
+import { Button, Skeleton } from "../components/ui/controls";
+import { PageHeader, PeriodTabs } from "../components/ui/editorial";
+import { deviceTimezone } from "../deviceZone";
 import { text, type TextKey } from "../resources";
 
 const TITLES: Record<string, TextKey> = {
@@ -38,6 +41,20 @@ type ReadingPageProps = {
   pollMs?: number;
 };
 
+const PERIOD_KIND: Record<string, { day: string; week: string; month: string }> = {
+  day: { day: "day", week: "week", month: "personal_month" },
+  week: { day: "day", week: "week", month: "personal_month" },
+  personal_day: { day: "personal_day", week: "personal_week", month: "personal_month" },
+  personal_week: { day: "personal_day", week: "personal_week", month: "personal_month" },
+  personal_month: { day: "personal_day", week: "personal_week", month: "personal_month" },
+};
+
+type StartVars = {
+  key: string;
+  kind: string;
+  query: ReadingQuery;
+};
+
 export function ReadingPage({ kind, fetchImpl = fetch, pollMs = 700 }: ReadingPageProps) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -55,35 +72,62 @@ export function ReadingPage({ kind, fetchImpl = fetch, pollMs = 700 }: ReadingPa
     query.relatedId = relatedId;
   }
   const [attempt, setAttempt] = useState(0);
-  const [postedAttempt, setPostedAttempt] = useState<number | null>(null);
+  const [posted, setPosted] = useState<ReadingResponse | null>(null);
+  const [postedKey, setPostedKey] = useState<string | null>(null);
   const [shareText, setShareText] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const requestKey = `${kind}|${topic ?? ""}|${month ?? ""}|${relatedId ?? ""}|${attempt}`;
+  const latest = useRef(requestKey);
+  latest.current = requestKey;
   const title = text(TITLES[kind] ?? "ui.reading.day");
   const start = useMutation({
-    mutationFn: (_next: number) => startReading(kind, readingKey(), fetchImpl, query),
-    onSuccess: (_data, next) => {
-      setPostedAttempt(next);
+    mutationFn: (vars: StartVars) => startReading(vars.kind, readingKey(), fetchImpl, vars.query),
+    onSuccess: (next, vars) => {
+      if (vars.key !== latest.current) {
+        return;
+      }
+      setPosted(next);
+      setPostedKey(vars.key);
     },
   });
   useEffect(() => {
-    start.mutate(attempt);
+    setSaved(false);
+    setShareText(null);
+    start.mutate({ key: requestKey, kind, query });
     // Listing the mutation object here would post again on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempt, kind, topic, month, relatedId]);
+  }, [requestKey]);
+  const current = postedKey === requestKey;
   const reading = useQuery({
-    queryKey: ["reading", kind, attempt],
+    queryKey: ["reading", requestKey],
     queryFn: () => getReading(kind, fetchImpl, query),
-    enabled: postedAttempt === attempt,
+    enabled: current,
     refetchInterval: (query) => (query.state.data?.status === "pending" ? pollMs : false),
   });
   const polled = reading.data !== undefined && reading.data.status !== "idle" ? reading.data : undefined;
-  const data = postedAttempt === attempt ? polled ?? start.data : undefined;
+  const data: ReadingResponse | undefined = current ? (polled ?? posted ?? undefined) : undefined;
   const failed = data?.status === "error" || start.isError;
   const waiting = !failed && (data === undefined || data.status === "pending" || start.isPending);
 
+  const period = PERIOD_KIND[kind];
+  const today = describeIso(isoInZone(new Date(), deviceTimezone()), deviceTimezone());
+  const active = periodValue(kind);
   return (
-    <main className="shell">
-      <h1>{title}</h1>
+    <main className="shell page">
+      {period !== undefined ? (
+        <p className="reading-kicker">
+          {today.day} {today.month} / {today.weekday}
+        </p>
+      ) : null}
+      <PageHeader title={data?.title || title} backTo="/" />
+      {period !== undefined && active !== null ? (
+        <PeriodTabs
+          value={active}
+          onChange={(next) => {
+            void navigate(`/reading/${period[next]}`);
+          }}
+        />
+      ) : null}
       {waiting ? <Skeleton /> : null}
       {waiting ? <p>{text("ui.reading.pending")}</p> : null}
       {failed ? (
@@ -122,9 +166,21 @@ export function ReadingPage({ kind, fetchImpl = fetch, pollMs = 700 }: ReadingPa
         />
       ) : null}
       {data?.days !== undefined && data.days.length > 0 ? <DayScores days={data.days} /> : null}
-      <BackHome />
     </main>
   );
+}
+
+function periodValue(kind: string): "day" | "week" | "month" | null {
+  if (kind === "week" || kind === "personal_week") {
+    return "week";
+  }
+  if (kind === "personal_month") {
+    return "month";
+  }
+  if (kind === "day" || kind === "personal_day") {
+    return "day";
+  }
+  return null;
 }
 
 type BodyProps = {
@@ -162,8 +218,13 @@ function ReadingBody({ data, saved, shareText, fetchImpl, onSaved, onShare }: Bo
           {data.streak} {text("ui.reading.streak")}
         </p>
       ) : null}
-      {data.title !== null ? <h2>{data.title}</h2> : null}
-      {data.body !== null ? <p>{data.body}</p> : null}
+      {data.body !== null
+        ? data.body.split(/\n{2,}/).map((part, index) => (
+            <p key={`${index}-${part.slice(0, 24)}`} className="reading-body">
+              {part}
+            </p>
+          ))
+        : null}
       {data.shared_facts !== null ? (
         <p>
           {text("ui.reading.facts_label")}: {data.shared_facts}
@@ -194,6 +255,7 @@ function ReadingBody({ data, saved, shareText, fetchImpl, onSaved, onShare }: Bo
             </button>
           </div>
           <Button
+            tone="outline"
             icon="bookmark"
             label={text("ui.reading.save")}
             onClick={() => {
@@ -202,6 +264,7 @@ function ReadingBody({ data, saved, shareText, fetchImpl, onSaved, onShare }: Bo
             disabled={saved}
           />
           <Button
+            tone="outline"
             icon="share"
             label={text("ui.reading.share")}
             onClick={() => {
@@ -211,6 +274,7 @@ function ReadingBody({ data, saved, shareText, fetchImpl, onSaved, onShare }: Bo
           {shareText !== null ? <p className="reading-copy">{shareText}</p> : null}
         </>
       ) : null}
+      <p className="home-note">{text("ui.home.disclaimer")}</p>
     </>
   );
 }

@@ -56,6 +56,13 @@ def test_subscription_price_comes_from_the_environment() -> None:
         make_settings(premium_price_stars=10001)
 
 
+def test_model_names_must_be_the_documented_ids() -> None:
+    with pytest.raises(ValidationError):
+        make_settings(deepseek_model_fast="not-a-deepseek-model")
+    with pytest.raises(ValidationError):
+        make_settings(deepseek_model_pro="not-a-deepseek-model")
+
+
 def test_example_env_names_the_verified_models() -> None:
     text = (ROOT / ".env.example").read_text(encoding="utf-8")
     assert "DEEPSEEK_MODEL_FAST=deepseek-flash\n" in text

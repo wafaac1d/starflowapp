@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getChart, getSky, type ChartResponse } from "../api/client";
-import { BackHome, ErrorState, LoadingScreen } from "../components/ui/controls";
+import { getChart, getSky, type ChartResponse, type ProfileResponse } from "../api/client";
+import { ErrorState, LoadingScreen } from "../components/ui/controls";
+import { NatalChartView, PageHeader } from "../components/ui/editorial";
 import { text, type TextKey } from "../resources";
 
 const LIMITATIONS: Record<string, TextKey> = {
@@ -29,13 +30,16 @@ export function ChartPage({ fetchImpl = fetch }: ChartPageProps) {
     queryFn: () => getSky(fetchImpl),
     retry: false,
   });
+  const client = useQueryClient();
+  const profile = client.getQueryData<ProfileResponse>(["session"]);
   if (chart.isPending) {
     return <LoadingScreen />;
   }
   return (
-    <main className="shell">
+    <main className="shell page">
       <section>
-        <h1>{text("ui.chart.title")}</h1>
+        <PageHeader title={text("ui.chart.title")} backTo="/profile" />
+        {profile !== undefined ? <BirthFacts profile={profile} /> : null}
         {chart.isError ? (
           <ErrorState
             message={text("ui.common.error")}
@@ -54,11 +58,23 @@ export function ChartPage({ fetchImpl = fetch }: ChartPageProps) {
             </p>
           </>
         ) : null}
-        <div className="actions">
-          <BackHome />
-        </div>
       </section>
     </main>
+  );
+}
+
+function BirthFacts({ profile }: { profile: ProfileResponse }) {
+  const unknown =
+    profile.birth_time_unknown || profile.birth_time === null || profile.birth_time.trim() === "";
+  const time = unknown ? text("ui.profile.time_missing") : profile.birth_time;
+  const place = profile.birth_place;
+  return (
+    <p className="profile-meta">
+      {profile.birth_date ?? text("ui.profile.date_missing")}
+      {" · "}
+      {time}
+      {place !== null && place !== "" ? ` · ${place}` : ""}
+    </p>
   );
 }
 
@@ -69,9 +85,11 @@ function ChartDetails({ chart }: { chart: ChartResponse }) {
       : text("ui.chart.calendar_source");
   return (
     <>
+      <NatalChartView caption={text("ui.chart.illustration")} />
+      {chart.sections !== undefined && chart.sections.length > 0 ? <ChartSections chart={chart} /> : null}
       <h2>{text("ui.chart.sun")}</h2>
       <p className="lead">{chart.sun_sign ?? text("ui.chart.birth_date_missing")}</p>
-      <p className="meta">{source}</p>
+      <p className="profile-meta">{source}</p>
       <p>{chart.moon_sign === null ? text("ui.chart.moon_unknown") : chart.moon_sign}</p>
       <p>
         {chart.ascendant_sign === null ? text("ui.chart.asc_unknown") : chart.ascendant_sign}
@@ -116,29 +134,37 @@ function ChartDetails({ chart }: { chart: ChartResponse }) {
           </ul>
         </>
       ) : null}
-      {chart.sections !== undefined && chart.sections.length > 0 ? (
-        <>
-          <nav className="section-nav" aria-label={text("ui.chart.sections")}>
-            {chart.sections.map((section) => (
-              <a key={section.id} href={`#chart-${section.id}`}>
-                {section.title}
-              </a>
-            ))}
-          </nav>
-          {chart.sections.map((section) => (
-            <section key={section.id} id={`chart-${section.id}`}>
-              <h2>{section.title}</h2>
-              <p>{section.body}</p>
-            </section>
-          ))}
-        </>
-      ) : null}
       {chart.natal_access === "premium_required" ? (
         <>
           <h2>{text("ui.paywall.title")}</h2>
           <p className="lead">{text("ui.paywall.lead")}</p>
         </>
       ) : null}
+    </>
+  );
+}
+
+function ChartSections({ chart }: { chart: ChartResponse }) {
+  const sections = chart.sections ?? [];
+  return (
+    <>
+      <nav className="section-nav editorial-list" aria-label={text("ui.chart.sections")}>
+        {sections.map((section, index) => (
+          <a key={section.id} className="editorial-row" href={`#chart-${section.id}`}>
+            <span className="row-index" aria-hidden="true">
+              {String(index + 1).padStart(2, "0")}
+            </span>
+            <span className="row-label">{section.title}</span>
+          </a>
+        ))}
+      </nav>
+      <p className="profile-meta">{text("ui.chart.interpret")}</p>
+      {sections.map((section) => (
+        <section key={section.id} id={`chart-${section.id}`}>
+          <h2>{section.title}</h2>
+          <p>{section.body}</p>
+        </section>
+      ))}
     </>
   );
 }

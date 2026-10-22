@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 import {
   ApiRequestError,
@@ -9,8 +9,8 @@ import {
   type ProfileResponse,
 } from "../api/client";
 import { maskBirthDate } from "../birthDate";
-import { BackHome, Button, Input } from "../components/ui/controls";
-import { EditorialListRow } from "../components/ui/editorial";
+import { Button, Input } from "../components/ui/controls";
+import { EditorialListRow, PageHeader, ProfileSummary } from "../components/ui/editorial";
 import { text, type TextKey } from "../resources";
 import { readWebApp } from "../telegram";
 
@@ -18,8 +18,7 @@ type ProfilePageProps = {
   profile: ProfileResponse;
 };
 
-const HUB: { to: string; label: TextKey }[] = [
-  { to: "/chart", label: "ui.chart.title" },
+const MORE: { to: string; label: TextKey }[] = [
   { to: "/reading/today_detail", label: "ui.reading.today_detail" },
   { to: "/reading/tomorrow", label: "ui.reading.tomorrow" },
   { to: "/reading/personal_day", label: "ui.reading.personal_day" },
@@ -29,19 +28,15 @@ const HUB: { to: string; label: TextKey }[] = [
   { to: "/assistant", label: "ui.assistant.title" },
   { to: "/reading/week", label: "ui.reading.week" },
   { to: "/reading/compatibility", label: "ui.reading.compatibility" },
-  { to: "/history", label: "ui.reading.history" },
-  { to: "/favorites", label: "ui.reading.favorites" },
   { to: "/referral", label: "ui.reading.referral" },
-  { to: "/settings", label: "ui.settings.title" },
   { to: "/retro", label: "ui.retro.title" },
   { to: "/premium", label: "ui.premium.title" },
-  { to: "/help", label: "ui.help.title" },
-  { to: "/terms", label: "ui.terms.title" },
-  { to: "/paysupport", label: "ui.paysupport.title" },
 ];
 
 export function ProfilePage({ profile }: ProfilePageProps) {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const editing = params.get("edit") === "birth";
   const client = useQueryClient();
   const [name, setName] = useState(profile.display_name ?? "");
   const [birthDate, setBirthDate] = useState(profile.birth_date ?? "");
@@ -78,6 +73,7 @@ export function ProfilePage({ profile }: ProfilePageProps) {
     onSuccess: (next) => {
       client.setQueryData(["session"], next);
       setFields({});
+      void navigate("/profile", { replace: true });
     },
     onError: (error: unknown) => {
       setFields(error instanceof ApiRequestError ? error.fields : {});
@@ -86,18 +82,17 @@ export function ProfilePage({ profile }: ProfilePageProps) {
 
   if (profile.step !== "done") {
     return (
-      <main className="shell">
-        <h1>{text("ui.profile.title")}</h1>
+      <main className="shell page">
+        <PageHeader title={text("ui.profile.title")} />
         <p className="lead">{text("errors.onboarding_incomplete")}</p>
-        <BackHome />
       </main>
     );
   }
 
-  return (
-    <main className="shell screen-fill">
-      <section>
-        <h1>{text("ui.profile.title")}</h1>
+  if (editing) {
+    return (
+      <main className="shell page">
+        <PageHeader title={text("ui.profile.birth_row")} backTo="/profile" />
         <Input
           label={text("ui.onboarding.name_title")}
           value={name}
@@ -138,21 +133,72 @@ export function ProfilePage({ profile }: ProfilePageProps) {
               }}
             />
           ) : null}
-          <BackHome />
         </div>
-        <div className="editorial-list">
-          {HUB.map((item) => (
-            <EditorialListRow
-              key={item.to}
-              label={text(item.label)}
-              arrow
-              onClick={() => {
-                void navigate(item.to);
-              }}
-            />
-          ))}
-        </div>
-      </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="shell page">
+      <h1 className="page-title">{text("ui.profile.title")}</h1>
+      <ProfileSummary
+        name={profile.display_name ?? text("ui.profile.unnamed")}
+        sign={profile.calendar_sign}
+        premium={profile.is_premium}
+      />
+      <div className="editorial-list">
+        <EditorialListRow
+          index="01"
+          label={text("ui.profile.birth_row")}
+          hint={birthLine(profile)}
+          arrow
+          onClick={() => {
+            void navigate("/profile?edit=birth");
+          }}
+        />
+        <EditorialListRow
+          index="02"
+          label={text("ui.chart.title")}
+          arrow
+          onClick={() => {
+            void navigate("/chart");
+          }}
+        />
+        <EditorialListRow
+          index="03"
+          label={text("ui.reading.favorites")}
+          arrow
+          onClick={() => {
+            void navigate("/favorites");
+          }}
+        />
+        <EditorialListRow
+          index="04"
+          label={text("ui.reading.history")}
+          arrow
+          onClick={() => {
+            void navigate("/history");
+          }}
+        />
+        <EditorialListRow
+          index="05"
+          label={text("ui.settings.title")}
+          arrow
+          onClick={() => {
+            void navigate("/settings");
+          }}
+        />
+        {MORE.map((item) => (
+          <EditorialListRow
+            key={item.to}
+            label={text(item.label)}
+            arrow
+            onClick={() => {
+              void navigate(item.to);
+            }}
+          />
+        ))}
+      </div>
       {profile.is_admin ? (
         <Button
           tone="outline"
@@ -162,15 +208,16 @@ export function ProfilePage({ profile }: ProfilePageProps) {
           }}
         />
       ) : null}
-      <Button
-        tone="danger"
-        label={text("ui.profile.delete")}
-        onClick={() => {
-          void navigate("/delete");
-        }}
-      />
     </main>
   );
+}
+
+function birthLine(profile: ProfileResponse): string {
+  const date = profile.birth_date ?? text("ui.profile.date_missing");
+  const unknown =
+    profile.birth_time_unknown || profile.birth_time === null || profile.birth_time.trim() === "";
+  const time = unknown ? text("ui.profile.time_missing") : profile.birth_time;
+  return `${date} · ${time}`;
 }
 
 function profileEdits(name: string, birthDate: string, birthTime: string): DraftPayload {

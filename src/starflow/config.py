@@ -8,6 +8,8 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from starflow.domain.plans import Plans, load_plans
 
+_DEEPSEEK_MODELS = frozenset({"deepseek-flash", "deepseek-v4-pro"})
+
 
 def repository_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -99,8 +101,14 @@ class Settings(BaseSettings):
             raise ValueError("BOT_TOKEN is too short")
         if len(self.deepseek_api_key.strip()) < 8:
             raise ValueError("DEEPSEEK_API_KEY is too short")
-        if not self.deepseek_model_fast.strip() or not self.deepseek_model_pro.strip():
-            raise ValueError("DeepSeek model names are required")
+        if (
+            self.deepseek_model_fast not in _DEEPSEEK_MODELS
+            or self.deepseek_model_pro not in _DEEPSEEK_MODELS
+        ):
+            raise ValueError(
+                "DEEPSEEK_MODEL_FAST and DEEPSEEK_MODEL_PRO must be "
+                "deepseek-flash or deepseek-v4-pro"
+            )
         if self.deepseek_timeout_sec < 1 or self.deepseek_max_retries < 0:
             raise ValueError("DeepSeek timeout and retries are invalid")
         if self.premium_price_stars < 1 or self.premium_price_stars > 10000:

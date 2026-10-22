@@ -12,8 +12,8 @@ import {
   getRelated,
   readingKey,
 } from "../api/client";
-import { BackHome, Button, EmptyState, Field, Skeleton } from "../components/ui/controls";
-import { EditorialListRow } from "../components/ui/editorial";
+import { BackHome, Button, EmptyState, ErrorState, Field, Skeleton } from "../components/ui/controls";
+import { CompatibilityEntry, EditorialListRow, PageHeader } from "../components/ui/editorial";
 import { text } from "../resources";
 
 type FetchProps = {
@@ -59,6 +59,7 @@ export function FavoritesPage({ fetchImpl = fetch }: FetchProps) {
 export function RelatedPage({ fetchImpl = fetch }: FetchProps) {
   const navigate = useNavigate();
   const client = useQueryClient();
+  const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [born, setBorn] = useState("");
   const [consent, setConsent] = useState(false);
@@ -69,80 +70,116 @@ export function RelatedPage({ fetchImpl = fetch }: FetchProps) {
       setName("");
       setBorn("");
       setConsent(false);
+      setAdding(false);
       await client.invalidateQueries({ queryKey: ["related"] });
     },
   });
   return (
-    <main className="shell">
-      <h1>{text("ui.reading.related")}</h1>
-      <EditorialListRow
-        label={text("ui.reading.compatibility")}
-        arrow
+    <main className="shell page">
+      <h1 className="page-title">{text("ui.reading.related")}</h1>
+      <p className="lead">{text("ui.reading.circle")}</p>
+      {related.isPending ? <Skeleton /> : null}
+      {related.isError ? (
+        <ErrorState
+          message={text("ui.common.error")}
+          onRetry={() => {
+            void related.refetch();
+          }}
+        />
+      ) : null}
+      {related.data !== undefined && related.data.length === 0 ? (
+        <EmptyState title={text("ui.empty.related")} />
+      ) : null}
+      <div className="editorial-list">
+        {related.data?.map((item) => (
+          <div key={item.related_id}>
+            <EditorialListRow
+              icon="people"
+              typed
+              label={item.display_name}
+              {...(item.birth_date !== null ? { hint: item.birth_date } : {})}
+              arrow={item.consent === true}
+              {...(item.consent === true
+                ? {
+                    onClick: () => {
+                      void navigate(`/reading/synastry?related_id=${item.related_id}`);
+                    },
+                  }
+                : {})}
+            />
+            {item.consent ? null : (
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  void allowRelated(item.related_id, fetchImpl).then(() =>
+                    client.invalidateQueries({ queryKey: ["related"] }),
+                  );
+                }}
+              >
+                {text("ui.synastry.allow")}
+              </button>
+            )}
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                void deleteRelated(item.related_id, fetchImpl).then(() =>
+                  client.invalidateQueries({ queryKey: ["related"] }),
+                );
+              }}
+            >
+              {text("ui.synastry.remove")}
+            </button>
+          </div>
+        ))}
+      </div>
+      {adding ? (
+        <>
+          <Field label={text("ui.onboarding.name_title")} value={name} onChange={setName} />
+          <Field label={text("ui.onboarding.date_title")} value={born} onChange={setBorn} />
+          <label className="consent-row">
+            <input
+              type="checkbox"
+              checked={consent}
+              onChange={(event) => {
+                setConsent(event.target.checked);
+              }}
+            />
+            {text("ui.synastry.consent")}
+          </label>
+          <Button
+            label={text("ui.reading.add_person")}
+            disabled={!consent || name.trim() === "" || born.trim() === "" || add.isPending}
+            onClick={() => {
+              add.mutate();
+            }}
+          />
+          <Button
+            tone="outline"
+            label={text("ui.common.cancel")}
+            onClick={() => {
+              setAdding(false);
+            }}
+          />
+        </>
+      ) : (
+        <Button
+          tone="outline"
+          label={text("ui.reading.add_person")}
+          onClick={() => {
+            setAdding(true);
+          }}
+        />
+      )}
+      {add.isError ? <p role="alert">{text("ui.common.error")}</p> : null}
+      <CompatibilityEntry
+        title={text("ui.reading.compat_title")}
+        lead={text("ui.reading.compat_lead")}
         onClick={() => {
           void navigate("/reading/compatibility");
         }}
       />
-      {related.isPending ? <Skeleton /> : null}
-      {related.data !== undefined && related.data.length === 0 ? (
-        <EmptyState title={text("ui.empty.related")} />
-      ) : null}
-      {related.data?.map((item) => (
-        <div key={item.related_id}>
-          <p>
-            {item.display_name}
-            {item.birth_date === null ? "" : ` · ${item.birth_date}`}
-          </p>
-          {item.consent ? (
-            <Button
-              tone="outline"
-              label={text("ui.reading.synastry")}
-              onClick={() => {
-                void navigate(`/reading/synastry?related_id=${item.related_id}`);
-              }}
-            />
-          ) : (
-            <Button
-              tone="outline"
-              label={text("ui.synastry.allow")}
-              onClick={() => {
-                void allowRelated(item.related_id, fetchImpl).then(() =>
-                  client.invalidateQueries({ queryKey: ["related"] }),
-                );
-              }}
-            />
-          )}
-          <Button
-            tone="danger"
-            label={text("ui.synastry.remove")}
-            onClick={() => {
-              void deleteRelated(item.related_id, fetchImpl).then(() =>
-                client.invalidateQueries({ queryKey: ["related"] }),
-              );
-            }}
-          />
-        </div>
-      ))}
-      <Field label={text("ui.onboarding.name_title")} value={name} onChange={setName} />
-      <Field label={text("ui.onboarding.date_title")} value={born} onChange={setBorn} />
-      <label className="consent-row">
-        <input
-          type="checkbox"
-          checked={consent}
-          onChange={(event) => {
-            setConsent(event.target.checked);
-          }}
-        />
-        {text("ui.synastry.consent")}
-      </label>
-      <Button
-        label={text("ui.reading.add_related")}
-        disabled={!consent || name.trim() === "" || born.trim() === ""}
-        onClick={() => {
-          add.mutate();
-        }}
-      />
-      {add.isError ? <p role="alert">{text("ui.common.error")}</p> : null}
-      <BackHome />
     </main>
   );
 }
