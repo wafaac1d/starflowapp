@@ -21,6 +21,7 @@ function unknownChart(): ChartResponse {
     moon_sign: null,
     ascendant_sign: null,
     houses: null,
+    house_cusps: null,
     planets: [],
     aspects: [],
     transits: [],

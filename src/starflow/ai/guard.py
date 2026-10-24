@@ -16,8 +16,7 @@ def plain_text(value: str) -> str:
     without_links = _LINK.sub(r"\1", without_fences)
     without_tags = _TAG.sub("", without_links)
     without_marks = _MARK.sub("", without_tags)
-    collapsed = " ".join(without_marks.split())
-    return collapsed.lower()
+    return " ".join(without_marks.split())
 
 
 def guarded_copy(title: str, body: str) -> tuple[str, str] | None:
@@ -26,8 +25,6 @@ def guarded_copy(title: str, body: str) -> tuple[str, str] | None:
     if clean_title == "" or clean_body == "":
         return None
     if contains_emoji(clean_title) or contains_emoji(clean_body):
-        return None
-    if any(character.isupper() for character in f"{clean_title}{clean_body}"):
         return None
     return clean_title, clean_body
 

@@ -1458,11 +1458,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AssistantMessageBody"
-                  },
-                  "title": "Response List Assistant Api V1 Assistant Messages Get"
+                  "$ref": "#/components/schemas/AssistantHistoryBody"
                 }
               }
             }
@@ -1831,6 +1827,34 @@
         ],
         "title": "AssistantBody"
       },
+      "AssistantHistoryBody": {
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantMessageBody"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "remaining": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining"
+          }
+        },
+        "type": "object",
+        "required": [
+          "messages",
+          "remaining"
+        ],
+        "title": "AssistantHistoryBody"
+      },
       "AssistantMessageBody": {
         "properties": {
           "id": {
@@ -2128,6 +2152,20 @@
             ],
             "title": "Houses"
           },
+          "house_cusps": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "House Cusps"
+          },
           "planets": {
             "items": {
               "$ref": "#/components/schemas/PlanetBody"
@@ -2198,6 +2236,7 @@
           "moon_sign",
           "ascendant_sign",
           "houses",
+          "house_cusps",
           "planets",
           "aspects",
           "transits",

@@ -344,6 +344,8 @@ async def test_full_chart_uses_ephemeris_and_paywall_hides_angles() -> None:
     assert view.ascendant_sign == "овен"
     assert view.houses is not None
     assert len(view.houses) == 12
+    assert view.house_cusps == tuple(float(index * 30) for index in range(12))
+    assert again.house_cusps == view.house_cusps
     assert again.moon_sign == view.moon_sign
     assert ephemeris.houses_calls == 1
     assert sky.calls == 2

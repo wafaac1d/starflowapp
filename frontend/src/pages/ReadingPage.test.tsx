@@ -52,7 +52,7 @@ describe("reading page", () => {
     cleanup();
   });
 
-  it("shows loading and then the finished lowercase text", async () => {
+  it("shows loading and then the finished text", async () => {
     let polls = 0;
     const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const method = init?.method ?? "GET";

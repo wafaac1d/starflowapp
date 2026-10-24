@@ -37,14 +37,14 @@ export function AssistantPage({ fetchImpl = fetch }: FetchProps) {
       if (STORED.has(result.status)) {
         setDraft("");
         key.current = readingKey();
-        await client.invalidateQueries({ queryKey: ["assistant"] });
+        await client.invalidateQueries({ queryKey: ["assistant"], exact: true });
         window.setTimeout(() => {
           log.current?.lastElementChild?.scrollIntoView({ block: "nearest" });
         }, 0);
       }
     },
   });
-  const messages = [...older, ...(history.data ?? [])];
+  const messages = [...older, ...(history.data?.messages ?? [])];
   const earliest = messages[0]?.created_at;
   const reply = ask.data;
 
@@ -68,7 +68,7 @@ export function AssistantPage({ fetchImpl = fetch }: FetchProps) {
           label={text("ui.assistant.earlier")}
           onClick={() => {
             void getAssistantMessages(fetchImpl, earliest).then((page) => {
-              setOlder((current) => [...page, ...current]);
+              setOlder((current) => [...page.messages, ...current]);
             });
           }}
         />

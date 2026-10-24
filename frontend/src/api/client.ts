@@ -129,6 +129,7 @@ export type ChartResponse = {
   moon_sign: string | null;
   ascendant_sign: string | null;
   houses: string[] | null;
+  house_cusps: number[] | null;
   planets: PlanetPlacement[];
   aspects: string[];
   transits: string[];
@@ -537,12 +538,17 @@ export type AssistantReply = {
   code: string | null;
 };
 
+export type AssistantHistory = {
+  messages: AssistantMessage[];
+  remaining: number | null;
+};
+
 export async function getAssistantMessages(
   fetchImpl: typeof fetch = fetch,
   before?: string,
-): Promise<AssistantMessage[]> {
+): Promise<AssistantHistory> {
   const suffix = before === undefined ? "" : `?before=${encodeURIComponent(before)}`;
-  return requestJson<AssistantMessage[]>(
+  return requestJson<AssistantHistory>(
     `/api/v1/assistant/messages${suffix}`,
     { method: "GET" },
     fetchImpl,

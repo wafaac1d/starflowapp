@@ -4,7 +4,6 @@ export const queryKeys = {
   chart: ["chart"] as const,
   related: ["related"] as const,
   assistant: ["assistant"] as const,
-  assistantQuota: ["assistant", "quota"] as const,
   notifications: ["notifications"] as const,
   billing: ["billing"] as const,
   history: ["history"] as const,

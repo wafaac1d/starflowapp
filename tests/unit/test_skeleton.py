@@ -114,9 +114,9 @@ def test_local_date_uses_the_profile_zone() -> None:
 
 
 def test_authored_text_and_redaction() -> None:
-    assert_authored("строчный текст")
+    assert_authored("Заглавная и строчная")
     with pytest.raises(ValueError):
-        assert_authored("Заглавная")
+        assert_authored("текст 😀")
     cleaned = redact(
         {"bot_token": "secret", "nested": {"birth_date": "2000-01-01"}, "ok": "Bearer abc"}
     )
@@ -173,7 +173,7 @@ async def test_lifecycle_closes_the_single_bot_and_scheduler() -> None:
     assert session.closed is True
 
 
-def test_resource_files_are_lowercase() -> None:
+def test_resource_files_have_no_emoji() -> None:
     for path in (ROOT / "resources").rglob("*"):
         if path.suffix not in {".yaml", ".txt"}:
             continue

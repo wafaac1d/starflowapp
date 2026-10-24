@@ -3,7 +3,7 @@
 import asyncio
 import json
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from types import TracebackType
 from typing import Protocol
@@ -35,7 +35,7 @@ from starflow.services.chart import ChartView
 from starflow.services.quota import QuotaStore, ResultWriter, StoredResult
 
 _LOG = get_logger("assistant")
-_REPAIR = "прошлый ответ не подошёл. верни один json-объект с полем reply, строчным и без emoji."
+_REPAIR = "прошлый ответ не подошёл. верни один json-объект с полем reply и без emoji."
 
 
 class ReplyText(BaseModel):
@@ -57,6 +57,12 @@ class AssistantLine:
     role: str
     content: str
     created_at: datetime
+
+
+@dataclass(frozen=True)
+class AssistantHistory:
+    messages: tuple[AssistantLine, ...]
+    remaining: int | None
 
 
 class ChatModel(Protocol):
@@ -146,6 +152,11 @@ class AssistantService:
         self._inflight[lock] = future
         try:
             reply = await self._ask(user_id, key, question)
+            if reply.remaining is None:
+                reply = replace(
+                    reply,
+                    remaining=await self._quota.remaining(user_id, "assistant"),
+                )
         except Exception as exc:
             future.set_exception(exc)
             raise
@@ -161,11 +172,15 @@ class AssistantService:
         *,
         limit: int,
         before: datetime | None,
-    ) -> tuple[AssistantLine, ...]:
+    ) -> AssistantHistory:
         bounded = min(max(limit, 1), 50)
         async with self._uow_factory() as uow:
             rows = await uow.assistant_messages.recent(user_id, bounded, before)
-        return tuple(AssistantLine(item[0], item[2], item[3], item[1]) for item in rows)
+        messages = tuple(AssistantLine(item[0], item[2], item[3], item[1]) for item in rows)
+        return AssistantHistory(
+            messages,
+            await self._quota.remaining(user_id, "assistant"),
+        )
 
     async def _ask(self, user_id: UUID, key: str, question: str) -> AssistantReply:
         held = await self._quota.hold(user_id, "assistant", key)
@@ -314,7 +329,5 @@ def _parse_reply(content: str) -> str | None:
         return None
     cleaned = plain_text(draft.reply)
     if cleaned == "" or contains_emoji(cleaned):
-        return None
-    if any(character.isupper() for character in cleaned):
         return None
     return cleaned

@@ -87,9 +87,11 @@ describe("screens", () => {
 
   it("shows the natal rows", async () => {
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
-    renderAt(<NatalScreen />);
+    const view = renderAt(<NatalScreen />);
     expect(screen.getByRole("heading", { name: "Натальная карта" })).toBeInTheDocument();
     expect(screen.getByText("19°24′")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Сетка натальной карты" })).toBeInTheDocument();
+    expect(view.container.querySelectorAll("[data-wheel='house']")).toHaveLength(12);
     await userEvent.click(screen.getByRole("tab", { name: "Разбор" }));
     expect(screen.getByRole("tab", { name: "Разбор" })).toHaveAttribute("aria-selected", "true");
   });
@@ -101,11 +103,52 @@ describe("screens", () => {
     expect(await screen.findByText("Глубокая связь")).toBeInTheDocument();
   });
 
-  it("shows the assistant quota", async () => {
-    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
+  it("keeps one assistant reply and the server quota", async () => {
+    let sent = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (_input, init) => {
+        const method = init?.method ?? "GET";
+        if (method === "POST") {
+          sent = true;
+          return Response.json({
+            status: "ready",
+            reply: "Один ответ.",
+            remaining: 19,
+            replayed: false,
+            code: "ready",
+          });
+        }
+        if (!sent) {
+          return Response.json({ messages: [], remaining: 20 });
+        }
+        return Response.json({
+          messages: [
+            {
+              id: "u1",
+              role: "user",
+              content: "Что вечером?",
+              created_at: "2025-08-12T18:00:00Z",
+            },
+            {
+              id: "a1",
+              role: "assistant",
+              content: "Один ответ.",
+              created_at: "2025-08-12T18:00:01Z",
+            },
+          ],
+          remaining: 19,
+        });
+      }),
+    );
     renderAt(<ChatScreen />);
-    expect(await screen.findByText("Осталось 5 вопросов")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Написать сообщение…" })).toBeInTheDocument();
+    expect(await screen.findByText("Осталось 20 вопросов")).toBeInTheDocument();
+    await userEvent.type(screen.getByRole("textbox", { name: "Написать сообщение…" }), "Что вечером?");
+    await userEvent.click(screen.getByRole("button", { name: "отправить" }));
+    expect(await screen.findByText("Осталось 19 вопросов")).toBeInTheDocument();
+    expect(screen.getAllByText("Один ответ.")).toHaveLength(1);
+    expect(screen.queryByText("Осталось 5 вопросов")).not.toBeInTheDocument();
+    expect(screen.queryByText("Осталось 20 вопросов")).not.toBeInTheDocument();
   });
 
   it("lists people from the api", async () => {

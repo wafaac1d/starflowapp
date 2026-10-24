@@ -30,8 +30,6 @@ _SENSITIVE_PARTS = (
 
 
 def assert_authored(text: str) -> None:
-    if any(character.isupper() for character in text):
-        raise ValueError("authored text must already be lowercase")
     if contains_emoji(text):
         raise ValueError("authored text must not contain emoji")
 

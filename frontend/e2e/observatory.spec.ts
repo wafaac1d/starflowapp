@@ -132,21 +132,24 @@ async function installApp(page: Page, step = "done") {
     }
     if (url.includes("/assistant/messages") && method === "GET") {
       await route.fulfill({
-        json: [
-          {
-            id: "u1",
-            role: "user",
-            content: "На чём сосредоточиться сегодня?",
-            created_at: "2025-08-12T09:41:00",
-          },
-          {
-            id: "b1",
-            role: "assistant",
-            content:
-              "Сегодня важно сохранять спокойствие и не спешить с решениями. Хороший день для планирования и общения с близкими. Избегайте перегрузок.",
-            created_at: "2025-08-12T09:41:00",
-          },
-        ],
+        json: {
+          remaining: 18,
+          messages: [
+            {
+              id: "u1",
+              role: "user",
+              content: "На чём сосредоточиться сегодня?",
+              created_at: "2025-08-12T09:41:00",
+            },
+            {
+              id: "b1",
+              role: "assistant",
+              content:
+                "Сегодня важно сохранять спокойствие и не спешить с решениями. Хороший день для планирования и общения с близкими. Избегайте перегрузок.",
+              created_at: "2025-08-12T09:41:00",
+            },
+          ],
+        },
       });
       return;
     }

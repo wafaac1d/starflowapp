@@ -420,6 +420,52 @@ Vitest открывает настройки, проверяет 48 слотов
 
 `pnpm lint` — тот же `tsc --noEmit`. Живой DeepSeek и живой платёж Stars не вызывались.
 
+## Регистр больше не принуждается, 2026-10-24
+
+D-051 отменяет D-009 в части строчных букв. Промпты не просят нижний регистр, ответ модели не приводится к нему и не отвергается из-за прописных. Emoji по-прежнему запрещены. Версии промптов прогноза увеличены.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по затронутым файлам | 0 |
+| `uv run ruff format` по `forecast.py` | 0 |
+| `uv run pytest -q` на `test_skeleton`, `test_readings`, `test_contract` | 0, 26 тестов, 3.09 с |
+
+Живой DeepSeek не вызывался.
+
+## Сетка натальной карты, 2026-10-24
+
+D-052. Внутренние лучи домов и аспекты рисуются по долготам поверх новой иллюстрации. Овен на картинке сверху, долгота идёт по часовой. `house_cusps` добавлен в ответ карты.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по `chart.py`, `chart_http.py`, `test_chart_access.py` | 0 |
+| `uv run ruff format --check` по тем же файлам | 0 |
+| `uv run mypy` по `chart.py` и `chart_http.py` | 0 |
+| `uv run pytest -q` на `test_chart_access` и `test_contract` | 0, 12 тестов, 2.58 с |
+| `corepack pnpm typecheck` | 0 |
+| `corepack pnpm test` | 0, 48 тестов Vitest |
+| `corepack pnpm openapi:check` | 0 |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot natal" --update-snapshots` | 0, снимок `natal.png` обновлён |
+
+Живой DeepSeek и живой платёж Stars не вызывались.
+
+## Чат астропомощника, 2026-10-24
+
+D-053. Один ответ больше не дублируется пузырём поверх истории. Остаток вопросов читается из `GET /api/v1/assistant/messages`, заглушка «5» убрана.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по `assistant.py` и `assistant_http.py` | 0 |
+| `uv run ruff format` по тем же файлам | 0, правок нет |
+| `uv run mypy` по тем же файлам | 0 |
+| `uv run pytest -q` на `test_contract` | 0, 2 теста |
+| `corepack pnpm typecheck` | 0 |
+| `corepack pnpm test` | 0, 48 тестов Vitest |
+| `corepack pnpm openapi:check` | 0 |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "tab bar\|screenshot chat"` | 0, снимок `chat.png` переснят |
+
+Живой DeepSeek не вызывался.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

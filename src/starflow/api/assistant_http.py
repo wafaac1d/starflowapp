@@ -32,6 +32,11 @@ class AssistantMessageBody(BaseModel):
     created_at: datetime
 
 
+class AssistantHistoryBody(BaseModel):
+    messages: list[AssistantMessageBody]
+    remaining: int | None
+
+
 def register_assistant_routes(router: APIRouter, container: Container) -> None:
     unauthorized = container.catalog.text("errors.unauthorized")
 
@@ -62,19 +67,25 @@ def register_assistant_routes(router: APIRouter, container: Container) -> None:
             code=reply.code,
         )
 
-    @router.get("/assistant/messages", response_model=list[AssistantMessageBody])
+    @router.get("/assistant/messages", response_model=AssistantHistoryBody)
     async def list_assistant(
         request: Request,
         limit: Annotated[int, Query()] = 30,
         before: Annotated[datetime | None, Query()] = None,
-    ) -> list[AssistantMessageBody]:
+    ) -> AssistantHistoryBody:
         actor = await actor_from_cookie(request, container, unauthorized)
-        rows = await container.assistant_service.history(
+        page = await container.assistant_service.history(
             actor.view.user_id, limit=limit, before=before
         )
-        return [
-            AssistantMessageBody(
-                id=item.id, role=item.role, content=item.content, created_at=item.created_at
-            )
-            for item in rows
-        ]
+        return AssistantHistoryBody(
+            messages=[
+                AssistantMessageBody(
+                    id=item.id,
+                    role=item.role,
+                    content=item.content,
+                    created_at=item.created_at,
+                )
+                for item in page.messages
+            ],
+            remaining=page.remaining,
+        )

@@ -69,9 +69,6 @@ export const compatRows: CompatRow[] = [
   { id: "values", title: "Общие ориентиры", subtitle: "Схожие ценности", icon: "compat_values" },
 ];
 
-// TODO(api): GET /assistant/messages does not return the remaining quota.
-export const assistantQuota = { remaining: 5 };
-
 export const chatFixture: ChatLine[] = [
   { id: "user-1", role: "user", text: "На чём сосредоточиться сегодня?", time: "09:41" },
   {
@@ -100,10 +97,6 @@ export const lunarSample = {
 
 export async function getForecastTopics(): Promise<ForecastTopic[]> {
   return forecastTopics;
-}
-
-export async function getAssistantQuota(): Promise<{ remaining: number }> {
-  return assistantQuota;
 }
 
 export async function getProfileTrait(): Promise<string> {

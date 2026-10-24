@@ -9,7 +9,12 @@ import { Screen } from "../shared/ui/Screen/Screen";
 import { SegmentedControl } from "../shared/ui/SegmentedControl/SegmentedControl";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import { degreeInSign } from "./format";
+import { natalGrid, wheelPoint, type WheelAspect, type WheelBody } from "./natalWheel";
 import styles from "./screens.module.css";
+
+const HUB = 4.5;
+const INNER = 27.2;
+const PLANET = 21;
 
 const TABS = [
   { id: "chart", label: "Карта" },
@@ -23,7 +28,10 @@ export function NatalScreen() {
   return (
     <Screen tab="today">
       <TopBar title="Натальная карта" back />
-      <img className={styles.wheel} src="/illustrations/png/natal_chart.png" alt="" />
+      <div className={styles.wheelFrame}>
+        <img className={styles.wheel} src="/illustrations/png/natal_chart.png" alt="" />
+        <NatalGrid chart={chart.data} />
+      </div>
       <SegmentedControl label="вид карты" value={tab} options={TABS} onChange={setTab} />
       {tab === "chart" ? (
         <table className={styles.table}>
@@ -54,6 +62,69 @@ export function NatalScreen() {
       )}
     </Screen>
   );
+}
+
+function NatalGrid({ chart }: { chart: Awaited<ReturnType<typeof getChart>> | undefined }) {
+  const grid = natalGrid(
+    chart === undefined
+      ? undefined
+      : { planets: chart.planets, houseCusps: chart.house_cusps ?? null },
+  );
+  const byId = new Map(grid.bodies.map((body) => [body.id, body]));
+  return (
+    <svg className={styles.grid} viewBox="0 0 100 100" role="img" aria-label="Сетка натальной карты">
+      {grid.cusps.map((longitude, index) => {
+        const inner = wheelPoint(longitude, HUB);
+        const outer = wheelPoint(longitude, INNER);
+        return (
+          <line
+            key={`house-${index}`}
+            className={styles.houseSpoke}
+            data-wheel="house"
+            x1={inner.x}
+            y1={inner.y}
+            x2={outer.x}
+            y2={outer.y}
+          />
+        );
+      })}
+      {grid.aspects.map((aspect) => {
+        const line = aspectLine(aspect, byId);
+        if (line === null) {
+          return null;
+        }
+        return (
+          <line
+            key={aspect.id}
+            className={aspect.kind === "hard" ? styles.hardAspect : styles.softAspect}
+            data-wheel={aspect.kind}
+            x1={line.x1}
+            y1={line.y1}
+            x2={line.x2}
+            y2={line.y2}
+          />
+        );
+      })}
+      {grid.bodies.map((body) => {
+        const at = wheelPoint(body.longitude, PLANET);
+        return <circle key={body.id} className={styles.planetMark} cx={at.x} cy={at.y} r={1.15} />;
+      })}
+    </svg>
+  );
+}
+
+function aspectLine(
+  aspect: WheelAspect,
+  byId: Map<string, WheelBody>,
+): { x1: number; y1: number; x2: number; y2: number } | null {
+  const from = byId.get(aspect.from);
+  const to = byId.get(aspect.to);
+  if (from === undefined || to === undefined) {
+    return null;
+  }
+  const start = wheelPoint(from.longitude, PLANET);
+  const end = wheelPoint(to.longitude, PLANET);
+  return { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
 }
 
 function fixtureRow(index: number) {

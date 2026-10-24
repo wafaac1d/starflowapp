@@ -802,6 +802,13 @@ export interface components {
             /** Code */
             code?: string | null;
         };
+        /** AssistantHistoryBody */
+        AssistantHistoryBody: {
+            /** Messages */
+            messages: components["schemas"]["AssistantMessageBody"][];
+            /** Remaining */
+            remaining: number | null;
+        };
         /** AssistantMessageBody */
         AssistantMessageBody: {
             /**
@@ -892,6 +899,8 @@ export interface components {
             ascendant_sign: string | null;
             /** Houses */
             houses: string[] | null;
+            /** House Cusps */
+            house_cusps: number[] | null;
             /** Planets */
             planets: components["schemas"]["PlanetBody"][];
             /** Aspects */
@@ -2488,7 +2497,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AssistantMessageBody"][];
+                    "application/json": components["schemas"]["AssistantHistoryBody"];
                 };
             };
             /** @description Validation Error */

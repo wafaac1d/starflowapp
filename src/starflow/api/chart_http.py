@@ -47,6 +47,7 @@ class ChartBody(BaseModel):
     moon_sign: str | None
     ascendant_sign: str | None
     houses: list[str] | None
+    house_cusps: list[float] | None
     planets: list[PlanetBody]
     aspects: list[str]
     transits: list[str]
@@ -244,6 +245,7 @@ def _chart(view: ChartView, line: Callable[[str], str]) -> ChartBody:
         moon_sign=view.moon_sign,
         ascendant_sign=view.ascendant_sign,
         houses=None if view.houses is None else list(view.houses),
+        house_cusps=None if view.house_cusps is None else list(view.house_cusps),
         planets=[_planet(item) for item in view.planets],
         aspects=list(view.aspects),
         transits=list(view.transits),

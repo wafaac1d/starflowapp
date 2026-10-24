@@ -142,10 +142,43 @@
   font: var(--font-caption);
 }
 
-.wheel {
+.wheelFrame {
+  position: relative;
   width: min(100%, 280px);
-  display: block;
   margin: var(--space-4) auto;
+}
+
+.wheel {
+  width: 100%;
+  display: block;
+}
+
+.grid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.houseSpoke {
+  stroke: var(--color-accent);
+  stroke-width: 0.45;
+  stroke-linecap: round;
+}
+
+.softAspect {
+  stroke: var(--color-peach);
+  stroke-width: 0.35;
+}
+
+.hardAspect {
+  stroke: var(--color-pink);
+  stroke-width: 0.35;
+}
+
+.planetMark {
+  fill: var(--color-pink);
 }
 
 .pair {

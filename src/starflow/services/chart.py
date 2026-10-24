@@ -65,6 +65,7 @@ class ChartView:
     phase_name: str | None
     limitations: tuple[str, ...]
     natal_access: str
+    house_cusps: tuple[float, ...] | None
 
 
 class Ephemeris(Protocol):
@@ -129,6 +130,8 @@ class ChartService:
         async with self._uow_factory() as uow:
             cached = await uow.forecast_cache.get(key)
         view = None if cached is None else _from_payload(cached)
+        if view is not None and view.houses is not None and view.house_cusps is None:
+            view = None
         if view is None:
             view = self._calculate(profile, access)
             await self._store(user_id, key, view)
@@ -148,6 +151,7 @@ class ChartService:
         phase = _phase(positions) if positions else None
         ascendant: str | None = None
         houses: tuple[str, ...] | None = None
+        house_cusps: tuple[float, ...] | None = None
         lunar_day: int | None = None
         aspects: tuple[str, ...] = ()
         latitude_value = profile.latitude
@@ -166,7 +170,8 @@ class ChartService:
             else:
                 ascendant_longitude, cusps = found
                 ascendant = sign_for_longitude(ascendant_longitude)
-                houses = tuple(sign_for_longitude(cusp) for cusp in cusps)
+                house_cusps = tuple(float(cusp) for cusp in cusps)
+                houses = tuple(sign_for_longitude(cusp) for cusp in house_cusps)
             lunar_day = self._ephemeris.lunar_day(moment, latitude, longitude)
             aspects = tuple(_aspect_text(hit) for hit in aspects_between(_longitudes(positions)))
         moon = next((item.sign for item in planets if item.name == "луна"), None)
@@ -183,6 +188,7 @@ class ChartService:
             phase_name=phase,
             limitations=tuple(limitations),
             natal_access=access,
+            house_cusps=house_cusps,
         )
 
     async def _store(self, user_id: UUID, key: str, view: ChartView) -> None:
@@ -345,6 +351,7 @@ def _payload(view: ChartView) -> dict[str, object]:
         "moon_sign": view.moon_sign,
         "ascendant_sign": view.ascendant_sign,
         "houses": None if view.houses is None else list(view.houses),
+        "house_cusps": None if view.house_cusps is None else list(view.house_cusps),
         "planets": [
             {
                 "name": item.name,
@@ -383,6 +390,7 @@ def _from_payload(payload: dict[str, object]) -> ChartView | None:
             phase_name=_optional_text(payload.get("phase_name")),
             limitations=_text_tuple(payload.get("limitations")),
             natal_access=_text(payload.get("natal_access")),
+            house_cusps=_cusps(payload.get("house_cusps")),
         )
     except (TypeError, ValueError):
         return None
@@ -442,6 +450,14 @@ def _bool(value: object) -> bool:
     if not isinstance(value, bool):
         raise TypeError("bool")
     return value
+
+
+def _cusps(value: object) -> tuple[float, ...] | None:
+    if value is None:
+        return None
+    if not isinstance(value, list) or len(value) != 12:
+        raise TypeError("cusps")
+    return tuple(_float(item) for item in value)
 
 
 def _texts(value: object) -> tuple[str, ...] | None:

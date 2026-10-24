@@ -84,8 +84,8 @@ def test_memory_entry_does_not_outlive_its_expiry() -> None:
 
 
 def test_output_guard_strips_markup_and_telegram_chunks_keep_entities() -> None:
-    assert plain_text("Hello **bold** <b>x</b>") == "hello bold x"
-    assert guarded_copy("Title", "Спокойный фон") == ("title", "спокойный фон")
+    assert plain_text("Hello **bold** <b>x</b>") == "Hello bold x"
+    assert guarded_copy("Title", "Спокойный фон") == ("Title", "Спокойный фон")
     assert guarded_copy("a", "фон 😀") is None
     raw = "x" * 4090 + "& <tag>"
     chunks = telegram_chunks(raw)

@@ -27,9 +27,9 @@ describe("assistant page", () => {
         });
       }
       if (url.includes("before=")) {
-        return Response.json([]);
+        return Response.json({ messages: [], remaining: null });
       }
-      return Response.json([]);
+      return Response.json({ messages: [], remaining: 19 });
     });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
