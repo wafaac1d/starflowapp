@@ -1,0 +1,15 @@
+{
+  "name": "StarFlow",
+  "short_name": "StarFlow",
+  "display": "standalone",
+  "background_color": "#0B1028",
+  "theme_color": "#0B1028",
+  "icons": [
+    {
+      "src": "/logo/starflow_app_icon_rounded.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

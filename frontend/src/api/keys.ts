@@ -1,0 +1,16 @@
+export const queryKeys = {
+  session: ["session"] as const,
+  reading: (kind: string) => ["reading", kind] as const,
+  chart: ["chart"] as const,
+  related: ["related"] as const,
+  assistant: ["assistant"] as const,
+  assistantQuota: ["assistant", "quota"] as const,
+  notifications: ["notifications"] as const,
+  billing: ["billing"] as const,
+  history: ["history"] as const,
+  favorites: ["favorites"] as const,
+  forecastTopics: ["forecast", "topics"] as const,
+  compatibility: (personId: string) => ["compatibility", personId] as const,
+  lunarDay: (iso: string) => ["lunar", iso] as const,
+  profileTrait: ["profile", "trait"] as const,
+};

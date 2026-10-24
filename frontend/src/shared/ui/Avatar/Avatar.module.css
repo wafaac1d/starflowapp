@@ -1,0 +1,26 @@
+.s,
+.m,
+.l {
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-avatar);
+  color: var(--color-text-primary);
+  font: var(--font-title-card);
+}
+
+.s {
+  width: 36px;
+  height: 36px;
+}
+
+.m {
+  width: 48px;
+  height: 48px;
+}
+
+.l {
+  width: 84px;
+  height: 84px;
+  font: var(--font-title-screen);
+}

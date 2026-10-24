@@ -1,1 +1,1 @@
-export const logoAvailable = true;
+export const logoAvailable = false;

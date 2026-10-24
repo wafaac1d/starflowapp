@@ -1,0 +1,16 @@
+.plain,
+.withTab {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4) var(--space-screen) var(--space-6);
+}
+
+.withTab {
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
+}
+
+.dock {
+  position: sticky;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+}

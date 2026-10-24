@@ -7,6 +7,7 @@ import { defineConfig } from "vitest/config";
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  publicDir: path.resolve(root, "../static"),
   plugins: [react()],
   server: {
     fs: { allow: [path.resolve(root, "..")] },
@@ -18,6 +19,7 @@ export default defineConfig({
     },
   },
   test: {
+    globals: true,
     environment: "jsdom",
     setupFiles: "./src/test-setup.ts",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],

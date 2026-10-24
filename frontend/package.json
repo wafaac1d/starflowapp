@@ -3,15 +3,23 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.18.0",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "texts": "node scripts/compile-texts.mjs",
     "texts:check": "node scripts/compile-texts.mjs --check",
     "copy-logo": "node scripts/copy-logo.mjs",
+    "icons": "node --experimental-strip-types scripts/gen-icon-names.ts",
+    "predev": "node --experimental-strip-types scripts/gen-icon-names.ts",
+    "prebuild": "node --experimental-strip-types scripts/gen-icon-names.ts",
     "dev": "node scripts/compile-texts.mjs && node scripts/copy-logo.mjs && vite",
     "build": "node scripts/compile-texts.mjs && node scripts/copy-logo.mjs && tsc --noEmit --pretty false && vite build",
     "typecheck": "node scripts/compile-texts.mjs && node scripts/copy-logo.mjs && tsc --noEmit --pretty false",
+    "lint": "tsc --noEmit --pretty false",
     "test": "node scripts/compile-texts.mjs && node scripts/copy-logo.mjs && vitest run",
     "e2e": "playwright test",
+    "test:e2e": "playwright test",
     "openapi:check": "openapi-typescript openapi.json --output /tmp/starflow-schema.d.ts && diff -u src/api/schema.d.ts /tmp/starflow-schema.d.ts"
   },
   "dependencies": {

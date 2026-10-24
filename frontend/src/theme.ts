@@ -23,9 +23,9 @@ export function readThemeChoice(): ThemeChoice {
       return stored;
     }
   } catch {
-    return "light";
+    return "dark";
   }
-  return "light";
+  return "dark";
 }
 
 let detach: (() => void) | null = null;

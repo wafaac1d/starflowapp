@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
 import { applyTheme, bindViewportChrome, readThemeChoice } from "./theme";
-import "./styles/tokens.css";
+import "./shared/styles/tokens.css";
 
 applyTheme(readThemeChoice());
 bindViewportChrome();

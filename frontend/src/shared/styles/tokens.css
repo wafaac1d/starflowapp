@@ -1,0 +1,107 @@
+@font-face {
+  font-family: "Google Sans";
+  src: url("../../../../static/font/GoogleSans-VariableFont_GRAD,opsz,wght.ttf") format("truetype");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Google Sans";
+  src: url("../../../../static/font/GoogleSans-Italic-VariableFont_GRAD,opsz,wght.ttf") format("truetype");
+  font-weight: 400 700;
+  font-style: italic;
+  font-display: block;
+}
+
+:root {
+  --color-bg: #0b1028;
+  --color-bg-end: #070b1e;
+  --color-surface: #141b3a;
+  --color-surface-elevated: #1a2248;
+  --color-border: rgba(142, 148, 234, 0.14);
+  --color-accent: #8e94ea;
+  --color-accent-pressed: #7a80dc;
+  --color-on-accent: #141b3a;
+  --color-text-primary: #e9ebff;
+  --color-text-secondary: #8d93b8;
+  --color-text-tertiary: #5b629e;
+  --color-peach: #f0b9a5;
+  --color-pink: #f2938d;
+  --color-toggle-off: #5a61b5;
+  --color-toggle-thumb: #f4f5ff;
+  --color-avatar: #3a4290;
+  --color-tabbar: #101735;
+  --font-family: "Google Sans", sans-serif;
+  --font-title-onboarding: 600 28px/34px var(--font-family);
+  --font-title-screen: 600 22px/28px var(--font-family);
+  --font-title-card: 600 16px/22px var(--font-family);
+  --font-body: 400 15px/22px var(--font-family);
+  --font-caption: 400 13px/18px var(--font-family);
+  --font-button: 600 16px/20px var(--font-family);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-screen: 20px;
+  --radius-card: 16px;
+  --radius-control: 14px;
+  --radius-pill: 999px;
+  --size-button: 52px;
+  --size-touch: 44px;
+  --size-column: 480px;
+  --shadow-glow: 0 0 48px rgba(142, 148, 234, 0.18);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: linear-gradient(180deg, var(--color-bg), var(--color-bg-end));
+  color: var(--color-text-primary);
+  font: var(--font-body);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.app-column {
+  width: min(100%, var(--size-column));
+  min-height: 100dvh;
+  margin: 0 auto;
+  position: relative;
+}

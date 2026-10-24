@@ -1,0 +1,64 @@
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav h2 {
+  margin: 0;
+  font: var(--font-title-card);
+}
+
+.nav button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.nav button:focus-visible,
+.day:focus-visible,
+.active:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.week,
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+}
+
+.week {
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.day,
+.active {
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.active span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}

@@ -1,0 +1,18 @@
+---
+description: Стек фронтенда StarFlow, данные, маршруты, пакетный менеджер и тесты
+alwaysApply: true
+---
+
+# Фронтенд
+
+React и TypeScript. `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `exactOptionalPropertyTypes`. `any`, `@ts-ignore`, `@ts-expect-error` без причины и `!` без обоснования запрещены.
+
+Vite. React Router. TanStack Query — единственное серверное состояние. Fetch в компонентах запрещён. Запросы идут через `frontend/src/api/client.ts`. Ключи — `frontend/src/api/keys.ts`.
+
+Если ответа API нет, временная функция живёт в `frontend/src/api/fixtures.ts`, помечена `// TODO(api)` и не добавляет маршрут на бэкенде.
+
+Маршруты: `/welcome`, `/onboarding/birth`, `/`, `/forecast`, `/calendar`, `/natal`, `/compatibility/:personId`, `/chat`, `/people`, `/profile`, `/settings`, `/premium`. Сохранены без пункта таб-бара: `/history`, `/favorites`, `/help`, `/delete`, `/admin`, `/retro`, `/referral`, `/terms`, `/paysupport`. Старые `/chart`, `/assistant`, `/related`, `/reading/:kind` перенаправляют.
+
+Менеджер пакетов — pnpm `10.18.0`, поле `packageManager`. Node `>=22`, файлы `.nvmrc` и `.node-version`. Установка: `pnpm install --frozen-lockfile`. Один lockfile фронтенда: `frontend/pnpm-lock.yaml`. `uv.lock` остаётся у Python.
+
+Проверки из `frontend`: `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm test:e2e`, `pnpm build`. Unit и component — Vitest и Testing Library, запросы по роли и тексту. E2E — Playwright, вьюпорт 390×844, сеть через `page.route`.

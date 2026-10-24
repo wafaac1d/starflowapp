@@ -1,0 +1,35 @@
+export const tokens = {
+  color: {
+    bg: "#0B1028",
+    bgEnd: "#070B1E",
+    surface: "#141B3A",
+    surfaceElevated: "#1A2248",
+    border: "rgba(142,148,234,0.14)",
+    accent: "#8E94EA",
+    accentPressed: "#7A80DC",
+    onAccent: "#141B3A",
+    textPrimary: "#E9EBFF",
+    textSecondary: "#8D93B8",
+    textTertiary: "#5B629E",
+    peach: "#F0B9A5",
+    pink: "#F2938D",
+    toggleOff: "#5A61B5",
+    toggleThumb: "#F4F5FF",
+    avatar: "#3A4290",
+  },
+  radius: {
+    card: 16,
+    control: 14,
+    pill: 999,
+  },
+  space: {
+    step: 4,
+    screen: 20,
+    card: 16,
+    stack: 12,
+    section: 24,
+  },
+  font: {
+    family: "Google Sans",
+  },
+} as const;

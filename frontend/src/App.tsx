@@ -1,25 +1,29 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { BrowserRouter, Route, Routes, useParams } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 
 import { openSession } from "./api/client";
-import { ErrorState, LoadingScreen } from "./components/ui/controls";
-import { EdgeSwipe } from "./components/ui/EdgeSwipe";
-import { HelpPage, PaySupportPage, PremiumPage, SettingsPage, TermsPage } from "./pages/InfoPages";
+import { queryKeys } from "./api/keys";
+import { ErrorState } from "./shared/ui/ErrorState/ErrorState";
+import { Skeleton } from "./shared/ui/Skeleton/Skeleton";
 import { AdminPage } from "./pages/AdminPage";
 import { DeletePage } from "./pages/DeletePage";
 import { RetroPage } from "./pages/RetroPage";
-import { FavoritesPage, HistoryPage, ReferralPage, RelatedPage } from "./pages/LibraryPages";
-import { CalendarPage, MonthPage } from "./pages/CalendarPage";
-import { ChartPage } from "./pages/ChartPage";
-import { AssistantPage } from "./pages/AssistantPage";
-import { BottomNavigation } from "./components/ui/editorial";
-import { HomePage } from "./pages/HomePage";
-import { ReadingPage } from "./pages/ReadingPage";
-import { OnboardingPage } from "./pages/OnboardingPage";
+import { FavoritesPage, HistoryPage, ReferralPage } from "./pages/LibraryPages";
+import { HelpPage, PaySupportPage, TermsPage } from "./pages/InfoPages";
 import { OpenAppPage } from "./pages/OpenAppPage";
-import { ProfilePage } from "./pages/ProfilePage";
-import { text } from "./resources";
+import { BirthScreen } from "./screens/BirthScreen";
+import { CalendarScreen } from "./screens/CalendarScreen";
+import { ChatScreen } from "./screens/ChatScreen";
+import { CompatibilityScreen } from "./screens/CompatibilityScreen";
+import { ForecastScreen } from "./screens/ForecastScreen";
+import { NatalScreen } from "./screens/NatalScreen";
+import { PeopleScreen } from "./screens/PeopleScreen";
+import { PremiumScreen } from "./screens/PremiumScreen";
+import { ProfileScreen } from "./screens/ProfileScreen";
+import { SettingsScreen } from "./screens/SettingsScreen";
+import { TodayScreen } from "./screens/TodayScreen";
+import { WelcomeScreen } from "./screens/WelcomeScreen";
 import { readWebApp } from "./telegram";
 
 export function App() {
@@ -31,71 +35,87 @@ export function App() {
   return (
     <QueryClientProvider client={client}>
       <BrowserRouter>
-        <AuthedApp initData={webApp.initData} />
+        <div className="app-column">
+          <AuthedApp initData={webApp.initData} />
+        </div>
       </BrowserRouter>
     </QueryClientProvider>
   );
 }
 
-function ReadingRoute() {
-  const params = useParams();
-  return <ReadingPage kind={params.kind ?? "day"} />;
-}
-
 function AuthedApp({ initData }: { initData: string }) {
   const session = useQuery({
-    queryKey: ["session"],
+    queryKey: queryKeys.session,
     queryFn: () => openSession(initData),
     retry: false,
   });
   if (session.isPending) {
-    return <LoadingScreen />;
+    return <Skeleton lines={4} />;
   }
   if (session.isError || session.data === undefined) {
     return (
-      <main className="shell">
-        <ErrorState
-          message={text("ui.common.error")}
-          onRetry={() => {
-            void session.refetch();
-          }}
-        />
-      </main>
+      <ErrorState
+        message="Не удалось открыть сессию"
+        onRetry={() => {
+          void session.refetch();
+        }}
+      />
     );
   }
   const profile = session.data;
   const ready = profile.step === "done";
+  const displayName = profile.display_name ?? nameFromInitData(initData);
   return (
-    <div className={ready ? "app-nav" : undefined}>
-      <EdgeSwipe />
-      <Routes>
+    <Routes>
+      <Route path="/welcome" element={<WelcomeScreen />} />
       <Route
-        path="/"
-        element={
-          profile.step === "done" ? <HomePage profile={profile} /> : <OnboardingPage profile={profile} />
-        }
+        path="/onboarding/birth"
+        element={<BirthScreen profile={profile} displayName={displayName} />}
       />
-      <Route path="/calendar" element={<CalendarPage />} />
-      <Route path="/calendar/month" element={<MonthPage />} />
-      <Route path="/chart" element={<ChartPage />} />
-      <Route path="/reading/:kind" element={<ReadingRoute />} />
+      <Route path="/" element={ready ? <TodayScreen profile={profile} /> : <WelcomeScreen />} />
+      <Route path="/forecast" element={<ForecastScreen />} />
+      <Route path="/calendar" element={<CalendarScreen />} />
+      <Route path="/natal" element={<NatalScreen />} />
+      <Route path="/compatibility/:personId" element={<CompatibilityScreen profile={profile} />} />
+      <Route path="/chat" element={<ChatScreen />} />
+      <Route path="/people" element={<PeopleScreen />} />
+      <Route path="/profile" element={<ProfileScreen profile={profile} />} />
+      <Route path="/settings" element={<SettingsScreen />} />
+      <Route path="/premium" element={<PremiumScreen />} />
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/favorites" element={<FavoritesPage />} />
-      <Route path="/related" element={<RelatedPage />} />
       <Route path="/referral" element={<ReferralPage />} />
-      <Route path="/profile" element={<ProfilePage profile={profile} />} />
-      <Route path="/assistant" element={<AssistantPage />} />
-      <Route path="/settings" element={<SettingsPage />} />
       <Route path="/delete" element={<DeletePage />} />
       <Route path="/retro" element={<RetroPage />} />
       <Route path="/admin" element={<AdminPage isAdmin={profile.is_admin} />} />
-      <Route path="/premium" element={<PremiumPage profile={profile} />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/help" element={<HelpPage />} />
       <Route path="/paysupport" element={<PaySupportPage />} />
+      <Route path="/chart" element={<Navigate to="/natal" replace />} />
+      <Route path="/assistant" element={<Navigate to="/chat" replace />} />
+      <Route path="/related" element={<Navigate to="/people" replace />} />
+      <Route path="/reading/:kind" element={<Navigate to="/forecast" replace />} />
       <Route path="*" element={<OpenAppPage />} />
     </Routes>
-      {ready ? <BottomNavigation /> : null}
-    </div>
   );
+}
+
+function nameFromInitData(initData: string): string {
+  const raw = new URLSearchParams(initData).get("user");
+  if (raw === null) {
+    return "";
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (isRecord(parsed) && typeof parsed.first_name === "string") {
+      return parsed.first_name;
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }

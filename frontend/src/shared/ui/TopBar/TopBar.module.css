@@ -1,0 +1,50 @@
+.center,
+.left {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+}
+
+.left {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.left .title {
+  flex: 1;
+  text-align: left;
+}
+
+.title {
+  margin: 0;
+  font: var(--font-title-screen);
+}
+
+.center .title {
+  text-align: center;
+}
+
+.back {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.back:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.spacer,
+.trailing {
+  min-width: 44px;
+  display: flex;
+  justify-content: flex-end;
+}
