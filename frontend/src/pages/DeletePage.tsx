@@ -1,9 +1,14 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 
 import { deleteProfile, openSession } from "../api/client";
-import { BackHome, Button } from "../components/ui/controls";
+import { queryKeys } from "../api/keys";
 import { text } from "../resources";
+import { Button } from "../shared/ui/Button/Button";
+import { Screen } from "../shared/ui/Screen/Screen";
+import { TopBar } from "../shared/ui/TopBar/TopBar";
+import styles from "../screens/screens.module.css";
 import { readWebApp } from "../telegram";
 
 type DeletePageProps = {
@@ -12,6 +17,7 @@ type DeletePageProps = {
 
 export function DeletePage({ fetchImpl }: DeletePageProps) {
   const client = useQueryClient();
+  const navigate = useNavigate();
   const [confirmed, setConfirmed] = useState(false);
   const remove = useMutation({
     mutationFn: async () => {
@@ -24,17 +30,18 @@ export function DeletePage({ fetchImpl }: DeletePageProps) {
     },
     onSuccess: (next) => {
       if (next !== null) {
-        client.setQueryData(["session"], next);
+        client.setQueryData(queryKeys.session, next);
       }
+      void navigate("/");
     },
   });
   return (
-    <main className="shell">
-      <h1>{text("ui.delete.title")}</h1>
-      <p className="lead">{text("ui.delete.lead")}</p>
-      <p>{text("ui.delete.kept")}</p>
-      <p>{text("ui.delete.policy")}</p>
-      <label className="consent-row">
+    <Screen tab="profile">
+      <TopBar title="Удалить данные" back />
+      <p className={styles.paragraph}>{text("ui.delete.lead")}</p>
+      <p className={styles.paragraph}>{text("ui.delete.kept")}</p>
+      <p className={styles.paragraph}>{text("ui.delete.policy")}</p>
+      <label className={styles.consent}>
         <input
           type="checkbox"
           checked={confirmed}
@@ -44,15 +51,16 @@ export function DeletePage({ fetchImpl }: DeletePageProps) {
         />
         <span>{text("ui.delete.confirm")}</span>
       </label>
-      <Button
-        tone="danger"
-        label={text("ui.profile.delete_confirm")}
-        disabled={!confirmed || remove.isPending}
-        onClick={() => {
-          void remove.mutateAsync();
-        }}
-      />
-      <BackHome />
-    </main>
+      <div className={styles.dock}>
+        <Button
+          disabled={!confirmed || remove.isPending}
+          onClick={() => {
+            void remove.mutateAsync();
+          }}
+        >
+          {text("ui.profile.delete_confirm")}
+        </Button>
+      </div>
+    </Screen>
   );
 }

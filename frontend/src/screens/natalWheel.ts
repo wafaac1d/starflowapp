@@ -34,10 +34,17 @@ export type WheelAspect = {
   kind: "soft" | "hard";
 };
 
+export type WheelLink = {
+  id: string;
+  start: number;
+  end: number;
+};
+
 export type NatalGrid = {
   bodies: WheelBody[];
   cusps: number[];
   aspects: WheelAspect[];
+  figure: WheelLink[];
 };
 
 export function eclipticLongitude(sign: string, degree: string): number {
@@ -74,10 +81,12 @@ export function natalGrid(chart: {
     return fixtureGrid();
   }
   const bodies = planets.map((planet) => ({ id: planet.name, longitude: planet.longitude }));
+  const houseCusps = hasCusps ? cusps : [];
   return {
     bodies,
-    cusps: hasCusps ? cusps : [],
+    cusps: houseCusps,
     aspects: aspectsBetween(bodies),
+    figure: figureOf([...houseCusps, ...bodies.map((body) => body.longitude)]),
   };
 }
 
@@ -87,11 +96,52 @@ function fixtureGrid(): NatalGrid {
     longitude: eclipticLongitude(row.sign, row.degree),
   }));
   const ascendant = bodies.find((body) => body.id === "asc");
+  const cusps = equalCusps(ascendant?.longitude ?? 0);
   return {
     bodies,
-    cusps: equalCusps(ascendant?.longitude ?? 0),
+    cusps,
     aspects: aspectsBetween(bodies),
+    figure: figureOf([...cusps, ...bodies.map((body) => body.longitude)]),
   };
+}
+
+function figureOf(longitudes: number[]): WheelLink[] {
+  const unique: number[] = [];
+  for (const value of [...longitudes].sort((left, right) => left - right)) {
+    const previous = unique[unique.length - 1];
+    if (previous === undefined || Math.abs(value - previous) > 0.05) {
+      unique.push(value);
+    }
+  }
+  const count = unique.length;
+  if (count < 3) {
+    return [];
+  }
+  const links: WheelLink[] = [];
+  const seen = new Set<string>();
+  const add = (step: number) => {
+    for (let index = 0; index < count; index += 1) {
+      const other = (index + step) % count;
+      const left = Math.min(index, other);
+      const right = Math.max(index, other);
+      const key = `${left}-${right}`;
+      if (seen.has(key)) {
+        continue;
+      }
+      seen.add(key);
+      const start = unique[left];
+      const end = unique[right];
+      if (start === undefined || end === undefined) {
+        continue;
+      }
+      links.push({ id: `figure-${key}`, start, end });
+    }
+  };
+  add(1);
+  if (count > 4) {
+    add(Math.min(5, Math.floor(count / 2)));
+  }
+  return links;
 }
 
 function aspectsBetween(bodies: WheelBody[]): WheelAspect[] {

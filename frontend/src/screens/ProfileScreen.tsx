@@ -17,6 +17,7 @@ export function ProfileScreen({ profile }: { profile: ProfileResponse }) {
   const born = profile.birth_date ?? "";
   return (
     <Screen tab="profile">
+      <div className={styles.fill}>
       <div className={styles.topRow}>
         <span />
         <button
@@ -54,6 +55,10 @@ export function ProfileScreen({ profile }: { profile: ProfileResponse }) {
         <ListRow plain title="Избранное" chevron to="/favorites" />
         <ListRow plain title="История" chevron to="/history" />
         <ListRow plain title="Моя подписка" chevron to="/premium" />
+      </div>
+      <div className={styles.deleteRow}>
+        <ListRow plain title="Удалить данные" to="/delete" />
+      </div>
       </div>
     </Screen>
   );

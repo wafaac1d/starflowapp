@@ -466,6 +466,34 @@ D-053. Один ответ больше не дублируется пузырё
 
 Живой DeepSeek не вызывался.
 
+## Профиль, фигура карты и регистр промптов, 2026-10-24
+
+D-054. «Удалить данные» стоит внизу вкладки «Профиль». Линии натальной карты соединены в замкнутую фигуру. Промпты просят обычный русский регистр, версии увеличены.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по `forecast.py` и `assistant.py` | 0 |
+| `uv run ruff format` по тем же файлам | 0, правок нет |
+| `uv run pytest -q` на `test_skeleton` и `test_readings` | 0, 24 теста, 2.38 с |
+| `corepack pnpm typecheck` | 0 |
+| `corepack pnpm test` | 0, 48 тестов Vitest |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot natal\|screenshot profile" --update-snapshots` | 0, снимки пересняты |
+
+Живой DeepSeek не вызывался: новый регистр ответа модели на живом ключе не проверялся.
+
+## Отправка в чате видна сразу, 2026-10-24
+
+D-055. Вопрос рисуется отправленным сразу, рядом стоит пузырь астропомощника с индикатором. Текст ответа занимает этот пузырь, когда POST возвращается. Если история сервера уже содержит пару, локальные пузыри уступают ей место.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm typecheck` | 0 |
+| `corepack pnpm test` | 0, 49 тестов Vitest |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx` | 0, 13 тестов |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "chat shows the sent line\|tab bar, calendar"` | 0, 2 теста |
+
+Живой DeepSeek не вызывался. Задержку ответа в браузере держал тестовый маршрут: вопрос и индикатор видны до ответа, затем индикатор сменяется текстом.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

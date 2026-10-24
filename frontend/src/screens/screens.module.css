@@ -20,6 +20,23 @@
   margin-top: auto;
 }
 
+.deleteRow {
+  margin-top: auto;
+  padding-top: var(--space-6);
+}
+
+.deleteRow a {
+  color: var(--color-pink);
+}
+
+.consent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-touch);
+  margin-top: var(--space-5);
+}
+
 .fill {
   flex: 1;
   display: flex;
@@ -161,10 +178,11 @@
   pointer-events: none;
 }
 
-.houseSpoke {
+.figure {
   stroke: var(--color-accent);
-  stroke-width: 0.45;
+  stroke-width: 0.4;
   stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .softAspect {

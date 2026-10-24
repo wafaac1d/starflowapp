@@ -35,7 +35,10 @@ from starflow.services.chart import ChartView
 from starflow.services.quota import QuotaStore, ResultWriter, StoredResult
 
 _LOG = get_logger("assistant")
-_REPAIR = "прошлый ответ не подошёл. верни один json-объект с полем reply и без emoji."
+_REPAIR = (
+    "Прошлый ответ не подошёл. Верни один json-объект с полем reply и без emoji. "
+    "Пиши с заглавной буквы."
+)
 
 
 class ReplyText(BaseModel):

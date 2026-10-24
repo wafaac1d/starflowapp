@@ -74,7 +74,8 @@ _PREMIUM = frozenset(
 _KINDS = _OPEN | _PREMIUM
 _LOG = get_logger("forecast")
 _REPAIR = (
-    "прошлый ответ не подошёл. верни один json-объект с полями title и body, без emoji и без html."
+    "Прошлый ответ не подошёл. Верни один json-объект с полями title и body, "
+    "без emoji и без html. Пиши с заглавной буквы."
 )
 
 

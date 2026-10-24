@@ -91,7 +91,7 @@ describe("screens", () => {
     expect(screen.getByRole("heading", { name: "Натальная карта" })).toBeInTheDocument();
     expect(screen.getByText("19°24′")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Сетка натальной карты" })).toBeInTheDocument();
-    expect(view.container.querySelectorAll("[data-wheel='house']")).toHaveLength(12);
+    expect(view.container.querySelectorAll("[data-wheel='figure']").length).toBeGreaterThan(12);
     await userEvent.click(screen.getByRole("tab", { name: "Разбор" }));
     expect(screen.getByRole("tab", { name: "Разбор" })).toHaveAttribute("aria-selected", "true");
   });
@@ -151,6 +151,42 @@ describe("screens", () => {
     expect(screen.queryByText("Осталось 20 вопросов")).not.toBeInTheDocument();
   });
 
+  it("draws the sent question and a loader before the model answers", async () => {
+    let release: (response: Response) => void = () => undefined;
+    const reply = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (_input, init) => {
+        if ((init?.method ?? "GET") === "POST") {
+          return reply;
+        }
+        return Response.json({ messages: [], remaining: 20 });
+      }),
+    );
+    renderAt(<ChatScreen />);
+    expect(await screen.findByText("Осталось 20 вопросов")).toBeInTheDocument();
+    await userEvent.type(screen.getByRole("textbox", { name: "Написать сообщение…" }), "Что вечером?");
+    await userEvent.click(screen.getByRole("button", { name: "отправить" }));
+    expect(screen.getByText("Что вечером?")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Астропомощник отвечает" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Написать сообщение…" })).toHaveValue("");
+    release(
+      Response.json({
+        status: "ready",
+        reply: "Один ответ.",
+        remaining: 19,
+        replayed: false,
+        code: "ready",
+      }),
+    );
+    expect(await screen.findByText("Один ответ.")).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Астропомощник отвечает" })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Что вечером?")).toHaveLength(1);
+    expect(screen.getAllByText("Один ответ.")).toHaveLength(1);
+  });
+
   it("lists people from the api", async () => {
     vi.stubGlobal(
       "fetch",
@@ -175,6 +211,7 @@ describe("screens", () => {
     expect(screen.getByRole("heading", { name: "Анна" })).toBeInTheDocument();
     expect(screen.getByText("Лев · 12.08.1995")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Моя подписка" })).toHaveAttribute("href", "/premium");
+    expect(screen.getByRole("link", { name: "Удалить данные" })).toHaveAttribute("href", "/delete");
   });
 
   it("toggles a settings switch", async () => {

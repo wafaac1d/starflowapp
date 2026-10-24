@@ -20,6 +20,11 @@ describe("natal wheel", () => {
     expect(grid.cusps).toEqual(equalCusps(eclipticLongitude("Скорпион", "12°03′")));
     expect(grid.bodies.map((body) => body.id)).toEqual(["sun", "moon", "asc"]);
     expect(grid.aspects).toEqual([]);
+    const joined = new Set(grid.figure.flatMap((link) => [link.start, link.end]));
+    for (const cusp of grid.cusps) {
+      expect(joined.has(cusp)).toBe(true);
+    }
+    expect(grid.figure.some((link) => link.start !== link.end)).toBe(true);
   });
 
   it("uses the chart cusps and aspects instead of the fixture", () => {

@@ -12,8 +12,6 @@ import { degreeInSign } from "./format";
 import { natalGrid, wheelPoint, type WheelAspect, type WheelBody } from "./natalWheel";
 import styles from "./screens.module.css";
 
-const HUB = 4.5;
-const INNER = 27.2;
 const PLANET = 21;
 
 const TABS = [
@@ -73,18 +71,18 @@ function NatalGrid({ chart }: { chart: Awaited<ReturnType<typeof getChart>> | un
   const byId = new Map(grid.bodies.map((body) => [body.id, body]));
   return (
     <svg className={styles.grid} viewBox="0 0 100 100" role="img" aria-label="Сетка натальной карты">
-      {grid.cusps.map((longitude, index) => {
-        const inner = wheelPoint(longitude, HUB);
-        const outer = wheelPoint(longitude, INNER);
+      {grid.figure.map((link) => {
+        const start = wheelPoint(link.start, PLANET);
+        const end = wheelPoint(link.end, PLANET);
         return (
           <line
-            key={`house-${index}`}
-            className={styles.houseSpoke}
-            data-wheel="house"
-            x1={inner.x}
-            y1={inner.y}
-            x2={outer.x}
-            y2={outer.y}
+            key={link.id}
+            className={styles.figure}
+            data-wheel="figure"
+            x1={start.x}
+            y1={start.y}
+            x2={end.x}
+            y2={end.y}
           />
         );
       })}

@@ -213,6 +213,34 @@ test("onboarding leads to today and the forecast period changes", async ({ page 
   await expect(page.getByRole("tab", { name: "Месяц" })).toHaveAttribute("aria-selected", "true");
 });
 
+test("chat shows the sent line before the model answers", async ({ page }) => {
+  await installApp(page);
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/v1/assistant/messages", async (route) => {
+    if (route.request().method() === "POST") {
+      await gate;
+      await route.fulfill({
+        json: { status: "ready", reply: "Спокойный вечер.", remaining: 17, replayed: false, code: "ready" },
+      });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto("/chat");
+  await page.getByRole("textbox", { name: "Написать сообщение…" }).fill("Что вечером?");
+  await page.getByRole("button", { name: "отправить" }).click();
+  await expect(page.getByText("Что вечером?")).toBeVisible();
+  await expect(page.getByRole("status", { name: "Астропомощник отвечает" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Написать сообщение…" })).toHaveValue("");
+  release();
+  await expect(page.getByText("Спокойный вечер.")).toBeVisible();
+  await expect(page.getByRole("status", { name: "Астропомощник отвечает" })).toHaveCount(0);
+  await expect(page.getByText("Что вечером?")).toBeVisible();
+});
+
 test("tab bar, calendar, chat, settings and paywall", async ({ page }) => {
   await openReady(page, "/");
   await page.getByRole("link", { name: "Календарь" }).click();
