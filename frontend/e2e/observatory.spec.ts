@@ -195,6 +195,23 @@ async function openReady(page: Page, path: string) {
   await page.goto(path);
 }
 
+test("today content starts below the telegram header", async ({ page }) => {
+  await openReady(page, "/");
+  await page.evaluate(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--tg-safe-area-inset-top", "47px");
+    root.style.setProperty("--tg-content-safe-area-inset-top", "56px");
+  });
+  const greeting = page.getByText("Добрый вечер,");
+  await expect(greeting).toBeVisible();
+  const box = await greeting.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box?.y ?? 0).toBeGreaterThanOrEqual(47 + 56);
+  const profile = page.getByRole("button", { name: "профиль" });
+  const profileBox = await profile.boundingBox();
+  expect(profileBox?.y ?? 0).toBeGreaterThanOrEqual(47 + 56);
+});
+
 test("onboarding leads to today and the forecast period changes", async ({ page }) => {
   await installApp(page, "welcome");
   await page.goto("/");

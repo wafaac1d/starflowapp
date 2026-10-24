@@ -53,6 +53,22 @@
   --size-touch: 44px;
   --size-column: 480px;
   --shadow-glow: 0 0 48px rgba(142, 148, 234, 0.18);
+  --shell-inset-top: calc(
+    max(var(--tg-safe-area-inset-top, 0px), env(safe-area-inset-top, 0px)) +
+      var(--tg-content-safe-area-inset-top, 0px)
+  );
+  --shell-inset-right: calc(
+    max(var(--tg-safe-area-inset-right, 0px), env(safe-area-inset-right, 0px)) +
+      var(--tg-content-safe-area-inset-right, 0px)
+  );
+  --shell-inset-bottom: calc(
+    max(var(--tg-safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px)) +
+      var(--tg-content-safe-area-inset-bottom, 0px)
+  );
+  --shell-inset-left: calc(
+    max(var(--tg-safe-area-inset-left, 0px), env(safe-area-inset-left, 0px)) +
+      var(--tg-content-safe-area-inset-left, 0px)
+  );
   color-scheme: dark;
 }
 
