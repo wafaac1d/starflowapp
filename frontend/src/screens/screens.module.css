@@ -38,6 +38,13 @@
   text-align: center;
 }
 
+.chatLock {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+  text-align: center;
+}
+
 .deleteRow {
   margin-top: auto;
   padding-top: var(--space-6);

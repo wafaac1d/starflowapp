@@ -315,7 +315,7 @@ describe("screens", () => {
         });
       }),
     );
-    renderAt(<ChatScreen />);
+    renderAt(<ChatScreen premium />);
     expect(await screen.findByText("Осталось 20 вопросов")).toBeInTheDocument();
     await userEvent.type(screen.getByRole("textbox", { name: "Написать сообщение…" }), "Что вечером?");
     await userEvent.click(screen.getByRole("button", { name: "Отправить" }));
@@ -339,9 +339,10 @@ describe("screens", () => {
         return Response.json({ messages: [], remaining: 20 });
       }),
     );
-    renderAt(<ChatScreen />);
+    renderAt(<ChatScreen premium />);
     expect(await screen.findByText("Осталось 20 вопросов")).toBeInTheDocument();
     expect(screen.getByText(/Это чат с астропомощником/)).toBeInTheDocument();
+    expect(screen.queryByText(/можно с Premium/)).not.toBeInTheDocument();
     await userEvent.type(screen.getByRole("textbox", { name: "Написать сообщение…" }), "Что вечером?");
     await userEvent.click(screen.getByRole("button", { name: "Отправить" }));
     expect(screen.getByText("Что вечером?")).toBeInTheDocument();
@@ -361,6 +362,33 @@ describe("screens", () => {
     expect(screen.queryByRole("status", { name: "Астропомощник отвечает" })).not.toBeInTheDocument();
     expect(screen.getAllByText("Что вечером?")).toHaveLength(1);
     expect(screen.getAllByText("Один ответ.")).toHaveLength(1);
+  });
+
+  it("keeps the composer closed without premium", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async (_input, init) => {
+      if ((init?.method ?? "GET") === "POST") {
+        return Response.json({ status: "premium", reply: null, remaining: null, replayed: false, code: "premium_required" });
+      }
+      return Response.json({
+        messages: [
+          {
+            id: "a1",
+            role: "assistant",
+            content: "Старый ответ.",
+            created_at: "2025-08-12T18:00:01Z",
+          },
+        ],
+        remaining: null,
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderAt(<ChatScreen premium={false} />);
+    expect(await screen.findByText("Старый ответ.")).toBeInTheDocument();
+    expect(screen.getByText("Писать и отправлять сообщения можно с Premium.")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Написать сообщение…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Отправить" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Отправить" }));
+    expect(fetchMock.mock.calls.some((call) => (call[1]?.method ?? "GET") === "POST")).toBe(false);
   });
 
   it("lists people from the api", async () => {

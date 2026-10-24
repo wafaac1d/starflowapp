@@ -24,7 +24,7 @@ type Outgoing = {
   knownIds: string[];
 };
 
-export function ChatScreen() {
+export function ChatScreen({ premium }: { premium: boolean }) {
   const client = useQueryClient();
   const [draft, setDraft] = useState("");
   const [live, setLive] = useState<Outgoing | null>(null);
@@ -60,8 +60,9 @@ export function ChatScreen() {
         <div className={empty ? styles.chatEmptyStage : styles.stack}>
           {empty ? (
             <p className={styles.chatEmpty}>
-              Это чат с астропомощником. Спросите про день, карту или совместимость. Ответ
-              развлекательный и не обещает точное событие.
+              Это чат с астропомощником. Спросите про день, карту или совместимость.
+              {premium ? " " : " Писать и отправлять сообщения можно с Premium. "}
+              Ответ развлекательный и не обещает точное событие.
             </p>
           ) : null}
           {messages.map((message) => (
@@ -80,13 +81,17 @@ export function ChatScreen() {
         </div>
         {remaining !== undefined && remaining !== null ? <Chip>Осталось {remaining} вопросов</Chip> : null}
         <div className={styles.dock}>
+          {!premium && history.isSuccess && !empty ? (
+            <p className={styles.chatLock}>Писать и отправлять сообщения можно с Premium.</p>
+          ) : null}
           <ChatInput
             value={draft}
+            locked={!premium}
             pending={ask.isPending || history.isLoading}
             onChange={setDraft}
             onSubmit={() => {
               const text = draft.trim();
-              if (text === "" || ask.isPending || history.isLoading) {
+              if (!premium || text === "" || ask.isPending || history.isLoading) {
                 return;
               }
               const outgoing = {

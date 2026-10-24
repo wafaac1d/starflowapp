@@ -18,8 +18,8 @@ function profile(step: string) {
   };
 }
 
-async function installApp(page: Page, step = "done") {
-  let current = profile(step);
+async function installApp(page: Page, step = "done", premium = false) {
+  let current = { ...profile(step), is_premium: premium };
   await page.route("**/*telegram-web-app.js", (route) =>
     route.fulfill({ contentType: "application/javascript", body: "" }),
   );
@@ -220,8 +220,8 @@ async function installApp(page: Page, step = "done") {
   });
 }
 
-async function openReady(page: Page, path: string) {
-  await installApp(page, "done");
+async function openReady(page: Page, path: string, premium = false) {
+  await installApp(page, "done", premium);
   await page.goto(path);
 }
 
@@ -303,6 +303,9 @@ test("empty chat explains itself in the middle", async ({ page }) => {
   await page.goto("/chat");
   const note = page.getByText(/Это чат с астропомощником/);
   await expect(note).toBeVisible();
+  await expect(page.getByText(/Писать и отправлять сообщения можно с Premium/)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Написать сообщение…" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Отправить" })).toBeDisabled();
   const box = await note.boundingBox();
   const center = (box?.y ?? 0) + (box?.height ?? 0) / 2;
   expect(center).toBeGreaterThan(280);
@@ -310,7 +313,7 @@ test("empty chat explains itself in the middle", async ({ page }) => {
 });
 
 test("chat shows the sent line before the model answers", async ({ page }) => {
-  await installApp(page);
+  await installApp(page, "done", true);
   let release: () => void = () => undefined;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -369,7 +372,7 @@ test("profile edit saves the birth time and an empty field means unknown", async
 });
 
 test("tab bar, calendar, chat, settings and paywall", async ({ page }) => {
-  await openReady(page, "/");
+  await openReady(page, "/", true);
   await page.getByRole("link", { name: "Календарь" }).click();
   await expect(page.getByRole("heading", { name: "Лунный календарь" })).toBeVisible();
   await page.goto("/calendar?day=2025-08-01");

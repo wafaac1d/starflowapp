@@ -568,6 +568,17 @@ D-060. Кнопки «Любовь», «Работа», «Диалог», «Эм
 | `corepack pnpm exec vitest run src/screens/screens.test.tsx -t "draws the sent question"` | 0 |
 | `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "empty chat explains itself"` | 0 |
 
+## Чат без Premium, 2026-10-24
+
+D-061. Без подписки поле и кнопка отправки закрыты, запрос не уходит. Пустой чат пишет об этом в легенде. Если переписка уже есть, та же фраза стоит над полем. Старые сообщения остаются.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm typecheck` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t "assistant reply\|sent question\|composer closed"` | 0, 3 теста |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "empty chat explains itself\|chat shows the sent line\|tab bar, calendar"` | 0, 3 теста |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot chat" --update-snapshots` | 0, снимок `chat.png` обновлён |
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

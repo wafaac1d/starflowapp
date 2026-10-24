@@ -78,7 +78,7 @@ function AuthedApp({ initData }: { initData: string }) {
       <Route path="/natal" element={<NatalScreen />} />
       <Route path="/compatibility" element={<CompatibilityScreen profile={profile} />} />
       <Route path="/compatibility/:personId" element={<CompatibilityScreen profile={profile} />} />
-      <Route path="/chat" element={<ChatScreen />} />
+      <Route path="/chat" element={<ChatScreen premium={profile.is_premium} />} />
       <Route path="/people" element={<PeopleScreen />} />
       <Route path="/profile" element={<ProfileScreen profile={profile} />} />
       <Route path="/settings" element={<SettingsScreen />} />
