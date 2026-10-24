@@ -73,9 +73,10 @@ function AuthedApp({ initData }: { initData: string }) {
         element={<BirthScreen profile={profile} displayName={displayName} />}
       />
       <Route path="/" element={ready ? <TodayScreen profile={profile} /> : <WelcomeScreen />} />
-      <Route path="/forecast" element={<ForecastScreen />} />
+      <Route path="/forecast" element={<ForecastScreen premium={profile.is_premium} />} />
       <Route path="/calendar" element={<CalendarScreen />} />
       <Route path="/natal" element={<NatalScreen />} />
+      <Route path="/compatibility" element={<CompatibilityScreen profile={profile} />} />
       <Route path="/compatibility/:personId" element={<CompatibilityScreen profile={profile} />} />
       <Route path="/chat" element={<ChatScreen />} />
       <Route path="/people" element={<PeopleScreen />} />

@@ -124,6 +124,8 @@ class RelatedBirth:
     display_name: str
     birth_date: date | None
     consent: bool = False
+    birth_time: time | None = None
+    birth_time_unknown: bool = True
 
 
 @dataclass(frozen=True)

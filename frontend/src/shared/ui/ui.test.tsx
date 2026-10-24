@@ -103,8 +103,8 @@ describe("shared ui", () => {
       </MemoryRouter>,
     );
     expect(screen.getByText("А")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "назад" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "назад" }));
+    expect(screen.getByRole("button", { name: "Назад" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Назад" }));
   });
 
   it("selects a lunar day", async () => {

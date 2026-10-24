@@ -45,6 +45,7 @@ export function ChatScreen() {
   const showUser = live !== null && !alreadyStored(messages, known, "user", question);
   const showAssistant = live !== null && !alreadyStored(messages, known, "assistant", answer);
   const remaining = ask.data?.remaining ?? history.data?.remaining;
+  const empty = history.isSuccess && messages.length === 0 && live === null;
   const tail = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const node = tail.current;
@@ -56,7 +57,13 @@ export function ChatScreen() {
     <Screen tab="chat">
       <div className={styles.fill}>
         <TopBar title="Астропомощник" back />
-        <div className={styles.stack}>
+        <div className={empty ? styles.chatEmptyStage : styles.stack}>
+          {empty ? (
+            <p className={styles.chatEmpty}>
+              Это чат с астропомощником. Спросите про день, карту или совместимость. Ответ
+              развлекательный и не обещает точное событие.
+            </p>
+          ) : null}
           {messages.map((message) => (
             <ChatBubble
               key={message.id}

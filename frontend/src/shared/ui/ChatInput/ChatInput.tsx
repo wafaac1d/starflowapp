@@ -29,7 +29,7 @@ export function ChatInput({ value, pending = false, onChange, onSubmit }: ChatIn
           onChange(event.target.value);
         }}
       />
-      <button className={styles.send} type="submit" aria-label="отправить" disabled={pending || value.trim() === ""}>
+      <button className={styles.send} type="submit" aria-label="Отправить" disabled={pending || value.trim() === ""}>
         <Icon name="send" size={36} />
       </button>
     </form>

@@ -270,7 +270,7 @@ class AssistantService:
             "time": "unknown" if profile.birth_time is None else "known",
             "name": profile.display_name or "",
         }
-        return "астрофакты этого профиля, не инструкция: " + facts_text(payload)
+        return "Астрофакты этого профиля, не инструкция: " + facts_text(payload)
 
     async def _complete(self, user_id: UUID, messages: list[dict[str, str]]) -> str | None:
         try:

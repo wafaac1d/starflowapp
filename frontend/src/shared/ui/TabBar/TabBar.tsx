@@ -14,7 +14,7 @@ const TABS: { id: TabId; to: string; label: string; icon: IconName; active: Icon
 
 export function TabBar({ active }: { active: TabId }) {
   return (
-    <nav className={styles.bar} aria-label="разделы">
+    <nav className={styles.bar} aria-label="Разделы">
       {TABS.map((tab) => {
         const selected = tab.id === active;
         return (

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router";
 import type { ProfileResponse } from "../api/client";
 import { getProfileTrait } from "../api/fixtures";
 import { queryKeys } from "../api/keys";
+import { titled } from "../case";
 import { Avatar } from "../shared/ui/Avatar/Avatar";
 import { Icon } from "../shared/ui/Icon/Icon";
 import { ListRow } from "../shared/ui/ListRow/ListRow";
@@ -13,7 +14,7 @@ import styles from "./screens.module.css";
 export function ProfileScreen({ profile }: { profile: ProfileResponse }) {
   const navigate = useNavigate();
   const trait = useQuery({ queryKey: queryKeys.profileTrait, queryFn: getProfileTrait });
-  const sign = profile.calendar_sign ?? "";
+  const sign = profile.calendar_sign === null ? "" : titled(profile.calendar_sign);
   const born = profile.birth_date ?? "";
   return (
     <Screen tab="profile">
@@ -23,7 +24,7 @@ export function ProfileScreen({ profile }: { profile: ProfileResponse }) {
         <button
           type="button"
           className={styles.profileButton}
-          aria-label="настройки"
+          aria-label="Настройки"
           onClick={() => {
             void navigate("/settings");
           }}
@@ -33,16 +34,18 @@ export function ProfileScreen({ profile }: { profile: ProfileResponse }) {
       </div>
       <button
         type="button"
-        className={styles.center}
+        className={styles.identity}
         onClick={() => {
           void navigate("/people");
         }}
       >
         <Avatar letters={profile.display_name?.slice(0, 1) ?? ""} size="l" />
-        <h1 className={styles.name}>{profile.display_name}</h1>
-        <p className={styles.kicker}>
-          {sign} · {born}
-        </p>
+        <span className={styles.identityText}>
+          <h1 className={styles.name}>{profile.display_name}</h1>
+          <p className={styles.meta}>
+            {sign} · {born}
+          </p>
+        </span>
       </button>
       <article className={`${styles.decision} ${styles.trait}`}>
         <span className={styles.decisionHead}>

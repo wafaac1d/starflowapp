@@ -504,6 +504,70 @@ D-056. Экран и таб-бар прибавляют безопасную з�
 
 Живой клиент Telegram на телефоне этим прогоном не открывался: зону задал тестовый маршрут, приветствие оказалось ниже суммы отступов.
 
+## Заглавная буква в текстовках, 2026-10-24
+
+D-057. Строки интерфейса, бота и ошибок начинаются с заглавной буквы, как и следующее предложение. Знаки и планеты на экране пишутся с заглавной при показе.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по `chart_sections.py`, `forecast.py`, `assistant.py` | 0 |
+| `uv run pytest -q` на `test_premium_content`, `test_billing_rules`, `test_bot_reply` | 0, 9 тестов |
+| `corepack pnpm typecheck` | 0 |
+| `corepack pnpm test` | 0, 49 тестов Vitest |
+
+## Время рождения в профиле, 2026-10-24
+
+D-058. Тумблер «Не знаю время» убран с экрана рождения. Пустое поле сохраняется как неизвестное время, заполненное — как время профиля. Готовый профиль уходит в PATCH `/profile`.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx` | 0, 15 тестов |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "profile edit saves the birth time"` | 0, 1 тест |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "onboarding leads to today"` | 0, 1 тест |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot birth" --update-snapshots` | 0, снимок `birth.png` обновлён |
+| `corepack pnpm typecheck` | 0 |
+
+## Отступ знака на профиле, 2026-10-24
+
+Знак и дата рождения стоят сразу под именем, как на макете. Лишний верхний отступ подписи убран только у этой строки.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot profile" --update-snapshots` | 0, снимок `profile.png` обновлён |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t "links the subscription"` | 0, 1 тест |
+
+## Совместимость без заранее сохранённого близкого, 2026-10-24
+
+D-059. На «Сегодня» внизу кнопка «Совместимость». Экран принимает двоих сразу: себя, близкого или новые данные. Тумблер сохраняет нового человека, только если его ещё нет в списке. Пустое время сохраняется как неизвестное.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx src/calendarSign.test.ts` | 0, 18 тестов |
+| `corepack pnpm typecheck` | 0 |
+| `uv run ruff check` по `forecast_http.py`, `onboarding.py`, `records.py`, `sql.py`, `test_onboarding.py` | 0 |
+| `uv run pytest -q tests/unit/test_onboarding.py` | 0, 6 тестов |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "today opens compatibility"` | 0, 1 тест |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot today\|screenshot compatibility" --update-snapshots` | 0, снимки `today.png` и `compatibility.png` обновлены |
+
+## Разбор темы и Premium, 2026-10-24
+
+D-060. Кнопки «Любовь», «Работа», «Диалог», «Эмоции» и соседние темы открывают текст разбора при Premium. Без подписки показывается сообщение, что функция только с Premium, и запрос не уходит.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm typecheck` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx` | 0, 18 тестов |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "a free topic opens the premium alert"` | 0, 1 тест |
+
+## Пустой чат, 2026-10-24
+
+Если сообщений нет, по центру чата стоит короткий блок: это чат с астропомощником, можно спросить про день, карту или совместимость, ответ развлекательный.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t "draws the sent question"` | 0 |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "empty chat explains itself"` | 0 |
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

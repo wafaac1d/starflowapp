@@ -23,13 +23,13 @@ export function LunarCalendar({
 }: LunarCalendarProps) {
   const cells = monthGrid(year, month);
   return (
-    <section aria-label="лунный календарь">
+    <section aria-label="Лунный календарь">
       <div className={styles.nav}>
-        <button type="button" aria-label="предыдущий месяц" onClick={onPrevious}>
+        <button type="button" aria-label="Предыдущий месяц" onClick={onPrevious}>
           <Icon name="chevron_left" size={20} />
         </button>
         <h2>{monthLabel(year, month)}</h2>
-        <button type="button" aria-label="следующий месяц" onClick={onNext}>
+        <button type="button" aria-label="Следующий месяц" onClick={onNext}>
           <Icon name="chevron_right" size={20} />
         </button>
       </div>

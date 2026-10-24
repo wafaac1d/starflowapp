@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getChart, getSky, type ChartResponse, type ProfileResponse } from "../api/client";
 import { ErrorState, LoadingScreen } from "../components/ui/controls";
 import { NatalChartView, PageHeader } from "../components/ui/editorial";
+import { titled } from "../case";
 import { text, type TextKey } from "../resources";
 
 const LIMITATIONS: Record<string, TextKey> = {
@@ -54,7 +55,7 @@ export function ChartPage({ fetchImpl = fetch }: ChartPageProps) {
             <h2>{text("ui.sky.title")}</h2>
             <p className="lead">{text("ui.sky.lead")}</p>
             <p>
-              {text("ui.chart.phase")}: {sky.data.phase_name}
+              {text("ui.chart.phase")}: {titled(sky.data.phase_name)}
             </p>
           </>
         ) : null}
@@ -88,14 +89,14 @@ function ChartDetails({ chart }: { chart: ChartResponse }) {
       <NatalChartView caption={text("ui.chart.illustration")} />
       {chart.sections !== undefined && chart.sections.length > 0 ? <ChartSections chart={chart} /> : null}
       <h2>{text("ui.chart.sun")}</h2>
-      <p className="lead">{chart.sun_sign ?? text("ui.chart.birth_date_missing")}</p>
+      <p className="lead">{chart.sun_sign === null ? text("ui.chart.birth_date_missing") : titled(chart.sun_sign)}</p>
       <p className="profile-meta">{source}</p>
-      <p>{chart.moon_sign === null ? text("ui.chart.moon_unknown") : chart.moon_sign}</p>
+      <p>{chart.moon_sign === null ? text("ui.chart.moon_unknown") : titled(chart.moon_sign)}</p>
       <p>
-        {chart.ascendant_sign === null ? text("ui.chart.asc_unknown") : chart.ascendant_sign}
+        {chart.ascendant_sign === null ? text("ui.chart.asc_unknown") : titled(chart.ascendant_sign)}
       </p>
       <p>
-        {chart.houses === null ? text("ui.chart.houses_unknown") : chart.houses.join(", ")}
+        {chart.houses === null ? text("ui.chart.houses_unknown") : chart.houses.map((sign) => titled(sign)).join(", ")}
       </p>
       {chart.limitations.map((code) => (
         <p key={code}>{limitationText(code)}</p>
@@ -107,7 +108,7 @@ function ChartDetails({ chart }: { chart: ChartResponse }) {
       ) : null}
       {chart.phase_name !== null ? (
         <p>
-          {text("ui.chart.phase")}: {chart.phase_name}
+          {text("ui.chart.phase")}: {titled(chart.phase_name)}
         </p>
       ) : null}
       {chart.planets.length > 0 ? (
@@ -116,8 +117,8 @@ function ChartDetails({ chart }: { chart: ChartResponse }) {
           <ul>
             {chart.planets.map((planet) => (
               <li key={planet.name}>
-                {planet.name}
-                {planet.sign === null ? "" : `, ${planet.sign}`}
+                {titled(planet.name)}
+                {planet.sign === null ? "" : `, ${titled(planet.sign)}`}
                 {planet.retrograde ? `, ${text("ui.chart.retrograde")}` : ""}
               </li>
             ))}
@@ -129,7 +130,7 @@ function ChartDetails({ chart }: { chart: ChartResponse }) {
           <h2>{text("ui.chart.transits")}</h2>
           <ul>
             {chart.transits.map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item}>{titled(item)}</li>
             ))}
           </ul>
         </>
@@ -154,15 +155,15 @@ function ChartSections({ chart }: { chart: ChartResponse }) {
             <span className="row-index" aria-hidden="true">
               {String(index + 1).padStart(2, "0")}
             </span>
-            <span className="row-label">{section.title}</span>
+            <span className="row-label">{titled(section.title)}</span>
           </a>
         ))}
       </nav>
       <p className="profile-meta">{text("ui.chart.interpret")}</p>
       {sections.map((section) => (
         <section key={section.id} id={`chart-${section.id}`}>
-          <h2>{section.title}</h2>
-          <p>{section.body}</p>
+          <h2>{titled(section.title)}</h2>
+          <p>{titled(section.body)}</p>
         </section>
       ))}
     </>

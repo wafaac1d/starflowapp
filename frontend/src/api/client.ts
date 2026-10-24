@@ -208,6 +208,8 @@ export type RelatedEntry = {
   related_id: string;
   display_name: string;
   birth_date: string | null;
+  birth_time?: string | null;
+  birth_time_unknown?: boolean;
   consent?: boolean;
 };
 
@@ -292,13 +294,30 @@ export async function addRelated(
   idempotencyKey: string,
   fetchImpl: typeof fetch = fetch,
   consent = false,
+  birthTime?: string,
 ): Promise<RelatedEntry> {
+  const clock = birthTime?.trim() ?? "";
+  const body: {
+    display_name: string;
+    birth_date: string;
+    consent: boolean;
+    birth_time_unknown: boolean;
+    birth_time?: string;
+  } = {
+    display_name: displayName,
+    birth_date: birthDate,
+    consent,
+    birth_time_unknown: clock === "",
+  };
+  if (clock !== "") {
+    body.birth_time = clock;
+  }
   return requestJson<RelatedEntry>(
     "/api/v1/related",
     {
       method: "POST",
       headers: { "Idempotency-Key": idempotencyKey },
-      body: JSON.stringify({ display_name: displayName, birth_date: birthDate, consent }),
+      body: JSON.stringify(body),
     },
     fetchImpl,
   );

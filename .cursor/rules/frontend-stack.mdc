@@ -11,7 +11,7 @@ Vite. React Router. TanStack Query — единственное серверно
 
 Если ответа API нет, временная функция живёт в `frontend/src/api/fixtures.ts`, помечена `// TODO(api)` и не добавляет маршрут на бэкенде.
 
-Маршруты: `/welcome`, `/onboarding/birth`, `/`, `/forecast`, `/calendar`, `/natal`, `/compatibility/:personId`, `/chat`, `/people`, `/profile`, `/settings`, `/premium`. Сохранены без пункта таб-бара: `/history`, `/favorites`, `/help`, `/delete`, `/admin`, `/retro`, `/referral`, `/terms`, `/paysupport`. Старые `/chart`, `/assistant`, `/related`, `/reading/:kind` перенаправляют.
+Маршруты: `/welcome`, `/onboarding/birth`, `/`, `/forecast`, `/calendar`, `/natal`, `/compatibility`, `/compatibility/:personId`, `/chat`, `/people`, `/profile`, `/settings`, `/premium`. Сохранены без пункта таб-бара: `/history`, `/favorites`, `/help`, `/delete`, `/admin`, `/retro`, `/referral`, `/terms`, `/paysupport`. Старые `/chart`, `/assistant`, `/related`, `/reading/:kind` перенаправляют.
 
 Менеджер пакетов — pnpm `10.18.0`, поле `packageManager`. Node `>=22`, файлы `.nvmrc` и `.node-version`. Установка: `pnpm install --frozen-lockfile`. Один lockfile фронтенда: `frontend/pnpm-lock.yaml`. `uv.lock` остаётся у Python.
 

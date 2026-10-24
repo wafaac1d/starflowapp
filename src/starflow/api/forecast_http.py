@@ -1,6 +1,6 @@
 """Чтения, история, оценка, близкие и ссылка приглашения."""
 
-from datetime import datetime
+from datetime import datetime, time
 from typing import Annotated
 from uuid import UUID
 
@@ -11,7 +11,7 @@ from starflow.api.actor import actor_from_cookie, require_intent
 from starflow.api.http import ApiError
 from starflow.bootstrap import Container
 from starflow.domain.errors import Conflict, FieldInvalid
-from starflow.domain.onboarding import parse_birth_date, parse_display_name
+from starflow.domain.onboarding import optional_birth_time, parse_birth_date, parse_display_name
 from starflow.domain.quota import LimitReached, PremiumRequired
 from starflow.domain.records import ProfileDraft
 from starflow.domain.time import now_utc
@@ -69,12 +69,16 @@ class RelatedBody(BaseModel):
     display_name: str
     birth_date: str
     consent: bool = False
+    birth_time: str | None = None
+    birth_time_unknown: bool = True
 
 
 class RelatedItem(BaseModel):
     related_id: UUID
     display_name: str
     birth_date: str | None
+    birth_time: str | None = None
+    birth_time_unknown: bool = True
     consent: bool = False
 
 
@@ -167,6 +171,8 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
                 related_id=item.id,
                 display_name=item.display_name,
                 birth_date=None if item.birth_date is None else item.birth_date.isoformat(),
+                birth_time=_clock(item.birth_time),
+                birth_time_unknown=item.birth_time_unknown,
                 consent=item.consent,
             )
             for item in rows
@@ -183,18 +189,20 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
         try:
             name = parse_display_name(body.display_name)
             born = parse_birth_date(body.birth_date, today=now_utc().date())
+            clock, unknown = optional_birth_time(body.birth_time, body.birth_time_unknown)
         except FieldInvalid as error:
             raise _field_error(container, error) from error
         draft = ProfileDraft(
             display_name=name,
             birth_date=born,
-            birth_time=None,
-            birth_time_unknown=True,
+            birth_time=clock,
+            birth_time_unknown=unknown,
             birth_place=None,
             latitude=None,
             longitude=None,
             timezone=container.settings.default_timezone,
         )
+        stored_time = _clock(clock)
 
         async def producer(store: QuotaStore) -> dict[str, object]:
             related_id = await store.related_profiles.add(
@@ -204,6 +212,8 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
                 "related_id": str(related_id),
                 "display_name": name,
                 "birth_date": born.isoformat(),
+                "birth_time": stored_time,
+                "birth_time_unknown": unknown,
                 "consent": body.consent,
             }
 
@@ -226,10 +236,13 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
             )
         if not isinstance(result, StoredResult):
             raise ApiError(409, "conflict", container.catalog.text("errors.conflict"))
+        raw_time = result.body.get("birth_time")
         return RelatedItem(
             related_id=UUID(str(result.body["related_id"])),
             display_name=str(result.body["display_name"]),
             birth_date=str(result.body["birth_date"]),
+            birth_time=None if raw_time is None else str(raw_time),
+            birth_time_unknown=bool(result.body.get("birth_time_unknown", True)),
             consent=bool(result.body.get("consent")),
         )
 
@@ -267,6 +280,12 @@ def _reading(view: ReadingView) -> ReadingBody:
         ],
         limitations=list(view.limitations),
     )
+
+
+def _clock(value: time | None) -> str | None:
+    if value is None:
+        return None
+    return f"{value.hour:02d}:{value.minute:02d}"
 
 
 def _field_error(container: Container, error: FieldInvalid) -> ApiError:

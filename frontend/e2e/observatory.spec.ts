@@ -84,6 +84,22 @@ async function installApp(page: Page, step = "done") {
       await route.fulfill({ json: current });
       return;
     }
+    if (method === "PATCH" && url.includes("/profile")) {
+      const body = JSON.parse(route.request().postData() ?? "{}") as Record<string, unknown>;
+      const unknown = body.birth_time_unknown === true;
+      current = {
+        ...current,
+        birth_date: typeof body.birth_date === "string" ? body.birth_date : current.birth_date,
+        birth_time: unknown
+          ? null
+          : typeof body.birth_time === "string"
+            ? body.birth_time
+            : current.birth_time,
+        birth_time_unknown: unknown,
+      };
+      await route.fulfill({ json: current });
+      return;
+    }
     if (url.includes("/readings/")) {
       await route.fulfill({
         json: {
@@ -116,6 +132,20 @@ async function installApp(page: Page, step = "done") {
           phase_name: null,
           limitations: [],
           natal_access: "ready",
+        },
+      });
+      return;
+    }
+    if (url.includes("/related") && method === "POST") {
+      const body = JSON.parse(route.request().postData() ?? "{}") as Record<string, unknown>;
+      await route.fulfill({
+        json: {
+          related_id: "new-person",
+          display_name: body.display_name,
+          birth_date: body.birth_date,
+          birth_time: typeof body.birth_time === "string" ? body.birth_time : null,
+          birth_time_unknown: body.birth_time_unknown !== false,
+          consent: body.consent === true,
         },
       });
       return;
@@ -207,7 +237,7 @@ test("today content starts below the telegram header", async ({ page }) => {
   const box = await greeting.boundingBox();
   expect(box).not.toBeNull();
   expect(box?.y ?? 0).toBeGreaterThanOrEqual(47 + 56);
-  const profile = page.getByRole("button", { name: "профиль" });
+  const profile = page.getByRole("button", { name: "Профиль" });
   const profileBox = await profile.boundingBox();
   expect(profileBox?.y ?? 0).toBeGreaterThanOrEqual(47 + 56);
 });
@@ -230,6 +260,55 @@ test("onboarding leads to today and the forecast period changes", async ({ page 
   await expect(page.getByRole("tab", { name: "Месяц" })).toHaveAttribute("aria-selected", "true");
 });
 
+test("a free topic opens the premium alert", async ({ page }) => {
+  await openReady(page, "/");
+  await page.getByRole("button", { name: "Любовь" }).click();
+  await expect(page.getByRole("alertdialog")).toContainText("Эта функция только с Premium.");
+  await page.getByRole("button", { name: "Понятно" }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await page.goto("/forecast");
+  await page.getByRole("button", { name: /Отношения/ }).click();
+  await expect(page.getByRole("alertdialog")).toContainText("Эта функция только с Premium.");
+});
+
+test("today opens compatibility without a saved person", async ({ page }) => {
+  await openReady(page, "/");
+  await page.getByRole("button", { name: "Совместимость" }).click();
+  await expect(page.getByRole("heading", { name: "Совместимость" })).toBeVisible();
+  const second = page.getByRole("region", { name: "Второй человек" });
+  await second.getByRole("textbox", { name: "Имя" }).fill("Михаил");
+  await second.getByRole("textbox", { name: "Дата рождения" }).fill("03.05.1993");
+  await expect(page.getByText("Телец")).toBeVisible();
+  const saved = page.waitForRequest(
+    (request) => request.method() === "POST" && request.url().includes("/api/v1/related"),
+  );
+  await page.getByRole("switch", { name: "Сохранить в близкие" }).click();
+  expect((await saved).postDataJSON()).toMatchObject({
+    display_name: "Михаил",
+    birth_date: "03.05.1993",
+    birth_time_unknown: true,
+    consent: true,
+  });
+});
+
+test("empty chat explains itself in the middle", async ({ page }) => {
+  await installApp(page);
+  await page.route("**/api/v1/assistant/messages", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ json: { messages: [], remaining: 18 } });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto("/chat");
+  const note = page.getByText(/Это чат с астропомощником/);
+  await expect(note).toBeVisible();
+  const box = await note.boundingBox();
+  const center = (box?.y ?? 0) + (box?.height ?? 0) / 2;
+  expect(center).toBeGreaterThan(280);
+  expect(center).toBeLessThan(640);
+});
+
 test("chat shows the sent line before the model answers", async ({ page }) => {
   await installApp(page);
   let release: () => void = () => undefined;
@@ -248,7 +327,7 @@ test("chat shows the sent line before the model answers", async ({ page }) => {
   });
   await page.goto("/chat");
   await page.getByRole("textbox", { name: "Написать сообщение…" }).fill("Что вечером?");
-  await page.getByRole("button", { name: "отправить" }).click();
+  await page.getByRole("button", { name: "Отправить" }).click();
   await expect(page.getByText("Что вечером?")).toBeVisible();
   await expect(page.getByRole("status", { name: "Астропомощник отвечает" })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Написать сообщение…" })).toHaveValue("");
@@ -256,6 +335,37 @@ test("chat shows the sent line before the model answers", async ({ page }) => {
   await expect(page.getByText("Спокойный вечер.")).toBeVisible();
   await expect(page.getByRole("status", { name: "Астропомощник отвечает" })).toHaveCount(0);
   await expect(page.getByText("Что вечером?")).toBeVisible();
+});
+
+test("profile edit saves the birth time and an empty field means unknown", async ({ page }) => {
+  await openReady(page, "/profile");
+  await page.getByRole("link", { name: "Данные рождения" }).click();
+  await expect(page.getByRole("heading", { name: "Когда вы родились?" })).toBeVisible();
+  await expect(page.getByRole("switch", { name: "Не знаю время" })).toHaveCount(0);
+  const time = page.getByRole("textbox", { name: "Время рождения" });
+  await time.fill("09:15");
+  const saved = page.waitForRequest(
+    (request) => request.method() === "PATCH" && request.url().includes("/api/v1/profile"),
+  );
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  expect((await saved).postDataJSON()).toMatchObject({
+    birth_date: "12.08.1995",
+    birth_time: "09:15",
+    birth_time_unknown: false,
+  });
+  await expect(page.getByRole("heading", { name: "Анна" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Профиль" }).click();
+  await page.getByRole("link", { name: "Данные рождения" }).click();
+  await page.getByRole("textbox", { name: "Время рождения" }).fill("");
+  const cleared = page.waitForRequest(
+    (request) => request.method() === "PATCH" && request.url().includes("/api/v1/profile"),
+  );
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  expect((await cleared).postDataJSON()).toEqual({
+    birth_date: "12.08.1995",
+    birth_time_unknown: true,
+  });
 });
 
 test("tab bar, calendar, chat, settings and paywall", async ({ page }) => {
@@ -267,7 +377,7 @@ test("tab bar, calendar, chat, settings and paywall", async ({ page }) => {
   await expect(page.getByText("12 августа 2025")).toBeVisible();
   await page.getByRole("link", { name: "Чат" }).click();
   await page.getByRole("textbox", { name: "Написать сообщение…" }).fill("Что важно вечером?");
-  await page.getByRole("button", { name: "отправить" }).click();
+  await page.getByRole("button", { name: "Отправить" }).click();
   await expect(page.getByText("Спокойный вечер.")).toBeVisible();
   await page.goto("/settings");
   const daily = page.getByRole("switch", { name: "Ежедневный прогноз" });
@@ -276,7 +386,7 @@ test("tab bar, calendar, chat, settings and paywall", async ({ page }) => {
   await page.goto("/profile");
   await page.getByRole("link", { name: "Моя подписка" }).click();
   await expect(page.getByRole("heading", { name: "Больше о себе" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "разделы" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Разделы" })).toHaveCount(0);
 });
 
 const SHOTS: { name: string; path: string }[] = [

@@ -339,6 +339,8 @@ class RelatedProfileRepository:
                 display_name=row.display_name,
                 birth_date=row.birth_date,
                 consent=row.consent,
+                birth_time=row.birth_time,
+                birth_time_unknown=row.birth_time_unknown,
             )
             for row in result.scalars()
         )

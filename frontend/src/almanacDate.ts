@@ -1,3 +1,5 @@
+import { titled } from "./case";
+
 export type AlmanacDay = {
   iso: string;
   day: number;
@@ -23,7 +25,7 @@ export function describeIso(iso: string, timeZone: string): AlmanacDay {
   const day = Number(
     new Intl.DateTimeFormat("ru", { timeZone, day: "numeric" }).format(moment),
   );
-  return { iso, day, weekday, weekdayShort, month };
+  return { iso, day, weekday: titled(weekday), weekdayShort: titled(weekdayShort), month: titled(month) };
 }
 
 export function monthDays(iso: string, timeZone: string): AlmanacDay[] {

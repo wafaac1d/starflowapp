@@ -19,7 +19,7 @@ export function TopBar({ title, align = "center", back = false, trailing }: TopB
         <button
           type="button"
           className={styles.back}
-          aria-label="назад"
+          aria-label="Назад"
           onClick={() => {
             void navigate(-1);
           }}

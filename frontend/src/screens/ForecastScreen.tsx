@@ -11,6 +11,7 @@ import { SegmentedControl } from "../shared/ui/SegmentedControl/SegmentedControl
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import { formatRuDate } from "./format";
 import styles from "./screens.module.css";
+import { useTopicDetail } from "./topicDetail";
 
 const PERIODS = [
   { id: "day", label: "День" },
@@ -26,8 +27,9 @@ const KIND: Record<Period, string> = {
   month: "personal_month",
 };
 
-export function ForecastScreen() {
+export function ForecastScreen({ premium }: { premium: boolean }) {
   const [period, setPeriod] = useState<Period>("day");
+  const detail = useTopicDetail(premium);
   const topics = useQuery({ queryKey: queryKeys.forecastTopics, queryFn: getForecastTopics });
   const reading = useQuery({
     queryKey: queryKeys.reading(KIND[period]),
@@ -58,7 +60,7 @@ export function ForecastScreen() {
     <Screen tab="today">
       <TopBar title="Ваш прогноз" align="left" />
       <SegmentedControl
-        label="период прогноза"
+        label="Период прогноза"
         value={period}
         options={PERIODS}
         onChange={setPeriod}
@@ -67,7 +69,16 @@ export function ForecastScreen() {
       <p className={styles.paragraph}>{reading.data?.body || forecastBody}</p>
       <div className={styles.stack}>
         {rows.map((row) => (
-          <ListRow key={row.id} icon={row.icon} title={row.title} subtitle={row.subtitle} chevron />
+          <ListRow
+            key={row.id}
+            icon={row.icon}
+            title={row.title}
+            subtitle={row.subtitle}
+            chevron
+            onClick={() => {
+              detail.open(row.id, row.title);
+            }}
+          />
         ))}
       </div>
       <div className={styles.actions}>
@@ -92,6 +103,7 @@ export function ForecastScreen() {
           Поделиться
         </Button>
       </div>
+      {detail.dialog}
     </Screen>
   );
 }

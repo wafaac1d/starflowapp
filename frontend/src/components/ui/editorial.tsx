@@ -2,6 +2,7 @@ import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 
 import type { AlmanacDay } from "../../almanacDate";
+import { titled } from "../../case";
 import { text, type TextKey } from "../../resources";
 import type { ThemeChoice } from "../../theme";
 import { Icon, illustrationCream, type IconName } from "./icons";
@@ -255,7 +256,7 @@ export function ProfileSummary({
   sign: string | null;
   premium: boolean;
 }) {
-  const parts = [sign, premium ? text("ui.profile.premium_on") : null].filter(
+  const parts = [sign === null ? null : titled(sign), premium ? text("ui.profile.premium_on") : null].filter(
     (part): part is string => part !== null && part !== "",
   );
   return (

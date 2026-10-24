@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 
 import pytest
 import time_machine
@@ -9,6 +9,7 @@ from starflow.domain.calendar_sign import calendar_sign
 from starflow.domain.errors import AuthFailure, FieldInvalid
 from starflow.domain.onboarding import (
     next_after,
+    optional_birth_time,
     parse_birth_date,
     parse_display_name,
     previous_step,
@@ -70,6 +71,14 @@ def test_init_data_rejects_forgery_expiry_and_future_skew() -> None:
     forged = raw.replace(raw[-8:], "00000000")
     with time_machine.travel(opened, tick=False), pytest.raises(AuthFailure):
         verifier.verify(forged)
+
+
+def test_optional_birth_time_is_unknown_when_the_field_is_empty() -> None:
+    assert optional_birth_time(None, True) == (None, True)
+    assert optional_birth_time("  ", False) == (None, True)
+    assert optional_birth_time("14:30", False) == (time(14, 30), False)
+    with pytest.raises(FieldInvalid):
+        optional_birth_time("25:00", False)
 
 
 def test_screen_url_keeps_the_screen_name() -> None:

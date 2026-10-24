@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { titled } from "../case";
 import { getChart } from "../api/client";
 import { natalRows } from "../api/fixtures";
 import { queryKeys } from "../api/keys";
@@ -30,7 +31,7 @@ export function NatalScreen() {
         <img className={styles.wheel} src="/illustrations/png/natal_chart.png" alt="" />
         <NatalGrid chart={chart.data} />
       </div>
-      <SegmentedControl label="вид карты" value={tab} options={TABS} onChange={setTab} />
+      <SegmentedControl label="Вид карты" value={tab} options={TABS} onChange={setTab} />
       {tab === "chart" ? (
         <table className={styles.table}>
           <tbody>
@@ -42,7 +43,7 @@ export function NatalScreen() {
                     {row.title}
                   </span>
                 </td>
-                <td className={styles.sign}>{row.sign}</td>
+                <td className={styles.sign}>{titled(row.sign)}</td>
                 <td className={styles.degree}>{row.degree}</td>
               </tr>
             ))}
@@ -52,8 +53,8 @@ export function NatalScreen() {
         <div className={styles.stack}>
           {(chart.data?.sections ?? []).map((section) => (
             <section key={section.id}>
-              <h2>{section.title}</h2>
-              <p>{section.body}</p>
+              <h2>{titled(section.title)}</h2>
+              <p>{titled(section.body)}</p>
             </section>
           ))}
         </div>

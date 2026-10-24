@@ -1,0 +1,39 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--space-screen);
+  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
+}
+
+.dialog {
+  width: min(100%, 360px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-elevated);
+}
+
+.title {
+  margin: 0;
+  font: var(--font-title-card);
+}
+
+.body {
+  margin: 0;
+  max-height: 40dvh;
+  overflow: auto;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

@@ -11,6 +11,13 @@ class ChartSection:
     body: str
 
 
+def _titled(value: str) -> str:
+    for index, char in enumerate(value):
+        if char.isalpha():
+            return value[:index] + char.upper() + value[index + 1 :]
+    return value
+
+
 def chart_sections(
     *,
     sun_sign: str | None,
@@ -27,7 +34,7 @@ def chart_sections(
             ChartSection(
                 "sun",
                 line("ui.chart.section_sun"),
-                line("ui.chart.section_sun_body").replace("{sign}", sun_sign),
+                line("ui.chart.section_sun_body").replace("{sign}", _titled(sun_sign)),
             )
         )
     if moon_sign is not None:
@@ -35,7 +42,7 @@ def chart_sections(
             ChartSection(
                 "moon",
                 line("ui.chart.section_moon"),
-                line("ui.chart.section_moon_body").replace("{sign}", moon_sign),
+                line("ui.chart.section_moon_body").replace("{sign}", _titled(moon_sign)),
             )
         )
     if ascendant_sign is not None:
@@ -43,11 +50,13 @@ def chart_sections(
             ChartSection(
                 "asc",
                 line("ui.chart.section_asc"),
-                line("ui.chart.section_asc_body").replace("{sign}", ascendant_sign),
+                line("ui.chart.section_asc_body").replace("{sign}", _titled(ascendant_sign)),
             )
         )
     if houses is not None:
-        rendered = ", ".join(f"{index}. {sign}" for index, sign in enumerate(houses, start=1))
+        rendered = ", ".join(
+            f"{index}. {_titled(sign)}" for index, sign in enumerate(houses, start=1)
+        )
         sections.append(
             ChartSection(
                 "houses",
@@ -56,10 +65,17 @@ def chart_sections(
             )
         )
     if planets:
-        lines = [name if sign is None else f"{name}, {sign}" for name, sign in planets]
+        lines = [
+            _titled(name) if sign is None else f"{_titled(name)}, {_titled(sign)}"
+            for name, sign in planets
+        ]
         sections.append(ChartSection("planets", line("ui.chart.section_planets"), "; ".join(lines)))
     if aspects:
         sections.append(
-            ChartSection("aspects", line("ui.chart.section_aspects"), "; ".join(aspects))
+            ChartSection(
+                "aspects",
+                line("ui.chart.section_aspects"),
+                "; ".join(_titled(item) for item in aspects),
+            )
         )
     return tuple(sections)

@@ -67,7 +67,7 @@ describe("chart page", () => {
 
   it("shows unknown birth data and the paywall instead of an empty error", async () => {
     renderChart(unknownChart());
-    expect(await screen.findByText("козерог")).toBeInTheDocument();
+    expect(await screen.findByText("Козерог")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: text("ui.chart.title") })).toBeInTheDocument();
     expect(screen.getByText(text("ui.chart.time_unknown"))).toBeInTheDocument();
     expect(screen.getByText(text("ui.chart.place_missing"))).toBeInTheDocument();
@@ -82,7 +82,7 @@ describe("chart page", () => {
 
   it("keeps the calendar sign visible when only the paywall applies", async () => {
     renderChart({ ...unknownChart(), limitations: [], sun_sign_source: "ephemeris" });
-    expect(await screen.findByText("козерог")).toBeInTheDocument();
+    expect(await screen.findByText("Козерог")).toBeInTheDocument();
     expect(screen.getByText(text("ui.chart.ephemeris_source"))).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: text("ui.paywall.title") })).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -98,8 +98,8 @@ describe("chart page", () => {
       ],
     });
     expect(await screen.findByRole("navigation", { name: text("ui.chart.sections") })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "солнце" })).toHaveAttribute("href", "#chart-sun");
-    expect(screen.getByText("солнце, козерог")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "дома" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Солнце" })).toHaveAttribute("href", "#chart-sun");
+    expect(screen.getByText("Солнце, козерог")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Дома" })).not.toBeInTheDocument();
   });
 });

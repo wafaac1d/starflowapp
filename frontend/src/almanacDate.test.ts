@@ -10,8 +10,8 @@ describe("almanac dates", () => {
     expect(days).toHaveLength(31);
     expect(days[21]?.iso).toBe("2026-10-22");
     expect(selected.day).toBe(22);
-    expect(selected.month).toBe("октябрь");
-    expect(selected.weekday).toBe("четверг");
+    expect(selected.month).toBe("Октябрь");
+    expect(selected.weekday).toBe("Четверг");
   });
 
   it("keeps a leap february at 29 days and the next one at 28", () => {

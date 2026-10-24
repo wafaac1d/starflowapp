@@ -830,7 +830,7 @@ class ForecastService:
         accepted = None if parsed is None else accept_calendar(year, month, parsed)
         if accepted is None:
             repair = (
-                "прошлый json не покрыл месяц. верни title и days на каждый день этого месяца, "
+                "Прошлый json не покрыл месяц. Верни title и days на каждый день этого месяца, "
                 "оценки от 1 до 5, без чужих дат."
             )
             parsed = await self._ask_raw(

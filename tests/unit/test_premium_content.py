@@ -107,5 +107,5 @@ def test_message_page_moves_backward_and_chart_sections_skip_unknown_houses() ->
         }[key],
     )
     assert [item.id for item in sections] == ["sun", "planets"]
-    assert "козерог" in sections[1].body
+    assert "Козерог" in sections[1].body
     assert all(item.id != "houses" for item in sections)

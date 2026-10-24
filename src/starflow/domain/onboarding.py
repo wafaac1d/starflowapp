@@ -48,6 +48,12 @@ def parse_birth_date(value: str | None, *, today: date | None = None) -> date:
     return parsed
 
 
+def optional_birth_time(value: str | None, unknown: bool) -> tuple[time | None, bool]:
+    if unknown or value is None or value.strip() == "":
+        return parse_birth_time(None, True), True
+    return parse_birth_time(value, False), False
+
+
 def parse_birth_time(value: str | None, unknown: bool) -> time | None:
     if unknown:
         try:

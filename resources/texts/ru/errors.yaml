@@ -1,30 +1,30 @@
-unauthorized: "войдите через telegram"
-not_found: "запись не найдена"
-validation: "проверьте поля"
-webhook_rejected: "запрос отклонён"
-premium_required: "этот шаг доступен с premium"
-name_required: "введите имя"
-name_too_long: "имя длиннее 80 знаков"
-date_invalid: "дата в формате дд.мм.гггг"
-date_future: "дата ещё не наступила"
-time_invalid: "время в формате чч:мм или отметьте, что не знаете"
-timezone_invalid: "часовой пояс не найден"
-place_mismatch: "выберите место из списка"
-place_timezone: "для этих координат пояс не определён"
-onboarding_incomplete: "сначала завершите знакомство"
-place_required: "выберите место из списка"
-place_not_offered: "выберите место из списка"
-limit_reached: "лимит уже исчерпан"
-idempotency_key: "нужен ключ повтора длиной от 8 до 80 знаков"
-related_required: "сначала добавьте человека с датой рождения"
-consent_required: "нужно согласие на данные близкого"
-question_length: "вопрос длиннее 500 символов"
-assistant_quota_exhausted: "вопросы этого периода закончились"
-conflict: "запрос конфликтует с уже сохранённым"
-reading_failed: "не удалось подготовить текст"
-payment_check: "счёт не совпал с заказом"
-payment_unavailable: "не удалось связаться с telegram"
-gift_invalid: "код не подошёл"
-gift_self: "свой подарок активировать нельзя"
-trial_used: "пробный период уже использован"
-payment_confirm: "подтвердите действие и укажите причину"
+unauthorized: Войдите через telegram
+not_found: Запись не найдена
+validation: Проверьте поля
+webhook_rejected: Запрос отклонён
+premium_required: Этот шаг доступен с premium
+name_required: Введите имя
+name_too_long: Имя длиннее 80 знаков
+date_invalid: Дата в формате дд.мм.гггг
+date_future: Дата ещё не наступила
+time_invalid: Время в формате чч:мм или отметьте, что не знаете
+timezone_invalid: Часовой пояс не найден
+place_mismatch: Выберите место из списка
+place_timezone: Для этих координат пояс не определён
+onboarding_incomplete: Сначала завершите знакомство
+place_required: Выберите место из списка
+place_not_offered: Выберите место из списка
+limit_reached: Лимит уже исчерпан
+idempotency_key: Нужен ключ повтора длиной от 8 до 80 знаков
+related_required: Сначала добавьте человека с датой рождения
+consent_required: Нужно согласие на данные близкого
+question_length: Вопрос длиннее 500 символов
+assistant_quota_exhausted: Вопросы этого периода закончились
+conflict: Запрос конфликтует с уже сохранённым
+reading_failed: Не удалось подготовить текст
+payment_check: Счёт не совпал с заказом
+payment_unavailable: Не удалось связаться с telegram
+gift_invalid: Код не подошёл
+gift_self: Свой подарок активировать нельзя
+trial_used: Пробный период уже использован
+payment_confirm: Подтвердите действие и укажите причину
