@@ -51,14 +51,17 @@ export function ChatScreen({ premium }: { premium: boolean }) {
   useEffect(() => {
     const node = tail.current;
     if (node !== null && typeof node.scrollIntoView === "function") {
-      node.scrollIntoView({ block: "nearest" });
+      node.scrollIntoView({ block: "end" });
     }
-  }, [question, answer, ask.isPending]);
+  }, [messages.length, question, answer, ask.isPending]);
   return (
-    <Screen tab="chat">
-      <div className={styles.fill}>
+    <Screen tab="chat" fit>
+      <div className={styles.chatFill}>
         <TopBar title="Астропомощник" back />
-        <div className={empty ? styles.chatEmptyStage : styles.stack}>
+        <div
+          className={empty ? styles.chatEmptyStage : styles.chatLog}
+          {...(empty ? {} : { role: "log" as const, "aria-label": "Диалог" })}
+        >
           {empty ? (
             <p className={styles.chatEmpty}>
               Это чат с астропомощником. Спросите про день, карту или совместимость.
@@ -80,8 +83,8 @@ export function ChatScreen({ premium }: { premium: boolean }) {
           ) : null}
           <div ref={tail} />
         </div>
-        {remaining !== undefined && remaining !== null ? <Chip>Осталось {remaining} вопросов</Chip> : null}
-        <div className={styles.dock}>
+        <div className={styles.chatDock}>
+          {remaining !== undefined && remaining !== null ? <Chip>Осталось {remaining} вопросов</Chip> : null}
           {!premium && history.isSuccess && !empty ? (
             <p className={styles.chatLock}>Писать и отправлять сообщения можно с Premium.</p>
           ) : null}

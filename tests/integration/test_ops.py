@@ -403,6 +403,8 @@ async def test_admin_overview_hides_people_and_delete_keeps_a_thin_charge(
             assert opened.status_code == 200
             denied = await client.get("/api/v1/admin/overview")
             assert denied.status_code == 403
+            hidden = await client.get("/api/v1/admin/users")
+            assert hidden.status_code == 403
             grant = await client.post(
                 "/api/v1/billing/admin-grants",
                 headers=intent,
@@ -417,7 +419,7 @@ async def test_admin_overview_hides_people_and_delete_keeps_a_thin_charge(
             assert opened_admin.status_code == 200
             overview = await client.get(
                 "/api/v1/admin/overview",
-                params={"start": "2026-10-01", "end": "2026-10-22"},
+                params={"start": "2026-10-01", "end": "2026-10-27"},
             )
             assert overview.status_code == 200
             body = overview.json()
@@ -431,6 +433,19 @@ async def test_admin_overview_hides_people_and_delete_keeps_a_thin_charge(
                 for item in body["feedback"]
             )
             assert "личный" not in overview.text
+            people = await client.get("/api/v1/admin/users")
+            assert people.status_code == 200
+            listed = people.json()["users"]
+            person = next(item for item in listed if item["user_id"] == str(user_id))
+            assert person == {
+                "user_id": str(user_id),
+                "telegram_id": 8807,
+                "username": "secret-name",
+                "display_name": "мария",
+                "premium": False,
+            }
+            assert "1990" not in people.text
+            assert "личный" not in people.text
             wide = await client.get(
                 "/api/v1/admin/overview",
                 params={"start": "2020-01-01", "end": "2026-06-20"},

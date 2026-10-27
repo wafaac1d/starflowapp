@@ -109,16 +109,103 @@ describe("notice settings, deletion and admin", () => {
         feedback: text("ui.admin.feedback"),
       },
     };
-    const fetchImpl = (async () =>
-      new Response(JSON.stringify(overview), {
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = requestUrl(input);
+      if (url.includes("/admin/users")) {
+        return new Response(JSON.stringify({ users: [] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify(overview), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      })) as typeof fetch;
+      });
+    }) as typeof fetch;
     renderPage(<AdminPage isAdmin fetchImpl={fetchImpl} />);
     const grant = await screen.findByRole("button", { name: text("ui.admin.grant") });
     const refund = screen.getByRole("button", { name: text("ui.admin.refund") });
     expect(grant).toBeDisabled();
     expect(refund).toBeDisabled();
     expect(screen.queryByText("secret-name")).not.toBeInTheDocument();
+  });
+
+  it("fills the premium grant from a listed person", async () => {
+    const sent: unknown[] = [];
+    const overview = {
+      start: "2026-05-22",
+      end: "2026-06-21",
+      active_users: 1,
+      open_accounts: 2,
+      payments: 0,
+      stars: 0,
+      refunds: 0,
+      sources: [],
+      models: [],
+      cache: {
+        l1_hits: 0,
+        l1_misses: 0,
+        l2_hits: 0,
+        process_generations: 0,
+        rows_in_range: 0,
+        hits_in_range: 0,
+      },
+      feedback: [],
+      definitions: {
+        active_users: text("ui.admin.active_users"),
+        payments: text("ui.admin.payments"),
+        cache: text("ui.admin.cache"),
+        feedback: text("ui.admin.feedback"),
+      },
+    };
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = requestUrl(input);
+      if (url.includes("/admin/users")) {
+        return new Response(
+          JSON.stringify({
+            users: [
+              {
+                user_id: "00000000-0000-0000-0000-000000000009",
+                telegram_id: 8807,
+                username: "maria",
+                display_name: "Мария",
+                premium: false,
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (url.includes("/admin-grants")) {
+        sent.push(JSON.parse(String(init?.body)));
+        return new Response(null, { status: 204 });
+      }
+      return new Response(JSON.stringify(overview), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    renderPage(<AdminPage isAdmin fetchImpl={fetchImpl} />);
+    expect(await screen.findByText(/Мария/)).toBeInTheDocument();
+    expect(screen.getByText(/@maria/)).toBeInTheDocument();
+    expect(screen.getByText(/8807/)).toBeInTheDocument();
+    expect(screen.getByText(/Без Premium/)).toBeInTheDocument();
+    expect(screen.queryByText("1990-01-02")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: text("ui.admin.pick") }));
+    await userEvent.type(screen.getByRole("textbox", { name: text("ui.admin.reason") }), "проверка");
+    const grantConfirm = screen.getAllByRole("checkbox", { name: text("ui.admin.confirm") })[0];
+    if (grantConfirm === undefined) {
+      throw new Error("grant confirm is missing");
+    }
+    await userEvent.click(grantConfirm);
+    await userEvent.click(screen.getByRole("button", { name: text("ui.admin.grant") }));
+    expect(sent).toEqual([
+      {
+        user_id: "00000000-0000-0000-0000-000000000009",
+        days: 7,
+        reason: "проверка",
+        confirm: true,
+      },
+    ]);
   });
 });

@@ -1616,6 +1616,24 @@
         }
       }
     },
+    "/api/v1/admin/users": {
+      "get": {
+        "summary": "Admin Users",
+        "operationId": "admin_users_api_v1_admin_users_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUsersBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/telegram/webhook": {
       "post": {
         "summary": "Telegram Webhook",
@@ -1775,6 +1793,70 @@
           "confirm"
         ],
         "title": "AdminGrantBody"
+      },
+      "AdminUserBody": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "telegram_id": {
+            "type": "integer",
+            "title": "Telegram Id"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "premium": {
+            "type": "boolean",
+            "title": "Premium"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "telegram_id",
+          "username",
+          "display_name",
+          "premium"
+        ],
+        "title": "AdminUserBody"
+      },
+      "AdminUsersBody": {
+        "properties": {
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUserBody"
+            },
+            "type": "array",
+            "title": "Users"
+          }
+        },
+        "type": "object",
+        "required": [
+          "users"
+        ],
+        "title": "AdminUsersBody"
       },
       "AssistantBody": {
         "properties": {
@@ -3181,6 +3263,22 @@
             "type": "boolean",
             "title": "Consent",
             "default": false
+          },
+          "birth_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Time"
+          },
+          "birth_time_unknown": {
+            "type": "boolean",
+            "title": "Birth Time Unknown",
+            "default": true
           }
         },
         "type": "object",
@@ -3211,6 +3309,22 @@
               }
             ],
             "title": "Birth Date"
+          },
+          "birth_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Time"
+          },
+          "birth_time_unknown": {
+            "type": "boolean",
+            "title": "Birth Time Unknown",
+            "default": true
           },
           "consent": {
             "type": "boolean",

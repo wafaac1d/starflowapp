@@ -5,14 +5,17 @@ import styles from "./Screen.module.css";
 
 type ScreenProps = {
   tab?: TabId;
+  fit?: boolean;
   children: ReactNode;
 };
 
-export function Screen({ tab, children }: ScreenProps) {
+export function Screen({ tab, fit = false, children }: ScreenProps) {
+  const pinned = tab !== undefined;
+  const className = [pinned ? styles.withTab : styles.plain, fit ? styles.fit : ""].filter(Boolean).join(" ");
   return (
-    <div className={tab !== undefined ? styles.withTab : styles.plain}>
+    <div className={className}>
       {children}
-      {tab !== undefined ? <TabBar active={tab} /> : null}
+      {pinned ? <TabBar active={tab} /> : null}
     </div>
   );
 }

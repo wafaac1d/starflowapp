@@ -1,12 +1,14 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import {
   getAdminOverview,
+  getAdminUsers,
   grantAdminPeriod,
   refundCharge,
   type AdminOverview,
 } from "../api/client";
+import { queryKeys } from "../api/keys";
 import { BackHome, Button } from "../components/ui/controls";
 import { text } from "../resources";
 
@@ -24,13 +26,22 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
   const [charge, setCharge] = useState("");
   const [grantConfirmed, setGrantConfirmed] = useState(false);
   const [refundConfirmed, setRefundConfirmed] = useState(false);
+  const client = useQueryClient();
   const overview = useQuery({
     queryKey: ["admin", start, end],
     queryFn: () => getAdminOverview(start, end, fetchImpl),
     enabled: isAdmin,
   });
+  const people = useQuery({
+    queryKey: queryKeys.adminUsers,
+    queryFn: () => getAdminUsers(fetchImpl),
+    enabled: isAdmin,
+  });
   const grant = useMutation({
     mutationFn: () => grantAdminPeriod(userId, Number(days), reason, fetchImpl),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.adminUsers });
+    },
   });
   const refund = useMutation({
     mutationFn: () => refundCharge(charge, reason, fetchImpl),
@@ -69,6 +80,26 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
         />
       </label>
       {overview.data === undefined ? null : <AdminFigures report={overview.data} />}
+      <h2>{text("ui.admin.people")}</h2>
+      <p className="lead">{text("ui.admin.people_lead")}</p>
+      <ul>
+        {(people.data ?? []).map((person) => (
+          <li key={person.user_id}>
+            <p>
+              {person.display_name ?? text("ui.admin.unnamed")}
+              {person.username !== null ? ` @${person.username}` : ""} · {person.telegram_id} ·{" "}
+              {person.premium ? text("ui.admin.premium_on") : text("ui.admin.premium_off")}
+            </p>
+            <Button
+              tone="outline"
+              label={text("ui.admin.pick")}
+              onClick={() => {
+                setUserId(person.user_id);
+              }}
+            />
+          </li>
+        ))}
+      </ul>
       <h2>{text("ui.admin.grant")}</h2>
       <label className="field">
         <span>{text("ui.admin.grant_user")}</span>

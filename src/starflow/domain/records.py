@@ -44,6 +44,14 @@ class Profile:
 
 
 @dataclass(frozen=True)
+class OpenAccount:
+    user_id: UUID
+    telegram_id: int
+    username: str | None
+    display_name: str | None
+
+
+@dataclass(frozen=True)
 class PlaceHit:
     label: str
     latitude: Decimal

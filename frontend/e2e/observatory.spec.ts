@@ -318,6 +318,45 @@ test("empty chat explains itself in the middle", async ({ page }) => {
   expect(center).toBeLessThan(640);
 });
 
+test("chat field stays visible when the dialog is scrolled", async ({ page }) => {
+  await installApp(page, "done", true);
+  await page.route("**/api/v1/assistant/messages", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.fallback();
+      return;
+    }
+    const messages = Array.from({ length: 20 }, (_, index) => ({
+      id: `m${index}`,
+      role: index % 2 === 0 ? "user" : "assistant",
+      content: `Строка ${index}. `.repeat(6),
+      created_at: "2025-08-12T09:41:00",
+    }));
+    await route.fulfill({ json: { remaining: 18, messages } });
+  });
+  await page.goto("/chat");
+  const log = page.getByRole("log", { name: "Диалог" });
+  const field = page.getByRole("textbox", { name: "Написать сообщение…" });
+  await expect(field).toBeVisible();
+  await log.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  const box = await field.boundingBox();
+  const height = page.viewportSize()?.height ?? 0;
+  expect(box).not.toBeNull();
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeGreaterThan(height - 180);
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThan(height - 70);
+  const avatar = page.locator("img[src*='assistant_avatar']").first();
+  const bubble = page.getByText(/^Строка 1\./);
+  const avatarBox = await avatar.boundingBox();
+  const bubbleBox = await bubble.boundingBox();
+  expect(avatarBox).not.toBeNull();
+  expect(bubbleBox).not.toBeNull();
+  const avatarBottom = (avatarBox?.y ?? 0) + (avatarBox?.height ?? 0);
+  const bubbleBottom = (bubbleBox?.y ?? 0) + (bubbleBox?.height ?? 0);
+  expect(Math.abs(avatarBottom - bubbleBottom)).toBeLessThan(8);
+  expect(avatarBox?.y ?? 0).toBeGreaterThan((bubbleBox?.y ?? 0) + 12);
+});
+
 test("chat shows the sent line before the model answers", async ({ page }) => {
   await installApp(page, "done", true);
   let release: () => void = () => undefined;

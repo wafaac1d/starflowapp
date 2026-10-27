@@ -23,7 +23,7 @@ from starflow.domain.notify_clock import (
     slot_label,
     warm_window,
 )
-from starflow.domain.records import AdminSnapshot
+from starflow.domain.records import AdminSnapshot, OpenAccount
 from starflow.domain.segments import (
     expires_at,
     facts_text,
@@ -270,6 +270,13 @@ class OpsService:
     async def snapshot(self, start: datetime, end: datetime) -> AdminSnapshot:
         async with self._uow_factory() as uow:
             return await uow.ops.snapshot(start, end)
+
+    async def accounts(self) -> tuple[tuple[OpenAccount, bool], ...]:
+        now = self._clock()
+        async with self._uow_factory() as uow:
+            rows = await uow.ops.open_accounts(200)
+            premium = await uow.subscriptions.premium_user_ids(now)
+        return tuple((row, row.user_id in premium) for row in rows)
 
     def stations(self, start: datetime, end: datetime) -> tuple[Station, ...]:
         def speed_at(moment: datetime, planet: str) -> float:

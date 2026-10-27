@@ -39,6 +39,7 @@ from starflow.domain.records import (
     FeedbackCount,
     IdempotencyRecord,
     ModelUsage,
+    OpenAccount,
     Order,
     OutboxJob,
     PaymentCharge,
@@ -1461,6 +1462,29 @@ class OpsRepository:
                 FeedbackCount(str(kind), str(prompt_version), int(count))
                 for kind, prompt_version, count in feedback_rows.all()
             ),
+        )
+
+    async def open_accounts(self, limit: int) -> tuple[OpenAccount, ...]:
+        result = await self._session.execute(
+            select(
+                UserRow.id,
+                UserRow.telegram_id,
+                UserRow.username,
+                ProfileRow.display_name,
+            )
+            .outerjoin(ProfileRow, ProfileRow.user_id == UserRow.id)
+            .where(UserRow.deleted_at.is_(None))
+            .order_by(UserRow.created_at.desc(), UserRow.id.desc())
+            .limit(limit)
+        )
+        return tuple(
+            OpenAccount(
+                user_id=user_id,
+                telegram_id=int(telegram_id),
+                username=username,
+                display_name=display_name,
+            )
+            for user_id, telegram_id, username, display_name in result.all()
         )
 
 

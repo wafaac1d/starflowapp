@@ -708,6 +708,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Users */
+        get: operations["admin_users_api_v1_admin_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/telegram/webhook": {
         parameters: {
             query?: never;
@@ -785,6 +802,27 @@ export interface components {
             reason: string;
             /** Confirm */
             confirm: boolean;
+        };
+        /** AdminUserBody */
+        AdminUserBody: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Telegram Id */
+            telegram_id: number;
+            /** Username */
+            username: string | null;
+            /** Display Name */
+            display_name: string | null;
+            /** Premium */
+            premium: boolean;
+        };
+        /** AdminUsersBody */
+        AdminUsersBody: {
+            /** Users */
+            users: components["schemas"]["AdminUserBody"][];
         };
         /** AssistantBody */
         AssistantBody: {
@@ -1252,6 +1290,13 @@ export interface components {
              * @default false
              */
             consent: boolean;
+            /** Birth Time */
+            birth_time?: string | null;
+            /**
+             * Birth Time Unknown
+             * @default true
+             */
+            birth_time_unknown: boolean;
         };
         /** RelatedItem */
         RelatedItem: {
@@ -1264,6 +1309,13 @@ export interface components {
             display_name: string;
             /** Birth Date */
             birth_date: string | null;
+            /** Birth Time */
+            birth_time?: string | null;
+            /**
+             * Birth Time Unknown
+             * @default true
+             */
+            birth_time_unknown: boolean;
             /**
              * Consent
              * @default false
@@ -2647,6 +2699,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    admin_users_api_v1_admin_users_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUsersBody"];
                 };
             };
         };

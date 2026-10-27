@@ -2,6 +2,7 @@
 
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Query, Request
@@ -63,6 +64,18 @@ class CacheCount(BaseModel):
     process_generations: int
     rows_in_range: int
     hits_in_range: int
+
+
+class AdminUserBody(BaseModel):
+    user_id: UUID
+    telegram_id: int
+    username: str | None
+    display_name: str | None
+    premium: bool
+
+
+class AdminUsersBody(BaseModel):
+    users: list[AdminUserBody]
 
 
 class AdminBody(BaseModel):
@@ -195,6 +208,25 @@ def register_ops_routes(router: APIRouter, container: Container) -> None:
                 "feedback": catalog.text("ui.admin.feedback"),
                 "range": catalog.text("ui.admin.range"),
             },
+        )
+
+    @router.get("/admin/users", response_model=AdminUsersBody)
+    async def admin_users(request: Request) -> AdminUsersBody:
+        actor = await actor_from_cookie(request, container, unauthorized)
+        if not actor.view.is_admin:
+            raise ApiError(403, "unauthorized", unauthorized)
+        rows = await ops.accounts()
+        return AdminUsersBody(
+            users=[
+                AdminUserBody(
+                    user_id=row.user_id,
+                    telegram_id=row.telegram_id,
+                    username=row.username,
+                    display_name=row.display_name,
+                    premium=premium,
+                )
+                for row, premium in rows
+            ]
         )
 
 

@@ -6,6 +6,7 @@ export const queryKeys = {
   assistant: ["assistant"] as const,
   notifications: ["notifications"] as const,
   billing: ["billing"] as const,
+  adminUsers: ["admin", "users"] as const,
   history: ["history"] as const,
   favorites: ["favorites"] as const,
   forecastTopics: ["forecast", "topics"] as const,

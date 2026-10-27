@@ -20,8 +20,8 @@ export function ChatBubble({ role, text, time, pending = false, announce = false
   }
   return (
     <div className={styles.botWrap}>
-      <Icon name="assistant_avatar" size={28} />
-      <div>
+      <div className={styles.botLine}>
+        <Icon name="assistant_avatar" size={28} />
         <p
           className={styles.bot}
           {...(announce ? { role: "status" as const, "aria-live": "polite" as const } : {})}
@@ -37,8 +37,8 @@ export function ChatBubble({ role, text, time, pending = false, announce = false
             text
           )}
         </p>
-        {time !== "" ? <time className={styles.time}>{time}</time> : null}
       </div>
+      {time !== "" ? <time className={styles.time}>{time}</time> : null}
     </div>
   );
 }

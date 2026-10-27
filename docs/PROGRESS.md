@@ -611,6 +611,27 @@ D-064. Стрелка в карточке прогноза прижата к п�
 | `uv run ruff check src/starflow/services/forecast.py` | 0 |
 | `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot today" --update-snapshots` | 0, снимок `today.png` обновлён |
 
+## Поле чата на месте, 2026-10-27
+
+D-065. Лента сообщений листается отдельно, поле ввода остаётся над таб-баром. Аватар астропомощника стоит у нижнего края сообщения.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm typecheck` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'assistant\|question\|composer'` | 0, 3 теста |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "chat field stays\|empty chat\|screenshot chat\|sent line" --update-snapshots` | 0, 4 теста, снимок `chat.png` обновлён |
+
+## Список людей в админке, 2026-10-27
+
+D-066. Администратор видит открытые учётные записи и выбирает человека в выдачу Premium. В списке имя, имя Telegram, числовой id и признак Premium. Даты рождения и переписки нет.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check src/starflow/api/ops_http.py src/starflow/services/ops.py src/starflow/repositories/sql.py src/starflow/domain/records.py` | 0 |
+| `corepack pnpm exec vitest run src/pages/OpsPages.test.tsx` | 0, 5 тестов |
+| `corepack pnpm typecheck` | 0 |
+| `uv run pytest tests/unit/test_contract.py tests/integration/test_ops.py::test_admin_overview_hides_people_and_delete_keeps_a_thin_charge -q` | 0, 3 теста |
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

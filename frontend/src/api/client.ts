@@ -423,6 +423,23 @@ export async function getAdminOverview(
   return requestJson<AdminOverview>(`/api/v1/admin/overview${suffix}`, { method: "GET" }, fetchImpl);
 }
 
+export type AdminUser = {
+  user_id: string;
+  telegram_id: number;
+  username: string | null;
+  display_name: string | null;
+  premium: boolean;
+};
+
+export async function getAdminUsers(fetchImpl: typeof fetch = fetch): Promise<AdminUser[]> {
+  const body = await requestJson<{ users: AdminUser[] }>(
+    "/api/v1/admin/users",
+    { method: "GET" },
+    fetchImpl,
+  );
+  return body.users;
+}
+
 export async function grantAdminPeriod(
   userId: string,
   days: number,
