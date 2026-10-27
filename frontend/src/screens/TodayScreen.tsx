@@ -31,7 +31,7 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
     <Screen tab="today">
       <div className={styles.fill}>
         <div className={styles.topRow}>
-          <div>
+          <div className={styles.headCopy}>
             <p className={styles.kicker}>{greeting(now)}</p>
             <h1 className={styles.name}>{profile.display_name ?? ""}</h1>
             <p className={styles.kicker}>{formatRuDate(now)}</p>

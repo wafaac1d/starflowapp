@@ -48,7 +48,7 @@ export function CalendarScreen() {
       />
       <article className={styles.dayCard}>
         <Icon name="crescent_peach" size={28} />
-        <div>
+        <div className={styles.dayCopy}>
           <h3>{longDate(selected)}</h3>
           <p>{phaseLabel}</p>
           {copy.isPending ? <Skeleton lines={2} /> : null}

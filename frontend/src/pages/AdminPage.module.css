@@ -1,3 +1,52 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding:
+    calc(var(--space-4) + var(--shell-inset-top))
+    max(var(--space-screen), var(--shell-inset-right))
+    var(--space-6)
+    max(var(--space-screen), var(--shell-inset-left));
+}
+
+.page h1,
+.page h2,
+.page p {
+  margin: 0;
+}
+
+.page h1 {
+  font: var(--font-title-screen);
+}
+
+.page h2 {
+  font: var(--font-title-card);
+}
+
+.page p {
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.form label:has(input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: center;
+  min-height: var(--size-touch);
+}
+
 .tableWrap {
   overflow-x: auto;
 }
@@ -26,7 +75,6 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  margin: var(--space-3) 0 var(--space-5);
 }
 
 .pager p {

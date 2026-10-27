@@ -1,7 +1,7 @@
 .hero {
   width: min(100%, 320px);
   display: block;
-  margin: var(--space-6) auto;
+  margin: 0 auto;
   filter: drop-shadow(var(--shadow-glow));
 }
 
@@ -11,7 +11,7 @@
 }
 
 .lead {
-  margin: var(--space-3) 0 0;
+  margin: 0;
   color: var(--color-text-secondary);
   font: var(--font-body);
 }
@@ -25,6 +25,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: var(--space-4);
 }
 
 .chatFill > header {
@@ -44,6 +45,7 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
 }
 
 .chatEmptyStage {
@@ -74,7 +76,6 @@
 
 .deleteRow {
   margin-top: auto;
-  padding-top: var(--space-6);
 }
 
 .deleteRow a {
@@ -86,17 +87,23 @@
   align-items: center;
   gap: var(--space-3);
   min-height: var(--size-touch);
-  margin-top: var(--space-5);
 }
 
 .fill {
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: var(--space-6);
+}
+
+.headCopy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .kicker {
-  margin: var(--space-5) 0 0;
+  margin: 0;
   color: var(--color-text-secondary);
   font: var(--font-caption);
 }
@@ -164,7 +171,6 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: var(--space-2);
-  margin-top: var(--space-4);
 }
 
 .cat {
@@ -183,14 +189,13 @@
 .stack {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-6);
 }
 
 .people {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  margin-top: var(--space-5);
 }
 
 .reading {
@@ -210,24 +215,29 @@
 }
 
 .paragraph {
-  margin: var(--space-4) 0;
+  margin: 0;
   font: var(--font-body);
 }
 
 .actions {
   display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-4);
+  gap: var(--space-3);
 }
 
 .dayCard {
   display: flex;
   gap: var(--space-3);
-  margin-top: var(--space-4);
   padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   background: var(--color-surface);
+}
+
+.dayCopy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .dayCard h3,
@@ -243,7 +253,7 @@
 .wheelFrame {
   position: relative;
   width: min(100%, 280px);
-  margin: var(--space-4) auto;
+  margin: 0 auto;
 }
 
 .wheel {
@@ -290,7 +300,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
   padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
@@ -352,8 +362,7 @@
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding-top: var(--space-4);
+  gap: var(--space-6);
 }
 
 .linkStage {
@@ -381,7 +390,7 @@
 .compatWheel {
   width: min(72%, 240px);
   display: block;
-  margin: var(--space-2) auto;
+  margin: 0 auto;
 }
 
 @keyframes linkSpin {
@@ -397,7 +406,6 @@
 
 .trait {
   width: 100%;
-  margin-top: calc(var(--space-6) + var(--space-4));
   text-align: left;
 }
 
@@ -405,7 +413,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-  margin-top: var(--space-5);
 }
 
 .settingsLabel {
@@ -431,7 +438,7 @@
 }
 
 .fine {
-  margin: var(--space-3) 0 0;
+  margin: 0;
   color: var(--color-text-secondary);
   font: var(--font-caption);
   text-align: center;
@@ -442,14 +449,15 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  margin: var(--space-4) 0;
+  margin: 0;
   font: var(--font-title-card);
 }
 
 .rule {
+  width: 100%;
   border: 0;
   border-top: 1px solid var(--color-border);
-  margin: var(--space-4) 0;
+  margin: 0;
 }
 
 .table {

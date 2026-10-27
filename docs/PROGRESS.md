@@ -732,6 +732,17 @@ D-075. На «Близких» строки, поля и кнопки делят
 
 Живой клиент Telegram не открывался.
 
+## Общий зазор между блоками, 2026-10-28
+
+D-076. Крупные блоки экрана делят зазор 24px. Списки с разделителем остаются вместе.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'screenshot\|add relative\|adding a person' --update-snapshots` | 0, 15 тестов; перезаписаны снимки welcome, birth, today, forecast, calendar, natal, compatibility, chat, profile, premium |
+
+Живой клиент Telegram не открывался.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

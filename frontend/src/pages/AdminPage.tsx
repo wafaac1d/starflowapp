@@ -49,11 +49,11 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
   const canGrant =
     grantConfirmed && reason.trim() !== "" && userId.trim() !== "" && !grant.isPending;
   return (
-    <main className="shell">
+    <main className={styles.page}>
       <h1>{text("ui.admin.title")}</h1>
-      <p className="lead">{text("ui.admin.lead")}</p>
+      <p>{text("ui.admin.lead")}</p>
       <h2>{text("ui.admin.people")}</h2>
-      <p className="lead">{text("ui.admin.people_lead")}</p>
+      <p>{text("ui.admin.people_lead")}</p>
       <UserTable
         rows={people.data?.users ?? []}
         page={page}
@@ -62,6 +62,7 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
         onPage={setPage}
       />
       <h2>{text("ui.admin.grant")}</h2>
+      <div className={styles.form}>
       <label className="field">
         <span>{text("ui.admin.grant_user")}</span>
         <input
@@ -109,6 +110,7 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
         }}
       />
       <BackHome />
+      </div>
     </main>
   );
 }
