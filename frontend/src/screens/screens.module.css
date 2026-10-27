@@ -285,6 +285,45 @@
   padding-top: var(--space-4);
 }
 
+.linkStage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.linkStage p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.linkWheel {
+  width: min(100%, 260px);
+  filter: drop-shadow(var(--shadow-glow));
+  animation: linkSpin 2s ease-in-out;
+}
+
+.compatWheel {
+  width: min(72%, 240px);
+  display: block;
+  margin: var(--space-2) auto;
+}
+
+@keyframes linkSpin {
+  from {
+    transform: rotate(-20deg) scale(0.86);
+    opacity: 0.75;
+  }
+  to {
+    transform: rotate(20deg) scale(1);
+    opacity: 1;
+  }
+}
+
 .trait {
   width: 100%;
   text-align: left;

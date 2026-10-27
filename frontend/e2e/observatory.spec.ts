@@ -278,7 +278,8 @@ test("today opens compatibility without a saved person", async ({ page }) => {
   const second = page.getByRole("region", { name: "Второй человек" });
   await second.getByRole("textbox", { name: "Имя" }).fill("Михаил");
   await second.getByRole("textbox", { name: "Дата рождения" }).fill("03.05.1993");
-  await expect(page.getByText("Телец")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Проверить" })).toBeEnabled();
+  await expect(page.getByText("Глубокая связь")).toHaveCount(0);
   const saved = page.waitForRequest(
     (request) => request.method() === "POST" && request.url().includes("/api/v1/related"),
   );
@@ -289,6 +290,11 @@ test("today opens compatibility without a saved person", async ({ page }) => {
     birth_time_unknown: true,
     consent: true,
   });
+  await page.getByRole("button", { name: "Проверить" }).click();
+  await expect(page.getByRole("status")).toContainText("Связь со звёздами");
+  await expect(page.getByText("Телец")).toBeVisible();
+  await expect(page.getByText("Глубокая связь")).toBeVisible();
+  await expect(page.locator("img[src='/illustrations/png/compatibility_diagram.png']")).toBeVisible();
 });
 
 test("empty chat explains itself in the middle", async ({ page }) => {

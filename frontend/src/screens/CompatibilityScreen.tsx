@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router";
 
 import {
@@ -15,6 +15,7 @@ import { maskBirthDate } from "../birthDate";
 import { calendarSign, displayBirthDate } from "../calendarSign";
 import { titled } from "../case";
 import { Avatar } from "../shared/ui/Avatar/Avatar";
+import { Button } from "../shared/ui/Button/Button";
 import { ErrorState } from "../shared/ui/ErrorState/ErrorState";
 import { Field } from "../shared/ui/Field/Field";
 import { ListRow } from "../shared/ui/ListRow/ListRow";
@@ -51,6 +52,10 @@ type ResolvedPerson = {
   sign: string;
 };
 
+const LINK_MS = 2000;
+
+type Phase = "pick" | "link" | "result";
+
 const EMPTY_SLOT: SlotState = {
   choice: "draft",
   savedId: "",
@@ -70,6 +75,7 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
       : { ...EMPTY_SLOT, choice: "draft" },
   );
   const [remembered, setRemembered] = useState<KnownPerson[]>([]);
+  const [phase, setPhase] = useState<Phase>("pick");
   const related = useQuery({ queryKey: queryKeys.related, queryFn: () => getRelated() });
   const rows = useQuery({
     queryKey: queryKeys.compatibility(personId ?? "pair"),
@@ -84,36 +90,82 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
       current.some((item) => item.id === person.id) ? current : [...current, person],
     );
   };
+  useEffect(() => {
+    if (phase !== "link") {
+      return;
+    }
+    if (reducedMotion()) {
+      setPhase("result");
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setPhase("result");
+    }, LINK_MS);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [phase]);
+  const ready = owner !== null && partner !== null;
   return (
     <Screen tab="today">
-      <TopBar title="Совместимость" back />
-      <div className={styles.stack}>
-        <PersonSlot
-          headingId="compat-first"
-          legend="Первый человек"
-          slot={left}
-          people={people}
-          profile={profile}
-          onChange={setLeft}
-          onRemember={remember}
-        />
-        <PersonSlot
-          headingId="compat-second"
-          legend="Второй человек"
-          slot={right}
-          people={people}
-          profile={profile}
-          onChange={setRight}
-          onRemember={remember}
-        />
-      </div>
-      {owner !== null && partner !== null ? (
+      <TopBar
+        title="Совместимость"
+        back
+        {...(phase === "pick" ? {} : { onBack: () => setPhase("pick") })}
+      />
+      {phase === "pick" ? (
+        <div className={styles.fill}>
+          <div className={styles.stack}>
+            <PersonSlot
+              headingId="compat-first"
+              legend="Первый человек"
+              slot={left}
+              people={people}
+              profile={profile}
+              onChange={setLeft}
+              onRemember={remember}
+            />
+            <PersonSlot
+              headingId="compat-second"
+              legend="Второй человек"
+              slot={right}
+              people={people}
+              profile={profile}
+              onChange={setRight}
+              onRemember={remember}
+            />
+          </div>
+          <div className={styles.todayAction}>
+            <Button
+              disabled={!ready}
+              onClick={() => {
+                if (ready) {
+                  setPhase("link");
+                }
+              }}
+            >
+              Проверить
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {phase === "link" ? (
+        <div className={styles.linkStage} role="status">
+          <img className={styles.linkWheel} src="/illustrations/png/compatibility_diagram.png" alt="" />
+          <p>Связь со звёздами</p>
+        </div>
+      ) : null}
+      {phase === "result" && owner !== null && partner !== null ? (
         <>
           <div className={styles.pair}>
             <PersonCard person={owner} />
             <PersonCard person={partner} />
           </div>
-          <img className={styles.wheel} src="/illustrations/png/compatibility_diagram.png" alt="" />
+          <img
+            className={styles.compatWheel}
+            src="/illustrations/png/compatibility_diagram.png"
+            alt=""
+          />
           <div className={styles.stack}>
             {(rows.data ?? compatRows).map((row) => (
               <ListRow
@@ -132,6 +184,10 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
       {topics.dialog}
     </Screen>
   );
+}
+
+function reducedMotion(): boolean {
+  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 function PersonCard({ person }: { person: ResolvedPerson }) {

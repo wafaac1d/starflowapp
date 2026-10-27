@@ -579,6 +579,16 @@ D-061. Без подписки поле и кнопка отправки зак�
 | `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "empty chat explains itself\|chat shows the sent line\|tab bar, calendar"` | 0, 3 теста |
 | `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot chat" --update-snapshots` | 0, снимок `chat.png` обновлён |
 
+## Совместимость через связь со звёздами, 2026-10-27
+
+D-062. Сначала выбираются двое, внизу «Проверить». Две секунды на экране «Связь со звёздами», затем карточки пары, схема и три строки. «Назад» возвращает к выбору. При `prefers-reduced-motion` пауза пропускается.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm typecheck` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t "two people\|compatibility cards\|star link"` | 0, 3 теста |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "today opens compatibility\|screenshot compatibility"` | 0, 2 теста, снимок `compatibility.png` обновлён |
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

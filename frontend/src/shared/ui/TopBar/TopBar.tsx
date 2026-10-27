@@ -8,10 +8,11 @@ type TopBarProps = {
   title?: string;
   align?: "center" | "left";
   back?: boolean;
+  onBack?: () => void;
   trailing?: ReactNode;
 };
 
-export function TopBar({ title, align = "center", back = false, trailing }: TopBarProps) {
+export function TopBar({ title, align = "center", back = false, onBack, trailing }: TopBarProps) {
   const navigate = useNavigate();
   return (
     <header className={align === "left" ? styles.left : styles.center}>
@@ -21,6 +22,10 @@ export function TopBar({ title, align = "center", back = false, trailing }: TopB
           className={styles.back}
           aria-label="Назад"
           onClick={() => {
+            if (onBack !== undefined) {
+              onBack();
+              return;
+            }
             void navigate(-1);
           }}
         >

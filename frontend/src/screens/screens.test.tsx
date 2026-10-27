@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
@@ -236,8 +236,8 @@ describe("screens", () => {
     );
     expect(screen.getByRole("switch", { name: "Сохранить в близкие" })).toBeInTheDocument();
     await userEvent.type(within(second).getByRole("textbox", { name: "Время рождения" }), "09:15");
-    expect(await screen.findByText("Телец")).toBeInTheDocument();
-    expect(screen.getByText("Глубокая связь")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Проверить" })).toBeEnabled();
+    expect(screen.queryByText("Глубокая связь")).not.toBeInTheDocument();
     expect(calls.some((call) => call.method === "POST")).toBe(false);
     await userEvent.click(screen.getByRole("switch", { name: "Сохранить в близкие" }));
     await waitFor(() => {
@@ -272,9 +272,55 @@ describe("screens", () => {
       </QueryClientProvider>,
     );
     expect(screen.getByRole("radio", { name: "Михаил" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.queryByText("Глубокая связь")).not.toBeInTheDocument();
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("reduce"),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    await userEvent.click(screen.getByRole("button", { name: "Проверить" }));
     expect(await screen.findByText("Глубокая связь")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Эмоции/ }));
     expect(screen.getByRole("alertdialog")).toHaveTextContent("Эта функция только с Premium.");
+  });
+
+  it("holds the star link for two seconds", async () => {
+    vi.stubGlobal("matchMedia", () => ({
+      matches: false,
+      media: "",
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/compatibility/mikhail"]}>
+          <Routes>
+            <Route
+              path="/compatibility/:personId"
+              element={<CompatibilityScreen profile={profile()} />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "Проверить" }));
+      expect(screen.getByRole("status")).toHaveTextContent("Связь со звёздами");
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1999);
+      });
+      expect(screen.queryByText("Глубокая связь")).not.toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(screen.getByText("Глубокая связь")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps one assistant reply and the server quota", async () => {
