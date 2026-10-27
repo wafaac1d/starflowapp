@@ -35,7 +35,7 @@ const BENEFITS = [
   },
 ];
 
-export function PremiumScreen() {
+export function PremiumScreen({ subscribed = false }: { subscribed?: boolean }) {
   const [notice, setNotice] = useState("");
   const billing = useQuery({ queryKey: queryKeys.billing, queryFn: () => getBilling() });
   const pay = useMutation({
@@ -68,6 +68,22 @@ export function PremiumScreen() {
   });
   const price = billing.data?.price_stars ?? 250;
   const days = billing.data?.period_days ?? 30;
+  const active = billing.data?.premium ?? subscribed;
+  if (active) {
+    return (
+      <Screen>
+        <img className={styles.premiumArt} src="/illustrations/png/constellation_premium.png" alt="" />
+        <TopBar back />
+        <h1 className={styles.welcomeTitle}>Моя подписка</h1>
+        <p className={styles.lead}>{periodLine(billing.data, billing.isPending, billing.isError)}</p>
+        <div className={styles.stack}>
+          {BENEFITS.map((item) => (
+            <ListRow key={item.title} icon={item.icon} title={item.title} subtitle={item.subtitle} />
+          ))}
+        </div>
+      </Screen>
+    );
+  }
   return (
     <Screen>
       <img className={styles.premiumArt} src="/illustrations/png/constellation_premium.png" alt="" />
@@ -96,6 +112,45 @@ export function PremiumScreen() {
       <p className={styles.fine}>Автопродление, отмена в любой момент.</p>
     </Screen>
   );
+}
+
+function periodLine(
+  data: BillingResponse | undefined,
+  pending: boolean,
+  failed: boolean,
+): string {
+  if (pending) {
+    return "Считаем оставшиеся дни.";
+  }
+  if (failed || data === undefined) {
+    return "Не удалось узнать срок подписки.";
+  }
+  const until = data.access_until;
+  if (until === null) {
+    return "Срок периода не указан.";
+  }
+  const end = new Date(until);
+  if (Number.isNaN(end.getTime())) {
+    return "Срок периода не указан.";
+  }
+  const left = Math.ceil((end.getTime() - Date.now()) / 86_400_000);
+  const date = new Intl.DateTimeFormat("ru", { day: "numeric", month: "long" }).format(end);
+  if (left <= 0) {
+    return `Период заканчивается сегодня, ${date}.`;
+  }
+  return `Осталось ${daysPhrase(left)}. До ${date}.`;
+}
+
+function daysPhrase(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) {
+    return `${count} день`;
+  }
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return `${count} дня`;
+  }
+  return `${count} дней`;
 }
 
 function waiting(ticket: BillingResponse): boolean {

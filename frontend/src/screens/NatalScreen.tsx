@@ -2,10 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { titled } from "../case";
-import { getChart } from "../api/client";
+import { getChart, type ChartSection } from "../api/client";
 import { natalRows } from "../api/fixtures";
 import { queryKeys } from "../api/keys";
-import { STAR_SILENCE } from "../readingWait";
+import { STAR_SILENCE, useReading } from "../readingWait";
 import { Icon } from "../shared/ui/Icon/Icon";
 import { Screen } from "../shared/ui/Screen/Screen";
 import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
@@ -55,16 +55,63 @@ export function NatalScreen() {
         </table>
       ) : null}
       {chart.isSuccess && tab === "reading" ? (
-        <div className={styles.stack}>
-          {(chart.data.sections ?? []).map((section) => (
-            <section key={section.id}>
-              <h2>{titled(section.title)}</h2>
-              <p>{titled(section.body)}</p>
-            </section>
-          ))}
-        </div>
+        chart.data.natal_access === "allowed" ? (
+          <NatalEssay sections={chart.data.sections ?? []} />
+        ) : (
+          <SectionList sections={chart.data.sections ?? []} />
+        )
       ) : null}
     </Screen>
+  );
+}
+
+function SectionList({ sections }: { sections: ChartSection[] }) {
+  return (
+    <div className={styles.reading}>
+      {sections.map((section) => (
+        <section key={section.id}>
+          <h2>{titled(section.title)}</h2>
+          <p>{titled(section.body)}</p>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function NatalEssay({ sections }: { sections: ChartSection[] }) {
+  const reading = useReading("natal");
+  const face = reading.face;
+  if (face.phase === "loading") {
+    return (
+      <section aria-label="Разбор" aria-busy="true">
+        <Skeleton lines={8} />
+      </section>
+    );
+  }
+  if (face.phase === "ready") {
+    return (
+      <section className={styles.reading} aria-label="Разбор" aria-busy="false">
+        {face.title !== face.body ? <h2>{titled(face.title)}</h2> : null}
+        <p>{titled(face.body)}</p>
+      </section>
+    );
+  }
+  if (face.phase === "premium") {
+    return <p>Разбор карты открывается на оплаченном периоде.</p>;
+  }
+  if (face.phase === "blocked") {
+    return (
+      <>
+        <p role="alert">{face.body}</p>
+        <SectionList sections={sections} />
+      </>
+    );
+  }
+  return (
+    <>
+      <p role="alert">{STAR_SILENCE}</p>
+      <SectionList sections={sections} />
+    </>
   );
 }
 

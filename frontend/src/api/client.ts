@@ -190,6 +190,8 @@ export type ReadingQuery = {
   topic?: string;
   month?: string;
   relatedId?: string;
+  leftSign?: string;
+  rightSign?: string;
 };
 
 export type HistoryEntry = {
@@ -623,6 +625,12 @@ function readingPath(kind: string, query: ReadingQuery): string {
   }
   if (query.relatedId) {
     params.set("related_id", query.relatedId);
+  }
+  if (query.leftSign) {
+    params.set("left_sign", query.leftSign);
+  }
+  if (query.rightSign) {
+    params.set("right_sign", query.rightSign);
   }
   const suffix = params.size > 0 ? `?${params.toString()}` : "";
   return `/api/v1/readings/${kind}${suffix}`;

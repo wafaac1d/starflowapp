@@ -47,7 +47,14 @@ export function readingFace(
 
 export function useReading(kind: string, query: ReadingQuery = {}, enabled = true) {
   const keys = useRef<Record<string, string>>({});
-  const scope = `${kind}|${query.topic ?? ""}|${query.month ?? ""}|${query.relatedId ?? ""}`;
+  const scope = [
+    kind,
+    query.topic ?? "",
+    query.month ?? "",
+    query.relatedId ?? "",
+    query.leftSign ?? "",
+    query.rightSign ?? "",
+  ].join("|");
   if (keys.current[scope] === undefined) {
     keys.current[scope] = readingKey();
   }
@@ -59,6 +66,8 @@ export function useReading(kind: string, query: ReadingQuery = {}, enabled = tru
       query.topic ?? "",
       query.month ?? "",
       query.relatedId ?? "",
+      query.leftSign ?? "",
+      query.rightSign ?? "",
     ],
     queryFn: () => startReading(kind, idempotency, fetch, query),
     enabled,
@@ -72,6 +81,8 @@ export function useReading(kind: string, query: ReadingQuery = {}, enabled = tru
       query.topic ?? "",
       query.month ?? "",
       query.relatedId ?? "",
+      query.leftSign ?? "",
+      query.rightSign ?? "",
     ],
     queryFn: () => getReading(kind, fetch, query),
     enabled: enabled && open,

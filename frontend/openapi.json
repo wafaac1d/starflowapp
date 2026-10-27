@@ -734,6 +734,26 @@
             }
           },
           {
+            "name": "left_sign",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Left Sign"
+            }
+          },
+          {
+            "name": "right_sign",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Right Sign"
+            }
+          },
+          {
             "name": "Idempotency-Key",
             "in": "header",
             "required": true,
@@ -814,6 +834,26 @@
                 }
               ],
               "title": "Related Id"
+            }
+          },
+          {
+            "name": "left_sign",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Left Sign"
+            }
+          },
+          {
+            "name": "right_sign",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Right Sign"
             }
           }
         ],

@@ -32,21 +32,24 @@ export function ProfileScreen({ profile }: { profile: ProfileResponse }) {
           <Icon name="gear" size={22} />
         </button>
       </div>
-      <button
-        type="button"
-        className={styles.identity}
-        onClick={() => {
-          void navigate("/people");
-        }}
-      >
-        <Avatar letters={profile.display_name?.slice(0, 1) ?? ""} size="l" />
+      <div className={styles.identity}>
+        <button
+          type="button"
+          className={styles.avatarButton}
+          aria-label="Редактировать профиль"
+          onClick={() => {
+            void navigate("/onboarding/birth");
+          }}
+        >
+          <Avatar letters={profile.display_name?.slice(0, 1) ?? ""} size="l" />
+        </button>
         <span className={styles.identityText}>
           <h1 className={styles.name}>{profile.display_name}</h1>
           <p className={styles.meta}>
             {sign} · {born}
           </p>
         </span>
-      </button>
+      </div>
       <article className={`${styles.decision} ${styles.trait}`}>
         <span className={styles.decisionHead}>
           <Icon name="profile_trait_sparkle" size={22} />
@@ -55,6 +58,14 @@ export function ProfileScreen({ profile }: { profile: ProfileResponse }) {
       </article>
       <div>
         <ListRow plain title="Данные рождения" chevron to="/onboarding/birth" />
+        <ListRow
+          plain
+          title="Добавить близкого"
+          chevron
+          onClick={() => {
+            void navigate("/people", { state: { add: true } });
+          }}
+        />
         <ListRow plain title="Избранное" chevron to="/favorites" />
         <ListRow plain title="История" chevron to="/history" />
         <ListRow plain title="Моя подписка" chevron to="/premium" />

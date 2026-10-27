@@ -93,10 +93,18 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
         topic: Annotated[str, Query()] = "",
         month: Annotated[str, Query()] = "",
         related_id: Annotated[UUID | None, Query()] = None,
+        left_sign: Annotated[str, Query()] = "",
+        right_sign: Annotated[str, Query()] = "",
     ) -> ReadingBody:
         require_intent(request, unauthorized)
         actor = await actor_from_cookie(request, container, unauthorized)
-        scope = ReadingScope(topic=topic, month=month, related_id=related_id)
+        scope = ReadingScope(
+            topic=topic,
+            month=month,
+            related_id=related_id,
+            left_sign=left_sign,
+            right_sign=right_sign,
+        )
         try:
             view = await container.forecast_service.start(
                 actor.view.user_id, kind, idempotency_key, scope
@@ -112,9 +120,17 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
         topic: Annotated[str, Query()] = "",
         month: Annotated[str, Query()] = "",
         related_id: Annotated[UUID | None, Query()] = None,
+        left_sign: Annotated[str, Query()] = "",
+        right_sign: Annotated[str, Query()] = "",
     ) -> ReadingBody:
         actor = await actor_from_cookie(request, container, unauthorized)
-        scope = ReadingScope(topic=topic, month=month, related_id=related_id)
+        scope = ReadingScope(
+            topic=topic,
+            month=month,
+            related_id=related_id,
+            left_sign=left_sign,
+            right_sign=right_sign,
+        )
         try:
             view = await container.forecast_service.current(actor.view.user_id, kind, scope)
         except FieldInvalid as error:

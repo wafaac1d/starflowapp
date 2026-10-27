@@ -15,6 +15,7 @@ from pydantic import BaseModel, ValidationError
 from starflow.ai.catalog import PromptCatalog, PromptSpec
 from starflow.ai.client import CircuitOpen, ModelReply
 from starflow.ai.guard import guarded_copy
+from starflow.astro.ecliptic import SIGNS
 from starflow.cache.two_level import TwoLevelCache
 from starflow.domain.astrology import facts_for_longitude
 from starflow.domain.calendar_reading import DayMark, accept_calendar, parse_month
@@ -36,6 +37,7 @@ from starflow.domain.segments import (
     facts_text,
     forecast_cache_key,
     moon_segment,
+    natal_segment,
     pair_segment,
     period_key,
     personal_segment,
@@ -69,8 +71,14 @@ _PREMIUM = frozenset(
         "topics",
         "calendar",
         "synastry",
+        "natal",
     }
 )
+PAIR_FOCUS = {
+    "dialog": "диалог двоих: как они говорят и слышат друг друга",
+    "emotions": "эмоции двоих: как они переживают близость",
+    "values": "общие ориентиры двоих: что им важно вместе",
+}
 _KINDS = _OPEN | _PREMIUM
 _LOG = get_logger("forecast")
 _REPAIR = (
@@ -105,6 +113,8 @@ class ReadingScope:
     topic: str = ""
     month: str = ""
     related_id: UUID | None = None
+    left_sign: str = ""
+    right_sign: str = ""
 
 
 @dataclass
@@ -742,12 +752,29 @@ class ForecastService:
             sky = await self._sky.for_date(sky_day)
             segment, facts = _sky_facts(kind, sky, sky_day)
             return segment, facts, profile, (), storage, day, when
+        if kind == "synastry" and scope.left_sign != "" and scope.right_sign != "":
+            left_sign, right_sign = checked_signs(scope.left_sign, scope.right_sign)
+            segment = synastry_segment(
+                {"sun": left_sign, "moon": None, "asc": None},
+                {"sun": right_sign, "moon": None, "asc": None},
+            )
+            return (
+                segment,
+                pair_facts(segment, scope.topic),
+                profile,
+                (),
+                storage,
+                day,
+                when,
+            )
         if profile.birth_date is None:
             return ReadingView(
                 status="blocked", body=self._catalog.text("ui.chart.birth_date_missing")
             )
         sign = calendar_sign(profile.birth_date)
         moon, ascendant = await self._natal_signs(user_id)
+        if kind == "natal":
+            return await self._natal_prepared(user_id, profile, storage, day, when)
         if kind == "synastry":
             if related is None or related.birth_date is None:
                 return ReadingView(
@@ -767,7 +794,7 @@ class ForecastService:
             limitations = _synastry_limits(profile, related)
             return (
                 segment,
-                representative_facts(kind, segment),
+                pair_facts(segment, scope.topic),
                 profile,
                 limitations,
                 storage,
@@ -786,6 +813,27 @@ class ForecastService:
         if kind == "topics":
             facts = {**facts, "topic": scope.topic}
         return segment, facts, profile, (), storage, day, when
+
+    async def _natal_prepared(
+        self,
+        user_id: UUID,
+        profile: object,
+        storage: str,
+        day: date,
+        when: datetime,
+    ) -> ReadingView | tuple[str, dict[str, object], object, tuple[str, ...], str, date, datetime]:
+        if self._chart is None:
+            return ReadingView(status="blocked", body=self._catalog.text("errors.reading_failed"))
+        chart = await self._chart.read(user_id)
+        if chart.natal_access != "allowed":
+            return ReadingView(status="premium", body=self._catalog.text("ui.paywall.lead"))
+        houses = () if chart.houses is None else chart.houses
+        segment = natal_segment(
+            [item.sign or "unknown" for item in chart.planets],
+            list(houses),
+            list(chart.aspects),
+        )
+        return segment, natal_facts(chart), profile, (), storage, day, when
 
     async def _calendar_text(
         self,
@@ -895,8 +943,13 @@ class ForecastService:
         storage = kind
         if kind == "topics":
             storage = f"topics:{scope.topic}"
+        elif kind == "synastry" and scope.left_sign != "" and scope.right_sign != "":
+            left_sign, right_sign = checked_signs(scope.left_sign, scope.right_sign)
+            storage = f"synastry:{scope.topic}:{left_sign}:{right_sign}"
         elif kind == "synastry" and scope.related_id is not None:
             storage = f"synastry:{scope.related_id}"
+            if scope.topic != "":
+                storage = f"{storage}:{scope.topic}"
         return storage, day, f"{day.isoformat()}|{scope.topic}|{scope.month}"
 
     def _check_scope(self, kind: str, scope: ReadingScope) -> None:
@@ -907,8 +960,14 @@ class ForecastService:
                 parse_month(scope.month)
             except ValueError as error:
                 raise FieldInvalid("month", "errors.validation") from error
-        if kind == "synastry" and scope.related_id is None:
-            raise FieldInvalid("related_id", "errors.related_required")
+        if kind == "synastry":
+            if scope.topic != "" and scope.topic not in PAIR_FOCUS:
+                raise FieldInvalid("topic", "errors.validation")
+            has_signs = scope.left_sign != "" or scope.right_sign != ""
+            if scope.related_id is None and not has_signs:
+                raise FieldInvalid("related_id", "errors.related_required")
+            if has_signs:
+                checked_signs(scope.left_sign, scope.right_sign)
 
     def _prompt_version(self, kind: str) -> int | None:
         for name in (kind, kind.split(":", 1)[0]):
@@ -1012,6 +1071,40 @@ def _sky_facts(kind: str, sky: dict[str, object], day: date) -> tuple[str, dict[
     facts = representative_facts(kind, segment)
     facts["date"] = day.isoformat()
     return segment, facts
+
+
+def checked_signs(left: str, right: str) -> tuple[str, str]:
+    normalized = (_known_sign(left), _known_sign(right))
+    if normalized[0] is None or normalized[1] is None:
+        raise FieldInvalid("sign", "errors.validation")
+    return normalized[0], normalized[1]
+
+
+def pair_facts(segment: str, topic: str) -> dict[str, object]:
+    facts = representative_facts("synastry", segment)
+    focus = PAIR_FOCUS.get(topic, "")
+    if focus == "":
+        return facts
+    return {**facts, "focus": focus}
+
+
+def natal_facts(chart: ChartView) -> dict[str, object]:
+    planets = [{"name": item.name, "sign": item.sign or "unknown"} for item in chart.planets]
+    return {
+        "sun": chart.sun_sign or "unknown",
+        "moon": chart.moon_sign or "unknown",
+        "ascendant": chart.ascendant_sign or "unknown",
+        "houses": "unknown" if chart.houses is None else list(chart.houses),
+        "planets": planets,
+        "aspects": list(chart.aspects),
+    }
+
+
+def _known_sign(value: str) -> str | None:
+    sign = value.casefold().strip()
+    if sign in SIGNS:
+        return sign
+    return None
 
 
 def _synastry_limits(profile: object, related: object) -> tuple[str, ...]:

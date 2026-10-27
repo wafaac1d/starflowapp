@@ -82,7 +82,7 @@ function AuthedApp({ initData }: { initData: string }) {
       <Route path="/people" element={<PeopleScreen />} />
       <Route path="/profile" element={<ProfileScreen profile={profile} />} />
       <Route path="/settings" element={<SettingsScreen />} />
-      <Route path="/premium" element={<PremiumScreen />} />
+      <Route path="/premium" element={<PremiumScreen subscribed={profile.is_premium} />} />
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/favorites" element={<FavoritesPage />} />
       <Route path="/referral" element={<ReferralPage />} />

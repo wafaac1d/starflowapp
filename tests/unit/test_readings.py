@@ -2,16 +2,20 @@
 
 import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import httpx2 as httpx
 import pytest
 import structlog
 from openai import APIStatusError
 
+from starflow.ai.catalog import load_prompts
 from starflow.ai.client import CircuitOpen, DeepSeekClient
 from starflow.ai.guard import guarded_copy, plain_text, telegram_chunks
 from starflow.cache.ttl import CachedValue, TtlCache
 from starflow.cache.two_level import TwoLevelCache
+from starflow.domain.errors import FieldInvalid
+from starflow.domain.features import TOPICS
 from starflow.domain.segments import (
     cacheable,
     calendar_segment,
@@ -26,6 +30,8 @@ from starflow.domain.segments import (
     sun_segment,
     synastry_segment,
 )
+from starflow.services.chart import ChartView, PlanetPlacement
+from starflow.services.forecast import PAIR_FOCUS, checked_signs, natal_facts, pair_facts
 from tests.support import make_settings
 
 MOMENT = datetime(2026, 10, 21, 9, 0, tzinfo=UTC)
@@ -289,6 +295,66 @@ async def test_cached_fallback_does_not_block_the_next_reading() -> None:
     again = await cache.get_or_create("moon", "moon", until, fallback)
     assert again.payload["source"] == "fallback"
     assert calls == 3
+
+
+def test_pair_focus_is_separate_from_a_daily_topic() -> None:
+    assert set(PAIR_FOCUS).isdisjoint(set(TOPICS))
+    assert checked_signs("Лев", "Телец") == ("лев", "телец")
+    with pytest.raises(FieldInvalid):
+        checked_signs("лев", "не знак")
+    segment = synastry_segment(
+        {"sun": "лев", "moon": None, "asc": None},
+        {"sun": "телец", "moon": None, "asc": None},
+    )
+    facts = pair_facts(segment, "emotions")
+    assert facts["focus"] == PAIR_FOCUS["emotions"]
+    prompts = load_prompts(
+        Path(__file__).resolve().parents[2] / "resources" / "prompts" / "forecasts.yaml"
+    )
+    day = prompts.get("day").user
+    assert "только про эти сутки" in day
+    assert "только про эту пару" in prompts.get("compatibility").user
+    assert "поля focus" in prompts.get("synastry").system
+    assert prompts.get("natal").max_tokens >= 1000
+    assert "двенадцати предложений" in prompts.get("natal").user
+    assert prompts.get("topics").user != day
+
+
+def test_natal_facts_keep_signs_and_drop_coordinates() -> None:
+    chart = ChartView(
+        sun_sign="лев",
+        sun_sign_source="ephemeris",
+        moon_sign="рыбы",
+        ascendant_sign="скорпион",
+        houses=("скорпион",),
+        planets=(
+            PlanetPlacement(
+                name="солнце",
+                longitude=141.2,
+                sign="лев",
+                element="огонь",
+                modality="фиксированный",
+                ruler="солнце",
+                decan=1,
+                decan_ruler="солнце",
+                retrograde=False,
+                exact=True,
+            ),
+        ),
+        aspects=("солнце трин луна",),
+        transits=(),
+        lunar_day=1,
+        phase_name=None,
+        limitations=(),
+        natal_access="allowed",
+        house_cusps=(210.0,),
+    )
+    facts = natal_facts(chart)
+    packed = json.dumps(facts, ensure_ascii=False)
+    assert "141.2" not in packed
+    assert "210" not in packed
+    assert facts["sun"] == "лев"
+    assert facts["planets"] == [{"name": "солнце", "sign": "лев"}]
 
 
 def test_guard_json_is_not_imported_as_html() -> None:

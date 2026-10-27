@@ -9,22 +9,47 @@ const LOCKED = "Эта функция только с Premium.";
 const TOPICS: Record<string, string> = {
   love: "отношения",
   relations: "отношения",
-  dialog: "отношения",
-  values: "отношения",
   work: "работа",
   finance: "финансы",
   health: "эмоциональное состояние",
   state: "эмоциональное состояние",
-  emotions: "эмоциональное состояние",
 };
 
-export function useTopicDetail(premium: boolean) {
+const PAIR = new Set(["dialog", "emotions", "values"]);
+
+export type PairSigns = {
+  leftSign: string;
+  rightSign: string;
+};
+
+export function useTopicDetail(premium: boolean, pair?: PairSigns) {
   const navigate = useNavigate();
   const [locked, setLocked] = useState(false);
   const [title, setTitle] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
-  const reading = useReading("topics", topic === null ? {} : { topic }, topic !== null);
+  const query =
+    topic === null
+      ? {}
+      : pair === undefined
+        ? { topic }
+        : { topic, leftSign: pair.leftSign, rightSign: pair.rightSign };
+  const reading = useReading(pair === undefined ? "topics" : "synastry", query, topic !== null);
   const open = (id: string, label: string) => {
+    if (pair !== undefined) {
+      if (!PAIR.has(id)) {
+        return;
+      }
+      if (!premium) {
+        setLocked(true);
+        return;
+      }
+      if (pair.leftSign === "" || pair.rightSign === "") {
+        return;
+      }
+      setTitle(label);
+      setTopic(id);
+      return;
+    }
     const next = TOPICS[id];
     if (next === undefined) {
       return;

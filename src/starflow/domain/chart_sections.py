@@ -69,13 +69,20 @@ def chart_sections(
             _titled(name) if sign is None else f"{_titled(name)}, {_titled(sign)}"
             for name, sign in planets
         ]
-        sections.append(ChartSection("planets", line("ui.chart.section_planets"), "; ".join(lines)))
+        sections.append(
+            ChartSection(
+                "planets",
+                line("ui.chart.section_planets"),
+                line("ui.chart.section_planets_body").replace("{planets}", "; ".join(lines)),
+            )
+        )
     if aspects:
+        rendered = "; ".join(_titled(item) for item in aspects)
         sections.append(
             ChartSection(
                 "aspects",
                 line("ui.chart.section_aspects"),
-                "; ".join(_titled(item) for item in aspects),
+                line("ui.chart.section_aspects_body").replace("{aspects}", rendered),
             )
         )
     return tuple(sections)

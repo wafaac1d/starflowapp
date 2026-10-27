@@ -2010,6 +2010,8 @@ export interface operations {
                 topic?: string;
                 month?: string;
                 related_id?: string | null;
+                left_sign?: string;
+                right_sign?: string;
             };
             header?: never;
             path: {
@@ -2045,6 +2047,8 @@ export interface operations {
                 topic?: string;
                 month?: string;
                 related_id?: string | null;
+                left_sign?: string;
+                right_sign?: string;
             };
             header: {
                 "Idempotency-Key": string;

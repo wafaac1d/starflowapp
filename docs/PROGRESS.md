@@ -641,6 +641,38 @@ D-067. На вкладке «Профиль» строка «Админ» вед
 | `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'subscription\|admin page'` | 0, 2 теста |
 | `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot profile"` | 0 |
 
+## Профиль: подписка, правка и зазоры, 2026-10-27
+
+D-068. Аватар открывает правку даты и времени. «Добавить близкого» открывает форму человека. Действующая подписка показывает возможности и оставшиеся дни. Имя, дата и предсказание раздвинуты.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'subscription\|admin page\|premium\|relative form'` | 0, 8 тестов |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot profile\|screenshot premium" --update-snapshots` | 0, снимок `profile.png` обновлён |
+
+## Тема и зазоры настроек, 2026-10-27
+
+D-069. По умолчанию выбрана «Тёмная». «Светлая» подменяет токены и красит экран. Тема, уведомления, время, пояс и помощь разделены зазором 24px.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'settings switch'` | 0, 1 тест |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot settings" --update-snapshots` | 0, снимок `settings.png` обновлён |
+
+## Запросы пары и подробный разбор карты, 2026-10-27
+
+D-070. Строки совместимости спрашивают синастрию с целью и двумя знаками. Натальный «Разбор» при открытой карте ждёт отдельный подробный текст. Без Premium остаются более длинные подписи точек. Живой DeepSeek не вызывался.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check src/starflow/services/forecast.py src/starflow/api/forecast_http.py src/starflow/domain/chart_sections.py tests/unit/test_readings.py tests/unit/test_premium_content.py` | 0 |
+| `uv run pytest tests/unit/test_readings.py tests/unit/test_premium_content.py tests/unit/test_contract.py -q` | 0, 18 тестов |
+| `node scripts/compile-texts.mjs --check` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'pair focus\|natal reading\|compatibility cards\|star link\|topic dialog\|topic text\|premium'` | 0, 10 тестов |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

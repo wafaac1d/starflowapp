@@ -41,7 +41,9 @@ export function SettingsScreen() {
   return (
     <Screen tab="profile">
       <TopBar title="Настройки" back />
-      <p className={styles.kicker}>Тема</p>
+      <div className={styles.settings}>
+      <div>
+      <p className={styles.settingsLabel}>Тема</p>
       <SegmentedControl
         label="Тема"
         role="radiogroup"
@@ -52,6 +54,7 @@ export function SettingsScreen() {
           applyTheme(value);
         }}
       />
+      </div>
       <div className={styles.group}>
         <Toggle label="Уведомления" checked={master} onChange={setMaster} />
         <Toggle
@@ -63,7 +66,6 @@ export function SettingsScreen() {
         />
         <Toggle label="Напоминания" checked={reminders} onChange={setReminders} />
       </div>
-      <div className={styles.stack}>
         <ListRow
           icon="settings_time"
           title="Время"

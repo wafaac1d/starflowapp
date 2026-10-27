@@ -82,9 +82,12 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
     queryFn: getCompatRows,
   });
   const people = knownPeople(related.data, remembered, personId);
-  const topics = useTopicDetail(profile.is_premium);
   const owner = resolveSlot(left, profile, people);
   const partner = resolveSlot(right, profile, people);
+  const topics = useTopicDetail(profile.is_premium, {
+    leftSign: owner?.sign.toLocaleLowerCase("ru") ?? "",
+    rightSign: partner?.sign.toLocaleLowerCase("ru") ?? "",
+  });
   const remember = (person: KnownPerson) => {
     setRemembered((current) =>
       current.some((item) => item.id === person.id) ? current : [...current, person],

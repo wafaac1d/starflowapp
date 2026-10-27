@@ -104,6 +104,7 @@ def test_message_page_moves_backward_and_chart_sections_skip_unknown_houses() ->
             "ui.chart.section_sun": "солнце",
             "ui.chart.section_sun_body": "солнце в знаке {sign}.",
             "ui.chart.section_planets": "светила",
+            "ui.chart.section_planets_body": "светила: {planets}.",
         }[key],
     )
     assert [item.id for item in sections] == ["sun", "planets"]

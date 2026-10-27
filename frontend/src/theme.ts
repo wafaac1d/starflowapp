@@ -41,7 +41,7 @@ export function applyTheme(choice: ThemeChoice): void {
   const paint = () => {
     const scheme = window.Telegram?.WebApp?.colorScheme;
     const telegram = scheme === "dark" || scheme === "light" ? scheme : null;
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ?? true;
     document.documentElement.dataset.theme = resolveTheme(choice, telegram, prefersDark);
     document.documentElement.dataset.themeChoice = choice;
   };

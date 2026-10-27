@@ -280,6 +280,67 @@ describe("screens", () => {
     expect(screen.getByRole("tab", { name: "Разбор" })).toHaveAttribute("aria-selected", "true");
   });
 
+  it("waits for a long natal reading instead of the short section", async () => {
+    let release: (response: Response) => void = () => undefined;
+    const gate = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input) => {
+        if (String(input).includes("/readings/natal")) {
+          return gate;
+        }
+        return Response.json({
+          sun_sign: "лев",
+          sun_sign_source: "ephemeris",
+          moon_sign: "рыбы",
+          ascendant_sign: "скорпион",
+          houses: ["скорпион"],
+          house_cusps: [210],
+          planets: [],
+          aspects: [],
+          transits: [],
+          lunar_day: null,
+          phase_name: null,
+          limitations: [],
+          natal_access: "allowed",
+          sections: [
+            {
+              id: "sun",
+              title: "Солнце",
+              body: "Короткая подпись, которую подробный разбор заменяет.",
+            },
+          ],
+        });
+      }),
+    );
+    renderAt(<NatalScreen />);
+    await userEvent.click(await screen.findByRole("tab", { name: "Разбор" }));
+    expect(await screen.findByRole("region", { name: "Разбор" })).toHaveAttribute("aria-busy", "true");
+    expect(
+      screen.queryByText("Короткая подпись, которую подробный разбор заменяет."),
+    ).not.toBeInTheDocument();
+    release(
+      Response.json({
+        status: "ready",
+        title: "Карта Льва",
+        body: "Солнце во Льве задаёт долгий разбор из нескольких предложений про стиль, а не прогноз на один день.",
+        greeting: null,
+        user_sign: null,
+        shared_facts: null,
+        history_id: null,
+        streak: null,
+        replayed: false,
+        reset_at: null,
+      }),
+    );
+    expect(await screen.findByText(/долгий разбор/)).toBeInTheDocument();
+    expect(
+      screen.queryByText("Короткая подпись, которую подробный разбор заменяет."),
+    ).not.toBeInTheDocument();
+  });
+
   it("compares two people without saving the new one", async () => {
     const calls: { url: string; method: string; body: Record<string, unknown> }[] = [];
     vi.stubGlobal(
@@ -360,6 +421,66 @@ describe("screens", () => {
     expect(await screen.findByText("Глубокая связь")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Эмоции/ }));
     expect(screen.getByRole("alertdialog")).toHaveTextContent("Эта функция только с Premium.");
+  });
+
+  it("asks the pair focus instead of a daily topic", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("reduce"),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input) => {
+        const url = String(input);
+        calls.push(url);
+        if (url.includes("/readings/synastry")) {
+          return Response.json({
+            status: "ready",
+            title: "Эмоции пары",
+            body: "Этим двоим ближе тихий разговор, чем общий прогноз на день.",
+            greeting: null,
+            user_sign: null,
+            shared_facts: null,
+            history_id: null,
+            streak: null,
+            replayed: false,
+            reset_at: null,
+          });
+        }
+        return Response.json([]);
+      }),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/compatibility/mikhail"]}>
+          <Routes>
+            <Route
+              path="/compatibility/:personId"
+              element={<CompatibilityScreen profile={{ ...profile(), is_premium: true }} />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Проверить" }));
+    await userEvent.click(await screen.findByRole("button", { name: /Эмоции/ }));
+    expect(
+      await screen.findByText("Этим двоим ближе тихий разговор, чем общий прогноз на день."),
+    ).toBeInTheDocument();
+    const reading = calls.find((url) => url.includes("/readings/synastry"));
+    if (typeof reading !== "string") {
+      expect(reading).toBe("synastry request");
+      return;
+    }
+    const params = new URL(reading, "http://starflow.local").searchParams;
+    expect(params.get("topic")).toBe("emotions");
+    expect(params.get("left_sign")).toBe("лев");
+    expect(params.get("right_sign")).toBe("телец");
+    expect(calls.some((url) => url.includes("/readings/topics"))).toBe(false);
   });
 
   it("holds the star link for two seconds", async () => {
@@ -538,6 +659,8 @@ describe("screens", () => {
     expect(screen.getByRole("heading", { name: "Анна" })).toBeInTheDocument();
     expect(screen.getByText("Лев · 12.08.1995")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Моя подписка" })).toHaveAttribute("href", "/premium");
+    expect(screen.getByRole("button", { name: "Редактировать профиль" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Добавить близкого" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Удалить данные" })).toHaveAttribute("href", "/delete");
     expect(screen.queryByRole("link", { name: "Админ" })).not.toBeInTheDocument();
   });
@@ -548,13 +671,19 @@ describe("screens", () => {
   });
 
   it("toggles a settings switch", async () => {
+    localStorage.removeItem("starflow-theme");
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
     renderAt(<SettingsScreen />);
     const master = screen.getByRole("switch", { name: "Уведомления" });
     expect(master).toBeChecked();
     await userEvent.click(master);
     expect(master).not.toBeChecked();
-    expect(screen.getByRole("radio", { name: "Тёмная" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Тёмная" })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: "Светлая" }));
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(screen.getByRole("radio", { name: "Светлая" })).toBeChecked();
+    await userEvent.click(screen.getByRole("radio", { name: "Тёмная" }));
+    expect(document.documentElement.dataset.theme).toBe("dark");
   });
 
   it("shows the premium offer", () => {
@@ -563,5 +692,53 @@ describe("screens", () => {
     expect(screen.getByRole("heading", { name: "Больше о себе" })).toBeInTheDocument();
     expect(screen.getByText(/250 звёзд \/ 30 дней/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Подключить" })).toBeInTheDocument();
+  });
+
+  it("shows the remaining days when premium is already active", async () => {
+    const until = new Date(Date.now() + 10 * 86_400_000).toISOString();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async () =>
+        Response.json({
+          premium: true,
+          access_until: until,
+          price_stars: 250,
+          period_days: 30,
+          gift_days: 30,
+          trial_days: 7,
+          assistant_questions: 40,
+          subscription_payment_state: "none",
+          gift_payment_state: "none",
+          subscription_state: "active",
+          auto_renew: true,
+          subscription_order_id: null,
+          subscription_invoice_link: null,
+          gift_order_id: null,
+          gift_invoice_link: null,
+          gift_code: null,
+          gift_link: null,
+          trial_available: false,
+          period_end: until,
+        }),
+      ),
+    );
+    renderAt(<PremiumScreen subscribed />);
+    expect(await screen.findByText(/Осталось 10 дней/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Моя подписка" })).toBeInTheDocument();
+    expect(screen.getByText("Персональные прогнозы")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Подключить" })).not.toBeInTheDocument();
+  });
+
+  it("opens the relative form from the profile list", () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={[{ pathname: "/people", state: { add: true } }]}>
+          <PeopleScreen />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByRole("heading", { name: "Близкие" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Имя" })).toBeInTheDocument();
   });
 });

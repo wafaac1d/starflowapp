@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
 import { addRelated, getRelated, readingKey } from "../api/client";
 import { queryKeys } from "../api/keys";
@@ -14,8 +14,9 @@ import styles from "./screens.module.css";
 
 export function PeopleScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const client = useQueryClient();
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState(() => wantsAdd(location.state));
   const [name, setName] = useState("");
   const [born, setBorn] = useState("");
   const related = useQuery({ queryKey: queryKeys.related, queryFn: () => getRelated() });
@@ -76,4 +77,12 @@ export function PeopleScreen() {
       </Button>
     </Screen>
   );
+}
+
+function wantsAdd(state: unknown): boolean {
+  return isRecord(state) && state.add === true;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
