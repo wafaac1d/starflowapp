@@ -539,6 +539,12 @@ describe("screens", () => {
     expect(screen.getByText("Лев · 12.08.1995")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Моя подписка" })).toHaveAttribute("href", "/premium");
     expect(screen.getByRole("link", { name: "Удалить данные" })).toHaveAttribute("href", "/delete");
+    expect(screen.queryByRole("link", { name: "Админ" })).not.toBeInTheDocument();
+  });
+
+  it("opens the admin page from the profile when the session is an admin", () => {
+    renderAt(<ProfileScreen profile={{ ...profile(), is_admin: true }} />);
+    expect(screen.getByRole("link", { name: "Админ" })).toHaveAttribute("href", "/admin");
   });
 
   it("toggles a settings switch", async () => {

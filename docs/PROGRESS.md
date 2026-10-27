@@ -632,6 +632,15 @@ D-066. Администратор видит открытые учётные з�
 | `corepack pnpm typecheck` | 0 |
 | `uv run pytest tests/unit/test_contract.py tests/integration/test_ops.py::test_admin_overview_hides_people_and_delete_keeps_a_thin_charge -q` | 0, 3 теста |
 
+## Строка «Админ» на профиле, 2026-10-27
+
+D-067. На вкладке «Профиль» строка «Админ» ведёт на `/admin`, если сессия администратора. У остальных её нет.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'subscription\|admin page'` | 0, 2 теста |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot profile"` | 0 |
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.
