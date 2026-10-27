@@ -17,6 +17,7 @@ import { describeIso, isoInZone } from "../almanacDate";
 import { Button, Skeleton } from "../components/ui/controls";
 import { PageHeader, PeriodTabs } from "../components/ui/editorial";
 import { deviceTimezone } from "../deviceZone";
+import { STAR_SILENCE } from "../readingWait";
 import { text, type TextKey } from "../resources";
 
 const TITLES: Record<string, TextKey> = {
@@ -128,11 +129,14 @@ export function ReadingPage({ kind, fetchImpl = fetch, pollMs = 700 }: ReadingPa
           }}
         />
       ) : null}
-      {waiting ? <Skeleton /> : null}
-      {waiting ? <p>{text("ui.reading.pending")}</p> : null}
-      {failed ? (
+      {waiting ? (
+        <div role="status" aria-label="Ждём ответ">
+          <Skeleton />
+        </div>
+      ) : null}
+      {failed || data?.status === "fallback" ? (
         <>
-          <p role="alert">{data?.body || text("ui.common.error")}</p>
+          <p role="alert">{STAR_SILENCE}</p>
           <Button
             label={text("ui.common.retry")}
             onClick={() => {
@@ -142,7 +146,7 @@ export function ReadingPage({ kind, fetchImpl = fetch, pollMs = 700 }: ReadingPa
           />
         </>
       ) : null}
-      {data !== undefined && (data.status === "ready" || data.status === "fallback") ? (
+      {data !== undefined && data.status === "ready" ? (
         <ReadingBody
           data={data}
           saved={saved}
@@ -206,7 +210,6 @@ function ReadingBody({ data, saved, shareText, fetchImpl, onSaved, onShare }: Bo
   });
   return (
     <>
-      {data.status === "fallback" ? <p>{text("ui.reading.fallback")}</p> : null}
       {data.greeting !== null ? <p>{data.greeting}</p> : null}
       {data.user_sign !== null ? (
         <p>

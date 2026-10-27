@@ -72,7 +72,8 @@ describe("reading page", () => {
       });
     });
     renderReading(fetchImpl);
-    expect(await screen.findByText(text("ui.reading.pending"))).toBeInTheDocument();
+    expect(await screen.findByRole("status", { name: "Ждём ответ" })).toBeInTheDocument();
+    expect(screen.queryByText(text("ui.reading.pending"))).not.toBeInTheDocument();
     const body = await screen.findByText("спокойный фон дня");
     expect(body.textContent).toBe("спокойный фон дня");
     expect(body.querySelector("b")).toBeNull();
@@ -99,12 +100,11 @@ describe("reading page", () => {
       });
     });
     renderReading(fetchImpl);
-    expect(await screen.findByRole("alert")).toHaveTextContent("не удалось подготовить текст");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось связаться со звёздами");
+    expect(screen.queryByText("не удалось подготовить текст")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: text("ui.common.retry") }));
-    const body = await screen.findByText("<b>запасной</b> текст");
-    expect(body.querySelector("b")).toBeNull();
-    expect(body.textContent).toBe(body.textContent?.toLowerCase());
-    expect(screen.getByText(text("ui.reading.fallback"))).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось связаться со звёздами");
+    expect(screen.queryByText("<b>запасной</b> текст")).not.toBeInTheDocument();
     expect(keys[0]).not.toBe(keys[1]);
   });
 });

@@ -364,11 +364,11 @@ class ForecastService:
         async def produce() -> dict[str, object]:
             payload = await self._model_payload(user_id, kind, facts)
             if payload.get("source") != "model" and self._background:
-                self._spawn(
-                    self._improve(
-                        key, kind, facts, expires_at(kind, moment, self._zone_name), user_id
-                    )
+                improved = await self._improve(
+                    key, kind, facts, expires_at(kind, moment, self._zone_name), user_id
                 )
+                if improved is not None:
+                    return improved
             return payload
 
         hit = await self._cache.get_or_create(
@@ -437,23 +437,20 @@ class ForecastService:
         facts: dict[str, object],
         expires: datetime,
         user_id: UUID,
-    ) -> None:
+    ) -> dict[str, object] | None:
         if key in self._background_keys:
-            return
+            return None
         self._background_keys.add(key)
         prompt = self._prompts.get(kind)
         model_name = self._models[prompt.tier]
         user = prompt.user.replace("{facts}", facts_text(facts))
         parsed = await self._ask(user_id, kind, model_name, prompt.system, user, prompt)
         if parsed is None:
-            return
+            return None
         title, body = parsed
-        await self._cache.remember(
-            key,
-            kind,
-            {"title": title, "body": body, "source": "model"},
-            expires,
-        )
+        payload = {"title": title, "body": body, "source": "model"}
+        await self._cache.remember(key, kind, payload, expires)
+        return payload
 
     async def _prepare(
         self,

@@ -589,6 +589,28 @@ D-062. Сначала выбираются двое, внизу «Провери
 | `corepack pnpm exec vitest run src/screens/screens.test.tsx -t "two people\|compatibility cards\|star link"` | 0, 3 теста |
 | `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "today opens compatibility\|screenshot compatibility"` | 0, 2 теста, снимок `compatibility.png` обновлён |
 
+## Текст только после ответа, 2026-10-27
+
+D-063. Пока чтение ждёт кэш или модель, на месте текста загрузка. Статус `ready` заполняет поле. Ошибка, обрыв и запасной текст показывают «Не удалось связаться со звёздами». Повтор того же чтения не создаёт новый вызов, пока первый не закончился: клиент опрашивает сохранённый результат.
+
+Кэш на сервере уже отдаёт сохранённую строку до вызова модели (`ForecastService.start` читает историю, `TwoLevelCache` не вызывает генерацию при попадании). Загрузка на экране закрывает и это ожидание базы.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm typecheck` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx src/pages/ReadingPage.test.tsx` | 0, 23 теста |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot today\|screenshot forecast\|screenshot natal\|screenshot calendar"` | 0, снимок `natal.png` обновлён: сетка рисуется после ответа карты |
+
+## Стрелка и тема на Сегодня, 2026-10-27
+
+D-064. Стрелка в карточке прогноза прижата к правому краю. Окно темы держит загрузку, пока модель не ответит: запасной текст больше не закрывает чтение до следующей попытки.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t "topic\|day title"` | 0, 4 теста |
+| `uv run ruff check src/starflow/services/forecast.py` | 0 |
+| `corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot today" --update-snapshots` | 0, снимок `today.png` обновлён |
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

@@ -1,8 +1,7 @@
-import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
-import { getReading, readingKey, startReading } from "../api/client";
+import { STAR_SILENCE, useReading } from "../readingWait";
 import { AlertDialog } from "../shared/ui/AlertDialog/AlertDialog";
 
 const LOCKED = "Эта функция только с Premium.";
@@ -23,18 +22,11 @@ export function useTopicDetail(premium: boolean) {
   const navigate = useNavigate();
   const [locked, setLocked] = useState(false);
   const [title, setTitle] = useState("");
-  const reading = useMutation({
-    mutationFn: async (topic: string) => {
-      const started = await startReading("topics", readingKey(), fetch, { topic });
-      if (started.status === "ready" || started.status === "fallback" || started.body) {
-        return started;
-      }
-      return getReading("topics", fetch, { topic });
-    },
-  });
+  const [topic, setTopic] = useState<string | null>(null);
+  const reading = useReading("topics", topic === null ? {} : { topic }, topic !== null);
   const open = (id: string, label: string) => {
-    const topic = TOPICS[id];
-    if (topic === undefined) {
+    const next = TOPICS[id];
+    if (next === undefined) {
       return;
     }
     if (!premium) {
@@ -42,14 +34,14 @@ export function useTopicDetail(premium: boolean) {
       return;
     }
     setTitle(label);
-    reading.mutate(topic);
+    setTopic(next);
   };
   const close = () => {
     setLocked(false);
     setTitle("");
-    reading.reset();
+    setTopic(null);
   };
-  const premiumReply = reading.data?.status === "premium";
+  const premiumReply = reading.face.phase === "premium";
   const dialog = locked ? (
     <AlertDialog
       title={LOCKED}
@@ -64,14 +56,17 @@ export function useTopicDetail(premium: boolean) {
     />
   ) : title !== "" ? (
     <AlertDialog
-      title={reading.data?.title || title}
+      title={reading.face.phase === "ready" && reading.face.title !== "" ? reading.face.title : title}
       body={
-        reading.isPending
-          ? "Готовим текст."
-          : premiumReply
-            ? LOCKED
-            : reading.data?.body || "Не удалось получить текст."
+        reading.face.phase === "ready"
+          ? reading.face.body
+          : reading.face.phase === "blocked"
+            ? reading.face.body
+            : reading.face.phase === "premium"
+              ? "Разбор темы открывается на оплаченном периоде."
+              : STAR_SILENCE
       }
+      busy={reading.face.phase === "loading"}
       dismissLabel="Закрыть"
       onDismiss={close}
       {...(premiumReply

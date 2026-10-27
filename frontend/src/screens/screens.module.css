@@ -118,8 +118,14 @@
   cursor: pointer;
 }
 
-.decisionHead span {
+.decisionHead > span {
   flex: 1;
+  min-width: 0;
+}
+
+.decisionHead > span.decisionChevron {
+  flex: none;
+  margin-left: auto;
 }
 
 .decision .decisionHead + button,

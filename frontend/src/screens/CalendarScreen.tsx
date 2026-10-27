@@ -8,6 +8,7 @@ import { Icon } from "../shared/ui/Icon/Icon";
 import { LunarCalendar } from "../shared/ui/LunarCalendar/LunarCalendar";
 import { longDate, phaseFor } from "../shared/ui/LunarCalendar/phase";
 import { Screen } from "../shared/ui/Screen/Screen";
+import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import styles from "./screens.module.css";
 
@@ -24,7 +25,7 @@ export function CalendarScreen() {
     queryFn: () => getLunarCopy(selected),
   });
   const phase = phaseFor(selected);
-  const note = copy.data?.note ?? "Спокойный лунный фон этого дня. Это не обещание события.";
+  const note = copy.data?.note ?? "";
   const phaseLabel = selected === lunarSample.iso ? lunarSample.phase : (copy.data?.phase ?? phase.label);
   const shift = (delta: number) => {
     const next = new Date(cursor.year, cursor.month - 1 + delta, 1);
@@ -50,7 +51,8 @@ export function CalendarScreen() {
         <div>
           <h3>{longDate(selected)}</h3>
           <p>{phaseLabel}</p>
-          <p>{note}</p>
+          {copy.isPending ? <Skeleton lines={2} /> : null}
+          {note !== "" ? <p>{note}</p> : null}
         </div>
       </article>
     </Screen>

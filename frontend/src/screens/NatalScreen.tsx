@@ -5,8 +5,10 @@ import { titled } from "../case";
 import { getChart } from "../api/client";
 import { natalRows } from "../api/fixtures";
 import { queryKeys } from "../api/keys";
+import { STAR_SILENCE } from "../readingWait";
 import { Icon } from "../shared/ui/Icon/Icon";
 import { Screen } from "../shared/ui/Screen/Screen";
+import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
 import { SegmentedControl } from "../shared/ui/SegmentedControl/SegmentedControl";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import { degreeInSign } from "./format";
@@ -23,16 +25,18 @@ const TABS = [
 export function NatalScreen() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("chart");
   const chart = useQuery({ queryKey: queryKeys.chart, queryFn: () => getChart() });
-  const rows = rowsFromChart(chart.data);
+  const rows = chart.data === undefined ? [] : rowsFromChart(chart.data);
   return (
     <Screen tab="today">
       <TopBar title="Натальная карта" back />
       <div className={styles.wheelFrame}>
         <img className={styles.wheel} src="/illustrations/png/natal_chart.png" alt="" />
-        <NatalGrid chart={chart.data} />
+        {chart.isSuccess ? <NatalGrid chart={chart.data} /> : null}
       </div>
       <SegmentedControl label="Вид карты" value={tab} options={TABS} onChange={setTab} />
-      {tab === "chart" ? (
+      {chart.isPending ? <Skeleton lines={3} /> : null}
+      {chart.isError ? <p role="alert">{STAR_SILENCE}</p> : null}
+      {chart.isSuccess && tab === "chart" ? (
         <table className={styles.table}>
           <tbody>
             {rows.map((row) => (
@@ -49,16 +53,17 @@ export function NatalScreen() {
             ))}
           </tbody>
         </table>
-      ) : (
+      ) : null}
+      {chart.isSuccess && tab === "reading" ? (
         <div className={styles.stack}>
-          {(chart.data?.sections ?? []).map((section) => (
+          {(chart.data.sections ?? []).map((section) => (
             <section key={section.id}>
               <h2>{titled(section.title)}</h2>
               <p>{titled(section.body)}</p>
             </section>
           ))}
         </div>
-      )}
+      ) : null}
     </Screen>
   );
 }

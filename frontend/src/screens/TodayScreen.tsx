@@ -1,12 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 
-import { getReading, startReading, readingKey, type ProfileResponse } from "../api/client";
-import { forecastTitle } from "../api/fixtures";
-import { queryKeys } from "../api/keys";
+import type { ProfileResponse } from "../api/client";
+import { STAR_SILENCE, useReading } from "../readingWait";
 import { Button } from "../shared/ui/Button/Button";
 import { Icon } from "../shared/ui/Icon/Icon";
 import { Screen } from "../shared/ui/Screen/Screen";
+import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
 import { formatRuDate, greeting } from "./format";
 import styles from "./screens.module.css";
 import { useTopicDetail } from "./topicDetail";
@@ -21,14 +20,9 @@ const CATEGORIES = [
 export function TodayScreen({ profile }: { profile: ProfileResponse }) {
   const navigate = useNavigate();
   const now = new Date();
-  const reading = useQuery({
-    queryKey: queryKeys.reading("day"),
-    queryFn: async () => {
-      await startReading("day", readingKey());
-      return getReading("day");
-    },
-  });
-  const title = reading.data?.title || forecastTitle;
+  const reading = useReading("day");
+  const waiting = reading.face.phase === "loading";
+  const title = reading.face.phase === "ready" ? reading.face.title : STAR_SILENCE;
   const topics = useTopicDetail(profile.is_premium);
   const openForecast = () => {
     void navigate("/forecast");
@@ -58,11 +52,14 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
           <button
             type="button"
             className={styles.decisionHead}
+            aria-busy={waiting}
             onClick={() => void navigate("/natal")}
           >
             <Icon name="profile_trait_sparkle" size={22} />
-            <span>{title}</span>
-            <Icon name="chevron_right" size={18} />
+            <span>{waiting ? <Skeleton lines={1} /> : title}</span>
+            <span className={styles.decisionChevron}>
+              <Icon name="chevron_right" size={18} />
+            </span>
           </button>
           <Button onClick={openForecast}>Открыть прогноз</Button>
         </section>

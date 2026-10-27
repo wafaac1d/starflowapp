@@ -1,11 +1,13 @@
 import { useEffect, useId } from "react";
 
 import { Button } from "../Button/Button";
+import { Skeleton } from "../Skeleton/Skeleton";
 import styles from "./AlertDialog.module.css";
 
 type AlertDialogProps = {
   title: string;
   body: string;
+  busy?: boolean;
   dismissLabel: string;
   onDismiss: () => void;
   actionLabel?: string;
@@ -15,6 +17,7 @@ type AlertDialogProps = {
 export function AlertDialog({
   title,
   body,
+  busy = false,
   dismissLabel,
   onDismiss,
   actionLabel,
@@ -44,6 +47,7 @@ export function AlertDialog({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={bodyId}
+        aria-busy={busy}
         onClick={(event) => {
           event.stopPropagation();
         }}
@@ -51,9 +55,9 @@ export function AlertDialog({
         <h2 id={titleId} className={styles.title}>
           {title}
         </h2>
-        <p id={bodyId} className={styles.body}>
-          {body}
-        </p>
+        <div id={bodyId} className={styles.body}>
+          {busy ? <Skeleton lines={3} /> : <p>{body}</p>}
+        </div>
         <div className={styles.actions}>
           {actionLabel !== undefined && onAction !== undefined ? (
             <Button onClick={onAction}>{actionLabel}</Button>

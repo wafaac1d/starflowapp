@@ -9,6 +9,7 @@ import {
   type AssistantReply,
 } from "../api/client";
 import { queryKeys } from "../api/keys";
+import { STAR_SILENCE } from "../readingWait";
 import { ChatBubble } from "../shared/ui/ChatBubble/ChatBubble";
 import { ChatInput } from "../shared/ui/ChatInput/ChatInput";
 import { Chip } from "../shared/ui/Chip/Chip";
@@ -126,14 +127,21 @@ function alreadyStored(
 }
 
 function assistantLine(reply: AssistantReply | undefined, failed: boolean): string {
-  if (reply?.reply != null && reply.reply !== "") {
-    return reply.reply;
-  }
   if (reply?.status === "premium") {
     return "Этот шаг доступен с Premium.";
   }
+  if (reply?.status === "limit") {
+    return reply.reply != null && reply.reply !== "" ? reply.reply : "Вопросы этого периода закончились.";
+  }
+  if (
+    (reply?.status === "ready" || reply?.status === "off_topic" || reply?.status === "injection") &&
+    reply.reply != null &&
+    reply.reply !== ""
+  ) {
+    return reply.reply;
+  }
   if (failed || reply !== undefined) {
-    return "Не удалось получить ответ.";
+    return STAR_SILENCE;
   }
   return "";
 }

@@ -418,6 +418,15 @@ for (const shot of SHOTS) {
     await installApp(page, shot.name === "welcome" ? "welcome" : "done");
     await page.goto(shot.path);
     await expect(page.locator("body")).toBeVisible();
+    if (shot.name === "today") {
+      await expect(page.getByRole("button", { name: "День для ясных решений" })).toBeVisible();
+    }
+    if (shot.name === "forecast") {
+      await expect(page.getByText(/благоприятный день/)).toBeVisible();
+    }
+    if (shot.name === "natal") {
+      await expect(page.getByText("Лев")).toBeVisible();
+    }
     await expect(page).toHaveScreenshot(`${shot.name}.png`, { animations: "disabled" });
   });
 }

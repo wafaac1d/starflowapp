@@ -1,12 +1,14 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { getReading, getShare, readingKey, saveFavorite, startReading } from "../api/client";
-import { forecastBody, forecastTopics, getForecastTopics } from "../api/fixtures";
+import { getShare, readingKey, saveFavorite } from "../api/client";
+import { forecastTopics, getForecastTopics } from "../api/fixtures";
 import { queryKeys } from "../api/keys";
+import { STAR_SILENCE, useReading } from "../readingWait";
 import { Button } from "../shared/ui/Button/Button";
 import { ListRow } from "../shared/ui/ListRow/ListRow";
 import { Screen } from "../shared/ui/Screen/Screen";
+import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
 import { SegmentedControl } from "../shared/ui/SegmentedControl/SegmentedControl";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import { formatRuDate } from "./format";
@@ -31,22 +33,14 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
   const [period, setPeriod] = useState<Period>("day");
   const detail = useTopicDetail(premium);
   const topics = useQuery({ queryKey: queryKeys.forecastTopics, queryFn: getForecastTopics });
-  const reading = useQuery({
-    queryKey: queryKeys.reading(KIND[period]),
-    queryFn: async () => {
-      const started = await startReading(KIND[period], readingKey());
-      if (started.status === "ready" || started.status === "fallback") {
-        return started;
-      }
-      return getReading(KIND[period]);
-    },
-  });
+  const reading = useReading(KIND[period]);
   const keep = useMutation({
-    mutationFn: () => saveFavorite(reading.data?.history_id ?? "", readingKey()),
+    mutationFn: () =>
+      saveFavorite(reading.face.phase === "ready" ? (reading.face.historyId ?? "") : "", readingKey()),
   });
   const share = useMutation({
     mutationFn: async () => {
-      const historyId = reading.data?.history_id;
+      const historyId = reading.face.phase === "ready" ? reading.face.historyId : null;
       const link = historyId ? await getShare(historyId) : window.location.href;
       if (navigator.share) {
         await navigator.share({ title: "Ваш прогноз", url: link });
@@ -66,7 +60,13 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
         onChange={setPeriod}
       />
       <p className={styles.kicker}>{formatRuDate(new Date())}</p>
-      <p className={styles.paragraph}>{reading.data?.body || forecastBody}</p>
+      {reading.face.phase === "loading" ? (
+        <Skeleton lines={4} />
+      ) : (
+        <p className={styles.paragraph}>
+          {reading.face.phase === "ready" ? reading.face.body : STAR_SILENCE}
+        </p>
+      )}
       <div className={styles.stack}>
         {rows.map((row) => (
           <ListRow
@@ -86,7 +86,7 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
           variant="secondary"
           icon="save_bookmark"
           fit
-          disabled={reading.data?.history_id == null || keep.isSuccess}
+          disabled={reading.face.phase !== "ready" || reading.face.historyId == null || keep.isSuccess}
           onClick={() => {
             keep.mutate();
           }}

@@ -122,6 +122,34 @@ describe("screens", () => {
     expect(screen.getByRole("button", { name: "Открыть прогноз" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Любовь" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Совместимость" })).toBeInTheDocument();
+    expect(await screen.findByText("Не удалось связаться со звёздами")).toBeInTheDocument();
+    expect(screen.queryByText("День для ясных решений")).not.toBeInTheDocument();
+  });
+
+  it("shows the day title only after the reading is ready", async () => {
+    let release: (response: Response) => void = () => undefined;
+    const gate = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(async () => gate));
+    renderAt(<TodayScreen profile={profile()} />);
+    expect(screen.queryByText("День для ясных решений")).not.toBeInTheDocument();
+    expect(screen.queryByText("Не удалось связаться со звёздами")).not.toBeInTheDocument();
+    release(
+      Response.json({
+        status: "ready",
+        title: "Ясный день",
+        body: "Текст дня.",
+        greeting: null,
+        user_sign: null,
+        shared_facts: null,
+        history_id: null,
+        streak: null,
+        replayed: false,
+        reset_at: null,
+      }),
+    );
+    expect(await screen.findByText("Ясный день")).toBeInTheDocument();
   });
 
   it("keeps a topic reading behind premium", async () => {
@@ -150,6 +178,54 @@ describe("screens", () => {
     expect(calls.some((url) => url.includes("/readings/topics"))).toBe(false);
     await userEvent.click(screen.getByRole("button", { name: "Понятно" }));
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("keeps the topic dialog on a loader until the reading is ready", async () => {
+    let release: (response: Response) => void = () => undefined;
+    const gate = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input) => {
+        if (String(input).includes("/readings/topics")) {
+          return gate;
+        }
+        return Response.json({
+          status: "ready",
+          title: "День",
+          body: "Текст дня.",
+          greeting: null,
+          user_sign: null,
+          shared_facts: null,
+          history_id: null,
+          streak: null,
+          replayed: false,
+          reset_at: null,
+        });
+      }),
+    );
+    renderAt(<TodayScreen profile={{ ...profile(), is_premium: true }} />);
+    await userEvent.click(screen.getByRole("button", { name: "Любовь" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByText("Не удалось связаться со звёздами")).not.toBeInTheDocument();
+    release(
+      Response.json({
+        status: "ready",
+        title: "Любовь",
+        body: "Текст темы.",
+        greeting: null,
+        user_sign: null,
+        shared_facts: null,
+        history_id: null,
+        streak: null,
+        replayed: false,
+        reset_at: null,
+      }),
+    );
+    expect(await screen.findByText("Текст темы.")).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toHaveAttribute("aria-busy", "false");
   });
 
   it("shows the topic text when premium is active", async () => {
@@ -196,9 +272,10 @@ describe("screens", () => {
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
     const view = renderAt(<NatalScreen />);
     expect(screen.getByRole("heading", { name: "Натальная карта" })).toBeInTheDocument();
-    expect(screen.getByText("19°24′")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Сетка натальной карты" })).toBeInTheDocument();
-    expect(view.container.querySelectorAll("[data-wheel='figure']").length).toBeGreaterThan(12);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось связаться со звёздами");
+    expect(screen.queryByText("19°24′")).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Сетка натальной карты" })).not.toBeInTheDocument();
+    expect(view.container.querySelectorAll("[data-wheel='figure']")).toHaveLength(0);
     await userEvent.click(screen.getByRole("tab", { name: "Разбор" }));
     expect(screen.getByRole("tab", { name: "Разбор" })).toHaveAttribute("aria-selected", "true");
   });
