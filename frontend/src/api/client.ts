@@ -433,13 +433,34 @@ export type AdminUser = {
   premium: boolean;
 };
 
-export async function getAdminUsers(fetchImpl: typeof fetch = fetch): Promise<AdminUser[]> {
-  const body = await requestJson<{ users: AdminUser[] }>(
-    "/api/v1/admin/users",
-    { method: "GET" },
-    fetchImpl,
-  );
-  return body.users;
+export type AdminUserPage = {
+  users: AdminUser[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export async function getAdminUsers(
+  page: number,
+  fetchImpl: typeof fetch = fetch,
+  pageSize = 10,
+): Promise<AdminUserPage> {
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  const body = await requestJson<{
+    users: AdminUser[];
+    total: number;
+    page: number;
+    page_size: number;
+  }>(`/api/v1/admin/users?${params.toString()}`, { method: "GET" }, fetchImpl);
+  return {
+    users: body.users,
+    total: body.total,
+    page: body.page,
+    pageSize: body.page_size,
+  };
 }
 
 export async function grantAdminPeriod(

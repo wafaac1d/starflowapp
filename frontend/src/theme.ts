@@ -23,9 +23,9 @@ export function readThemeChoice(): ThemeChoice {
       return stored;
     }
   } catch {
-    return "dark";
+    return "telegram";
   }
-  return "dark";
+  return "telegram";
 }
 
 let detach: (() => void) | null = null;
@@ -49,12 +49,12 @@ export function applyTheme(choice: ThemeChoice): void {
   if (choice !== "telegram") {
     return;
   }
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  const media = window.matchMedia?.("(prefers-color-scheme: dark)");
   const raw = window.Telegram?.WebApp;
-  media.addEventListener("change", paint);
+  media?.addEventListener("change", paint);
   raw?.onEvent?.("themeChanged", paint);
   detach = () => {
-    media.removeEventListener("change", paint);
+    media?.removeEventListener("change", paint);
     raw?.offEvent?.("themeChanged", paint);
   };
 }

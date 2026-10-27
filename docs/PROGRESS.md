@@ -673,6 +673,65 @@ D-070. Строки совместимости спрашивают синаст
 | `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'pair focus\|natal reading\|compatibility cards\|star link\|topic dialog\|topic text\|premium'` | 0, 10 тестов |
 | `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
 
+## Админ-панель только с выдачей Premium, 2026-10-27
+
+D-071. Со страницы убраны счётчики, даты и возврат. После успешной выдачи поля очищаются, а список людей запрашивается снова. Живая сессия администратора в браузере не открывалась.
+
+| Команда | Код |
+| --- | --- |
+| `node scripts/compile-texts.mjs --check` | 0 |
+| `corepack pnpm exec vitest run src/pages/OpsPages.test.tsx` | 0, 5 тестов |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+
+## Таблица пользователей в админке, 2026-10-27
+
+D-072. Список людей стал таблицей. Сервер отдаёт страницу и общее число, на экране по 10 человек. Живая сессия администратора в браузере не открывалась.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check src/starflow/repositories/sql.py src/starflow/services/ops.py src/starflow/api/ops_http.py` | 0 |
+| `corepack pnpm exec vitest run src/pages/OpsPages.test.tsx` | 0, 6 тестов |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `uv run pytest tests/unit/test_contract.py::test_openapi_document_matches_the_committed_contract -q` | 0, 1 тест |
+| `uv run pytest tests/integration/test_ops.py::test_admin_overview_hides_people_and_delete_keeps_a_thin_charge -q` | 0, 1 тест |
+
+## Тема по умолчанию как в Telegram, 2026-10-27
+
+D-073. Пустой выбор темы значит «Авто» и берёт `colorScheme` Telegram. Явный выбор «Светлая» или «Тёмная» не сбрасывается.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'settings switch'` | 0, 1 тест |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'screenshot settings'` | 1, 8130 px, ratio 0.03: выбран «Авто» |
+| та же команда с `--update-snapshots` | 0, снимок `settings.png` перезаписан |
+
+## Карта на «Сегодня», история вне профиля, избранное, 2026-10-28
+
+D-074. На «Сегодня» кнопка «Натальная карта» открывает `/natal`. Строка «История» с профиля убрана. Избранное собрано шапкой и строками списка.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'opens today\|links the subscription\|favorites'` | 0, 4 теста |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'screenshot today\|screenshot profile\|screenshot favorites' --update-snapshots` | 0, 3 теста |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'screenshot today\|screenshot profile\|screenshot favorites\|tab bar, calendar'` | 0, 4 теста |
+
+Живой клиент Telegram не открывался.
+
+## Поля близкого и блик загрузки, 2026-10-28
+
+D-075. На «Близких» строки, поля и кнопки делят зазор 24px. Силуэты загрузки переливаются.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'lists people\|row silhouettes'` | 0, 2 теста |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'adding a person'` | 0, 1 тест: зазоры 24px, у силуэтов animation-name с `skeleton-shine` |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'add relative fields\|screenshot people'` | 0, 2 теста |
+
+Живой клиент Telegram не открывался.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

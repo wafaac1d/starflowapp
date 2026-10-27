@@ -1,50 +1,41 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import {
-  getAdminOverview,
-  getAdminUsers,
-  grantAdminPeriod,
-  refundCharge,
-  type AdminOverview,
-} from "../api/client";
+import { getAdminUsers, grantAdminPeriod, type AdminUser } from "../api/client";
 import { queryKeys } from "../api/keys";
 import { BackHome, Button } from "../components/ui/controls";
-import { text } from "../resources";
+import { formatText, text } from "../resources";
+import styles from "./AdminPage.module.css";
 
 type AdminPageProps = {
   isAdmin: boolean;
   fetchImpl?: typeof fetch;
 };
 
+const INITIAL_DAYS = "7";
+const PAGE_SIZE = 10;
+
 export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
   const [userId, setUserId] = useState("");
-  const [days, setDays] = useState("7");
+  const [days, setDays] = useState(INITIAL_DAYS);
   const [reason, setReason] = useState("");
-  const [charge, setCharge] = useState("");
   const [grantConfirmed, setGrantConfirmed] = useState(false);
-  const [refundConfirmed, setRefundConfirmed] = useState(false);
+  const [page, setPage] = useState(1);
   const client = useQueryClient();
-  const overview = useQuery({
-    queryKey: ["admin", start, end],
-    queryFn: () => getAdminOverview(start, end, fetchImpl),
-    enabled: isAdmin,
-  });
   const people = useQuery({
-    queryKey: queryKeys.adminUsers,
-    queryFn: () => getAdminUsers(fetchImpl),
+    queryKey: [...queryKeys.adminUsers, page],
+    queryFn: () => getAdminUsers(page, fetchImpl, PAGE_SIZE),
     enabled: isAdmin,
   });
   const grant = useMutation({
     mutationFn: () => grantAdminPeriod(userId, Number(days), reason, fetchImpl),
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.adminUsers });
+    onSuccess: async () => {
+      setUserId("");
+      setDays(INITIAL_DAYS);
+      setReason("");
+      setGrantConfirmed(false);
+      await client.refetchQueries({ queryKey: queryKeys.adminUsers });
     },
-  });
-  const refund = useMutation({
-    mutationFn: () => refundCharge(charge, reason, fetchImpl),
   });
   if (!isAdmin) {
     return (
@@ -55,51 +46,21 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
       </main>
     );
   }
+  const canGrant =
+    grantConfirmed && reason.trim() !== "" && userId.trim() !== "" && !grant.isPending;
   return (
     <main className="shell">
       <h1>{text("ui.admin.title")}</h1>
       <p className="lead">{text("ui.admin.lead")}</p>
-      <label className="field">
-        <span>{text("ui.admin.from")}</span>
-        <input
-          type="date"
-          value={start}
-          onChange={(event) => {
-            setStart(event.target.value);
-          }}
-        />
-      </label>
-      <label className="field">
-        <span>{text("ui.admin.to")}</span>
-        <input
-          type="date"
-          value={end}
-          onChange={(event) => {
-            setEnd(event.target.value);
-          }}
-        />
-      </label>
-      {overview.data === undefined ? null : <AdminFigures report={overview.data} />}
       <h2>{text("ui.admin.people")}</h2>
       <p className="lead">{text("ui.admin.people_lead")}</p>
-      <ul>
-        {(people.data ?? []).map((person) => (
-          <li key={person.user_id}>
-            <p>
-              {person.display_name ?? text("ui.admin.unnamed")}
-              {person.username !== null ? ` @${person.username}` : ""} · {person.telegram_id} ·{" "}
-              {person.premium ? text("ui.admin.premium_on") : text("ui.admin.premium_off")}
-            </p>
-            <Button
-              tone="outline"
-              label={text("ui.admin.pick")}
-              onClick={() => {
-                setUserId(person.user_id);
-              }}
-            />
-          </li>
-        ))}
-      </ul>
+      <UserTable
+        rows={people.data?.users ?? []}
+        page={page}
+        total={people.data?.total ?? 0}
+        onPick={setUserId}
+        onPage={setPage}
+      />
       <h2>{text("ui.admin.grant")}</h2>
       <label className="field">
         <span>{text("ui.admin.grant_user")}</span>
@@ -142,38 +103,9 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
       </label>
       <Button
         label={text("ui.admin.grant")}
-        disabled={!grantConfirmed || reason.trim() === "" || userId.trim() === ""}
+        disabled={!canGrant}
         onClick={() => {
           void grant.mutateAsync();
-        }}
-      />
-      <h2>{text("ui.admin.refund")}</h2>
-      <label className="field">
-        <span>{text("ui.admin.charge")}</span>
-        <input
-          className="as-typed"
-          value={charge}
-          onChange={(event) => {
-            setCharge(event.target.value);
-          }}
-        />
-      </label>
-      <label className="consent-row">
-        <input
-          type="checkbox"
-          checked={refundConfirmed}
-          onChange={(event) => {
-            setRefundConfirmed(event.target.checked);
-          }}
-        />
-        <span>{text("ui.admin.confirm")}</span>
-      </label>
-      <Button
-        tone="danger"
-        label={text("ui.admin.refund")}
-        disabled={!refundConfirmed || reason.trim() === "" || charge.trim() === ""}
-        onClick={() => {
-          void refund.mutateAsync();
         }}
       />
       <BackHome />
@@ -181,33 +113,79 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
   );
 }
 
-function AdminFigures({ report }: { report: AdminOverview }) {
+function UserTable({
+  rows,
+  page,
+  total,
+  onPick,
+  onPage,
+}: {
+  rows: AdminUser[];
+  page: number;
+  total: number;
+  onPick: (userId: string) => void;
+  onPage: (page: number) => void;
+}) {
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   return (
-    <section>
-      <p>
-        {report.start} — {report.end}
-      </p>
-      <p>
-        {report.active_users} / {report.open_accounts}
-      </p>
-      <p>
-        {report.payments} / {report.stars} / {report.refunds}
-      </p>
-      <p>{report.definitions.active_users}</p>
-      <p>{report.definitions.payments}</p>
-      <p>{report.definitions.cache}</p>
-      <p>
-        {report.cache.l1_hits}/{report.cache.l1_misses} l1, {report.cache.l2_hits} l2,{" "}
-        {report.cache.process_generations}
-      </p>
-      <ul>
-        {report.feedback.map((item) => (
-          <li key={`${item.forecast_type}-${item.prompt_version}`}>
-            {item.forecast_type} {item.prompt_version || "—"} {item.count}
-          </li>
-        ))}
-      </ul>
-      <p>{report.definitions.feedback}</p>
-    </section>
+    <>
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th scope="col">{text("ui.admin.col_name")}</th>
+              <th scope="col">{text("ui.admin.col_telegram")}</th>
+              <th scope="col">{text("ui.admin.col_id")}</th>
+              <th scope="col">{text("ui.admin.col_premium")}</th>
+              <th scope="col">
+                <span className={styles.srOnly}>{text("ui.admin.pick")}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((person) => (
+              <tr key={person.user_id}>
+                <td>{person.display_name ?? text("ui.admin.unnamed")}</td>
+                <td>{person.username === null ? "" : `@${person.username}`}</td>
+                <td>{person.telegram_id}</td>
+                <td>{person.premium ? text("ui.admin.premium_on") : text("ui.admin.premium_off")}</td>
+                <td>
+                  <Button
+                    tone="outline"
+                    label={text("ui.admin.pick")}
+                    onClick={() => {
+                      onPick(person.user_id);
+                    }}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className={styles.pager}>
+        <button
+          type="button"
+          className={styles.pageButton}
+          disabled={page <= 1}
+          onClick={() => {
+            onPage(page - 1);
+          }}
+        >
+          {text("ui.admin.page_prev")}
+        </button>
+        <p>{formatText("ui.admin.page_status", { page: String(page), pages: String(pages) })}</p>
+        <button
+          type="button"
+          className={styles.pageButton}
+          disabled={page >= pages}
+          onClick={() => {
+            onPage(page + 1);
+          }}
+        >
+          {text("ui.admin.page_next")}
+        </button>
+      </div>
+    </>
   );
 }

@@ -1464,7 +1464,13 @@ class OpsRepository:
             ),
         )
 
-    async def open_accounts(self, limit: int) -> tuple[OpenAccount, ...]:
+    async def count_open_accounts(self) -> int:
+        counted = await self._session.scalar(
+            select(func.count()).select_from(UserRow).where(UserRow.deleted_at.is_(None))
+        )
+        return int(counted or 0)
+
+    async def open_accounts(self, limit: int, offset: int) -> tuple[OpenAccount, ...]:
         result = await self._session.execute(
             select(
                 UserRow.id,
@@ -1475,6 +1481,7 @@ class OpsRepository:
             .outerjoin(ProfileRow, ProfileRow.user_id == UserRow.id)
             .where(UserRow.deleted_at.is_(None))
             .order_by(UserRow.created_at.desc(), UserRow.id.desc())
+            .offset(offset)
             .limit(limit)
         )
         return tuple(

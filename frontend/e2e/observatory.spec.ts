@@ -212,6 +212,15 @@ async function installApp(page: Page, step = "done", premium = false) {
       });
       return;
     }
+    if (url.includes("/favorites") && method === "GET") {
+      await route.fulfill({
+        json: [
+          { history_id: "11111111-1111-1111-1111-111111111111", title: "День для ясных решений" },
+          { history_id: "22222222-2222-2222-2222-222222222222", title: "Неделя спокойных дел" },
+        ],
+      });
+      return;
+    }
     if (url.includes("/share/")) {
       await route.fulfill({ json: { text: "https://example.test/share" } });
       return;
@@ -240,6 +249,44 @@ test("today content starts below the telegram header", async ({ page }) => {
   const profile = page.getByRole("button", { name: "Профиль" });
   const profileBox = await profile.boundingBox();
   expect(profileBox?.y ?? 0).toBeGreaterThanOrEqual(47 + 56);
+});
+
+test("adding a person keeps equal gaps and the list waits with row silhouettes", async ({ page }) => {
+  let release = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await installApp(page, "done");
+  await page.route("**/api/v1/related**", async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.fallback();
+      return;
+    }
+    await gate;
+    await route.fallback();
+  });
+  await page.goto("/people");
+  const silhouettes = page.locator("div[aria-hidden='true'] > span");
+  await expect(silhouettes).toHaveCount(3);
+  const shine = await silhouettes.first().evaluate((node) => getComputedStyle(node, "::after").animationName);
+  expect(shine).toContain("skeleton-shine");
+  release();
+  await expect(page.getByRole("button", { name: /Мама/ })).toBeVisible();
+  await page.getByRole("button", { name: "Добавить человека" }).click();
+  const name = page.getByRole("textbox", { name: "Имя" }).locator("xpath=ancestor::label");
+  const born = page.getByRole("textbox", { name: "Дата рождения" }).locator("xpath=ancestor::label");
+  const save = page.getByRole("button", { name: "Сохранить" });
+  const add = page.getByRole("button", { name: "Добавить человека" });
+  await expect(name).toBeVisible();
+  const boxes = await Promise.all([name.boundingBox(), born.boundingBox(), save.boundingBox(), add.boundingBox()]);
+  const gaps = boxes.flatMap((box, index) => {
+    const next = boxes[index + 1];
+    if (box === null || next === null || next === undefined) {
+      return [];
+    }
+    return [Math.round(next.y - (box.y + box.height))];
+  });
+  expect(gaps).toEqual([24, 24, 24]);
 });
 
 test("onboarding leads to today and the forecast period changes", async ({ page }) => {
@@ -418,6 +465,8 @@ test("profile edit saves the birth time and an empty field means unknown", async
 
 test("tab bar, calendar, chat, settings and paywall", async ({ page }) => {
   await openReady(page, "/", true);
+  await page.getByRole("button", { name: "Натальная карта" }).click();
+  await expect(page.getByRole("heading", { name: "Натальная карта" })).toBeVisible();
   await page.getByRole("link", { name: "Календарь" }).click();
   await expect(page.getByRole("heading", { name: "Лунный календарь" })).toBeVisible();
   await page.goto("/calendar?day=2025-08-01");
@@ -432,9 +481,22 @@ test("tab bar, calendar, chat, settings and paywall", async ({ page }) => {
   await daily.click();
   await expect(daily).not.toBeChecked();
   await page.goto("/profile");
+  await expect(page.getByRole("link", { name: "История" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Избранное" }).click();
+  await expect(page.getByRole("heading", { name: "Избранное" })).toBeVisible();
+  await expect(page.getByText("Неделя спокойных дел")).toBeVisible();
+  await page.goto("/profile");
   await page.getByRole("link", { name: "Моя подписка" }).click();
   await expect(page.getByRole("heading", { name: "Больше о себе" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Разделы" })).toHaveCount(0);
+});
+
+test("add relative fields keep an even gap", async ({ page }) => {
+  await openReady(page, "/profile");
+  await page.getByRole("button", { name: "Добавить близкого" }).click();
+  await expect(page.getByRole("textbox", { name: "Имя" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Дата рождения" })).toBeVisible();
+  await expect(page).toHaveScreenshot("people-add.png", { animations: "disabled" });
 });
 
 const SHOTS: { name: string; path: string }[] = [
@@ -448,6 +510,7 @@ const SHOTS: { name: string; path: string }[] = [
   { name: "chat", path: "/chat" },
   { name: "people", path: "/people" },
   { name: "profile", path: "/profile" },
+  { name: "favorites", path: "/favorites" },
   { name: "settings", path: "/settings" },
   { name: "premium", path: "/premium" },
 ];

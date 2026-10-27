@@ -1,8 +1,13 @@
 import styles from "./Skeleton.module.css";
 
-export function Skeleton({ lines = 3 }: { lines?: number }) {
+type SkeletonProps = {
+  lines?: number;
+  variant?: "lines" | "rows";
+};
+
+export function Skeleton({ lines = 3, variant = "lines" }: SkeletonProps) {
   return (
-    <div className={styles.block} aria-hidden="true">
+    <div className={variant === "rows" ? styles.rows : styles.block} aria-hidden="true">
       {Array.from({ length: lines }, (_, index) => (
         <span key={index} />
       ))}

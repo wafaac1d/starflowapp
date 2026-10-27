@@ -9,7 +9,7 @@ import { Skeleton } from "./shared/ui/Skeleton/Skeleton";
 import { AdminPage } from "./pages/AdminPage";
 import { DeletePage } from "./pages/DeletePage";
 import { RetroPage } from "./pages/RetroPage";
-import { FavoritesPage, HistoryPage, ReferralPage } from "./pages/LibraryPages";
+import { HistoryPage, ReferralPage } from "./pages/LibraryPages";
 import { HelpPage, PaySupportPage, TermsPage } from "./pages/InfoPages";
 import { OpenAppPage } from "./pages/OpenAppPage";
 import { BirthScreen } from "./screens/BirthScreen";
@@ -18,6 +18,7 @@ import { ChatScreen } from "./screens/ChatScreen";
 import { CompatibilityScreen } from "./screens/CompatibilityScreen";
 import { ForecastScreen } from "./screens/ForecastScreen";
 import { NatalScreen } from "./screens/NatalScreen";
+import { FavoritesScreen } from "./screens/FavoritesScreen";
 import { PeopleScreen } from "./screens/PeopleScreen";
 import { PremiumScreen } from "./screens/PremiumScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
@@ -84,7 +85,7 @@ function AuthedApp({ initData }: { initData: string }) {
       <Route path="/settings" element={<SettingsScreen />} />
       <Route path="/premium" element={<PremiumScreen subscribed={profile.is_premium} />} />
       <Route path="/history" element={<HistoryPage />} />
-      <Route path="/favorites" element={<FavoritesPage />} />
+      <Route path="/favorites" element={<FavoritesScreen />} />
       <Route path="/referral" element={<ReferralPage />} />
       <Route path="/delete" element={<DeletePage />} />
       <Route path="/retro" element={<RetroPage />} />

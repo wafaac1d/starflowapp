@@ -1,0 +1,45 @@
+import { useQuery } from "@tanstack/react-query";
+
+import { getFavorites } from "../api/client";
+import { queryKeys } from "../api/keys";
+import { text } from "../resources";
+import { ErrorState } from "../shared/ui/ErrorState/ErrorState";
+import { ListRow } from "../shared/ui/ListRow/ListRow";
+import { Screen } from "../shared/ui/Screen/Screen";
+import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
+import { TopBar } from "../shared/ui/TopBar/TopBar";
+import styles from "./screens.module.css";
+
+type FavoritesScreenProps = {
+  fetchImpl?: typeof fetch;
+};
+
+export function FavoritesScreen({ fetchImpl = fetch }: FavoritesScreenProps) {
+  const favorites = useQuery({
+    queryKey: queryKeys.favorites,
+    queryFn: () => getFavorites(fetchImpl),
+  });
+  const rows = favorites.data ?? [];
+  return (
+    <Screen tab="profile">
+      <TopBar title={text("ui.reading.favorites")} back />
+      {favorites.isPending ? <Skeleton lines={3} /> : null}
+      {favorites.isError ? (
+        <ErrorState
+          message="Не удалось открыть избранное"
+          onRetry={() => {
+            void favorites.refetch();
+          }}
+        />
+      ) : null}
+      {favorites.isSuccess && rows.length === 0 ? <p className={styles.lead}>{text("ui.empty.favorites")}</p> : null}
+      {rows.length > 0 ? (
+        <div className={styles.stack}>
+          {rows.map((item) => (
+            <ListRow key={item.history_id} icon="save_bookmark" title={item.title} />
+          ))}
+        </div>
+      ) : null}
+    </Screen>
+  );
+}

@@ -67,7 +67,6 @@ export function ProfileScreen({ profile }: { profile: ProfileResponse }) {
           }}
         />
         <ListRow plain title="Избранное" chevron to="/favorites" />
-        <ListRow plain title="История" chevron to="/history" />
         <ListRow plain title="Моя подписка" chevron to="/premium" />
         {profile.is_admin ? <ListRow plain title="Админ" chevron to="/admin" /> : null}
       </div>

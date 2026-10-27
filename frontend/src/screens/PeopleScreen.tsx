@@ -8,6 +8,7 @@ import { Button } from "../shared/ui/Button/Button";
 import { Field } from "../shared/ui/Field/Field";
 import { ListRow } from "../shared/ui/ListRow/ListRow";
 import { Screen } from "../shared/ui/Screen/Screen";
+import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import { initialsOf } from "./format";
 import styles from "./screens.module.css";
@@ -38,43 +39,46 @@ export function PeopleScreen() {
   return (
     <Screen tab="profile">
       <TopBar title="Близкие" align="left" back />
-      <div className={styles.stack}>
-        {rows.map((person) => (
-          <ListRow
-            key={person.id}
-            avatar={person.initials}
-            title={person.name}
-            subtitle={person.birthDate}
-            chevron
-            onClick={() => {
-              void navigate(`/compatibility/${person.id}`);
-            }}
-          />
-        ))}
+      <div className={styles.people}>
+        {related.isPending ? <Skeleton lines={3} variant="rows" /> : null}
+        {related.isSuccess
+          ? rows.map((person) => (
+              <ListRow
+                key={person.id}
+                avatar={person.initials}
+                title={person.name}
+                subtitle={person.birthDate}
+                chevron
+                onClick={() => {
+                  void navigate(`/compatibility/${person.id}`);
+                }}
+              />
+            ))
+          : null}
+        {adding ? (
+          <>
+            <Field label="Имя" value={name} chevron={false} onChange={setName} />
+            <Field label="Дата рождения" value={born} chevron={false} onChange={setBorn} />
+            <Button
+              disabled={name.trim() === "" || born.trim() === ""}
+              onClick={() => {
+                add.mutate();
+              }}
+            >
+              Сохранить
+            </Button>
+          </>
+        ) : null}
+        <Button
+          variant="secondary"
+          icon="user_add"
+          onClick={() => {
+            setAdding(true);
+          }}
+        >
+          Добавить человека
+        </Button>
       </div>
-      {adding ? (
-        <div className={styles.stack}>
-          <Field label="Имя" value={name} chevron={false} onChange={setName} />
-          <Field label="Дата рождения" value={born} chevron={false} onChange={setBorn} />
-          <Button
-            disabled={name.trim() === "" || born.trim() === ""}
-            onClick={() => {
-              add.mutate();
-            }}
-          >
-            Сохранить
-          </Button>
-        </div>
-      ) : null}
-      <Button
-        variant="secondary"
-        icon="user_add"
-        onClick={() => {
-          setAdding(true);
-        }}
-      >
-        Добавить человека
-      </Button>
     </Screen>
   );
 }

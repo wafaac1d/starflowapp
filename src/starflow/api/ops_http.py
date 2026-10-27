@@ -76,6 +76,9 @@ class AdminUserBody(BaseModel):
 
 class AdminUsersBody(BaseModel):
     users: list[AdminUserBody]
+    total: int
+    page: int
+    page_size: int
 
 
 class AdminBody(BaseModel):
@@ -211,11 +214,15 @@ def register_ops_routes(router: APIRouter, container: Container) -> None:
         )
 
     @router.get("/admin/users", response_model=AdminUsersBody)
-    async def admin_users(request: Request) -> AdminUsersBody:
+    async def admin_users(
+        request: Request,
+        page: Annotated[int, Query(ge=1)] = 1,
+        page_size: Annotated[int, Query(ge=1, le=50)] = 10,
+    ) -> AdminUsersBody:
         actor = await actor_from_cookie(request, container, unauthorized)
         if not actor.view.is_admin:
             raise ApiError(403, "unauthorized", unauthorized)
-        rows = await ops.accounts()
+        rows, total = await ops.accounts(page, page_size)
         return AdminUsersBody(
             users=[
                 AdminUserBody(
@@ -226,7 +233,10 @@ def register_ops_routes(router: APIRouter, container: Container) -> None:
                     premium=premium,
                 )
                 for row, premium in rows
-            ]
+            ],
+            total=total,
+            page=page,
+            page_size=page_size,
         )
 
 

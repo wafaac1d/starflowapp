@@ -271,12 +271,17 @@ class OpsService:
         async with self._uow_factory() as uow:
             return await uow.ops.snapshot(start, end)
 
-    async def accounts(self) -> tuple[tuple[OpenAccount, bool], ...]:
+    async def accounts(
+        self, page: int, page_size: int
+    ) -> tuple[tuple[tuple[OpenAccount, bool], ...], int]:
         now = self._clock()
+        offset = (page - 1) * page_size
         async with self._uow_factory() as uow:
-            rows = await uow.ops.open_accounts(200)
+            total = await uow.ops.count_open_accounts()
+            rows = await uow.ops.open_accounts(page_size, offset)
             premium = await uow.subscriptions.premium_user_ids(now)
-        return tuple((row, row.user_id in premium) for row in rows)
+        listed = tuple((row, row.user_id in premium) for row in rows)
+        return listed, total
 
     def stations(self, start: datetime, end: datetime) -> tuple[Station, ...]:
         def speed_at(moment: datetime, planet: str) -> float:

@@ -186,6 +186,13 @@
   gap: var(--space-3);
 }
 
+.people {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-top: var(--space-5);
+}
+
 .reading {
   display: flex;
   flex-direction: column;
@@ -343,6 +350,9 @@
 
 .todayAction {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
   padding-top: var(--space-4);
 }
 

@@ -435,7 +435,11 @@ async def test_admin_overview_hides_people_and_delete_keeps_a_thin_charge(
             assert "личный" not in overview.text
             people = await client.get("/api/v1/admin/users")
             assert people.status_code == 200
-            listed = people.json()["users"]
+            payload = people.json()
+            assert payload["page"] == 1
+            assert payload["page_size"] == 10
+            assert payload["total"] >= 1
+            listed = payload["users"]
             person = next(item for item in listed if item["user_id"] == str(user_id))
             assert person == {
                 "user_id": str(user_id),

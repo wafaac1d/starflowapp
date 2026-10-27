@@ -823,6 +823,12 @@ export interface components {
         AdminUsersBody: {
             /** Users */
             users: components["schemas"]["AdminUserBody"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Page Size */
+            page_size: number;
         };
         /** AssistantBody */
         AssistantBody: {
@@ -2709,7 +2715,10 @@ export interface operations {
     };
     admin_users_api_v1_admin_users_get: {
         parameters: {
-            query?: never;
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2723,6 +2732,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminUsersBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

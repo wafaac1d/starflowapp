@@ -106,7 +106,7 @@ settings:
 admin:
   title: Админ
   denied: Эта страница только для администратора.
-  lead: Счётчики без имён, дат рождения и текстов переписки.
+  lead: Выберите человека и выдайте период. Дата рождения и переписка не показываются.
   from: С даты
   to: По дату
   show: Показать
@@ -118,6 +118,13 @@ admin:
   range: Даты включительно, граница суток utc, не длиннее 366 дней.
   people: Пользователи
   people_lead: Имя, имя в Telegram и числовой id. Дата рождения и переписка не показываются.
+  col_name: Имя
+  col_telegram: Telegram
+  col_id: Id
+  col_premium: Premium
+  page_prev: Предыдущая
+  page_next: Следующая
+  page_status: '{page} из {pages}'
   unnamed: Без имени
   premium_on: Premium
   premium_off: Без Premium

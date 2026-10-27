@@ -6,12 +6,14 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProfileResponse } from "../api/client";
+import { applyTheme, readThemeChoice } from "../theme";
 import { BirthScreen } from "./BirthScreen";
 import { CalendarScreen } from "./CalendarScreen";
 import { ChatScreen } from "./ChatScreen";
 import { CompatibilityScreen } from "./CompatibilityScreen";
 import { ForecastScreen } from "./ForecastScreen";
 import { NatalScreen } from "./NatalScreen";
+import { FavoritesScreen } from "./FavoritesScreen";
 import { PeopleScreen } from "./PeopleScreen";
 import { PremiumScreen } from "./PremiumScreen";
 import { ProfileScreen } from "./ProfileScreen";
@@ -121,6 +123,7 @@ describe("screens", () => {
     expect(screen.getByRole("heading", { name: "Анна" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Открыть прогноз" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Любовь" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Натальная карта" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Совместимость" })).toBeInTheDocument();
     expect(await screen.findByText("Не удалось связаться со звёздами")).toBeInTheDocument();
     expect(screen.queryByText("День для ясных решений")).not.toBeInTheDocument();
@@ -652,17 +655,54 @@ describe("screens", () => {
     renderAt(<PeopleScreen />);
     expect(await screen.findByRole("button", { name: /Мама/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Добавить человека" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Добавить человека" }));
+    expect(screen.getByRole("textbox", { name: "Имя" })).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Дата рождения" })).toBeInTheDocument();
+  });
+
+  it("shows shimmering row silhouettes while people load", () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>(() => new Promise(() => undefined)));
+    const view = renderAt(<PeopleScreen />);
+    expect(view.container.querySelectorAll("div[aria-hidden='true'] > span")).toHaveLength(3);
   });
 
   it("links the subscription from the profile", () => {
     renderAt(<ProfileScreen profile={profile()} />);
     expect(screen.getByRole("heading", { name: "Анна" })).toBeInTheDocument();
     expect(screen.getByText("Лев · 12.08.1995")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Избранное" })).toHaveAttribute("href", "/favorites");
+    expect(screen.queryByRole("link", { name: "История" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Моя подписка" })).toHaveAttribute("href", "/premium");
     expect(screen.getByRole("button", { name: "Редактировать профиль" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Добавить близкого" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Удалить данные" })).toHaveAttribute("href", "/delete");
     expect(screen.queryByRole("link", { name: "Админ" })).not.toBeInTheDocument();
+  });
+
+  it("lists saved readings on the favorites screen", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(
+          JSON.stringify([
+            { history_id: "11111111-1111-1111-1111-111111111111", title: "День для ясных решений" },
+            { history_id: "22222222-2222-2222-2222-222222222222", title: "Неделя спокойных дел" },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+    renderAt(<FavoritesScreen />);
+    expect(screen.getByRole("heading", { name: "Избранное" })).toBeInTheDocument();
+    expect(await screen.findByText("День для ясных решений")).toBeInTheDocument();
+    expect(screen.getByText("Неделя спокойных дел")).toBeInTheDocument();
+    expect(screen.queryByText("В избранном пока пусто")).not.toBeInTheDocument();
+  });
+
+  it("shows an empty favorites screen", async () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(Response.json([])));
+    renderAt(<FavoritesScreen />);
+    expect(await screen.findByText("В избранном пока пусто")).toBeInTheDocument();
   });
 
   it("opens the admin page from the profile when the session is an admin", () => {
@@ -672,13 +712,26 @@ describe("screens", () => {
 
   it("toggles a settings switch", async () => {
     localStorage.removeItem("starflow-theme");
+    const previous = window.Telegram;
+    try {
+      window.Telegram = { WebApp: { colorScheme: "dark" } };
+      applyTheme(readThemeChoice());
+      expect(document.documentElement.dataset.themeChoice).toBe("telegram");
+      expect(document.documentElement.dataset.theme).toBe("dark");
+      window.Telegram = { WebApp: { colorScheme: "light" } };
+      applyTheme(readThemeChoice());
+      expect(document.documentElement.dataset.theme).toBe("light");
+    } finally {
+      if (previous === undefined) delete window.Telegram;
+      else window.Telegram = previous;
+    }
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
     renderAt(<SettingsScreen />);
     const master = screen.getByRole("switch", { name: "Уведомления" });
     expect(master).toBeChecked();
     await userEvent.click(master);
     expect(master).not.toBeChecked();
-    expect(screen.getByRole("radio", { name: "Тёмная" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Авто" })).toBeChecked();
     await userEvent.click(screen.getByRole("radio", { name: "Светлая" }));
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(screen.getByRole("radio", { name: "Светлая" })).toBeChecked();

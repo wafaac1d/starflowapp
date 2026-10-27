@@ -82,6 +82,14 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
           <Button
             variant="secondary"
             onClick={() => {
+              void navigate("/natal");
+            }}
+          >
+            Натальная карта
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
               void navigate("/compatibility");
             }}
           >

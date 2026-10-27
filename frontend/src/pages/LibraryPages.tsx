@@ -6,7 +6,6 @@ import {
   addRelated,
   allowRelated,
   deleteRelated,
-  getFavorites,
   getHistory,
   getReferral,
   getRelated,
@@ -33,23 +32,6 @@ export function HistoryPage({ fetchImpl = fetch }: FetchProps) {
         <p key={item.history_id}>
           {item.title} · {item.period_date}
         </p>
-      ))}
-      <BackHome />
-    </main>
-  );
-}
-
-export function FavoritesPage({ fetchImpl = fetch }: FetchProps) {
-  const favorites = useQuery({ queryKey: ["favorites"], queryFn: () => getFavorites(fetchImpl) });
-  return (
-    <main className="shell">
-      <h1>{text("ui.reading.favorites")}</h1>
-      {favorites.isPending ? <Skeleton /> : null}
-      {favorites.data !== undefined && favorites.data.length === 0 ? (
-        <EmptyState title={text("ui.empty.favorites")} />
-      ) : null}
-      {favorites.data?.map((item) => (
-        <p key={item.history_id}>{item.title}</p>
       ))}
       <BackHome />
     </main>
