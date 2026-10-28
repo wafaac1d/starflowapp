@@ -88,7 +88,7 @@ starflowapp/
     e2e/
 ```
 
-`static/logo.png` остаётся файлом пользователя. Сборка копирует его в `frontend/dist`, а образ `app` забирает уже собранный каталог. Код не создаёт другой логотип.
+`static/logo.png` остаётся файлом пользователя. Код не создаёт другой логотип. Стадия сборки клиента копирует весь `static/`: Vite кладёт эти файлы в `frontend/dist`, и образ `app` отдаёт уже собранный каталог. В процесс Python отдельно попадают `static/logo.png` и `static/font`.
 
 Шрифт лежит в `static/font`: оба variable-файла `Google Sans`, `OFL.txt` и `TRADEMARKS.md`. Сборка frontend забирает начертания в `frontend/dist`, а образ дополнительно копирует каталог в `/app/static/font`.
 

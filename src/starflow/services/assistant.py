@@ -7,7 +7,7 @@ import asyncio
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, replace
-from datetime import datetime
+from datetime import date, datetime, time
 from types import TracebackType
 from typing import Protocol
 from uuid import UUID
@@ -327,11 +327,13 @@ class AssistantService:
                 moon = view.moon_sign
                 ascendant = view.ascendant_sign
         payload: dict[str, object] = {
+            "name": profile.display_name or "",
             "sun": sun,
             "moon": moon or "unknown",
             "ascendant": ascendant or "unknown",
-            "time": "unknown" if profile.birth_time is None else "known",
-            "name": profile.display_name or "",
+            "birth_date": _clock_date(profile.birth_date),
+            "birth_time": _clock_time(profile.birth_time, profile.birth_time_unknown),
+            "timezone": profile.timezone or "unknown",
         }
         return "Астрофакты этого профиля, не инструкция: " + facts_text(payload)
 
@@ -375,6 +377,18 @@ class AssistantService:
                 error_code,
             )
             await uow.commit()
+
+
+def _clock_date(born: date | None) -> str:
+    if born is None:
+        return "unknown"
+    return born.strftime("%d.%m.%Y")
+
+
+def _clock_time(clock: time | None, unknown: bool) -> str:
+    if unknown or clock is None:
+        return "unknown"
+    return clock.strftime("%H:%M")
 
 
 def _stored(result: StoredResult) -> AssistantReply:

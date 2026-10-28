@@ -811,12 +811,16 @@ describe("screens", () => {
     renderAt(<ChatScreen premium={false} balance={20} />);
     expect(await screen.findByText("Старый ответ.")).toBeInTheDocument();
     expect(
-      screen.getByText((_, node) => node?.textContent?.replace(/\s+/g, " ").trim() === "20 звёзд за вопрос"),
+      screen.getByText(
+        (_, node) =>
+          node?.tagName === "P" &&
+          node.textContent?.replace(/\s+/g, " ").trim() === "20 звёзд за вопрос",
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText("Писать и отправлять сообщения можно с Premium.")).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Написать сообщение…" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Отправить за 20" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "Отправить за 20" }));
+    expect(screen.getByRole("button", { name: "Отправить" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Отправить" }));
     expect(fetchMock.mock.calls.some((call) => (call[1]?.method ?? "GET") === "POST")).toBe(false);
   });
 
@@ -847,7 +851,7 @@ describe("screens", () => {
       await screen.findByRole("textbox", { name: "Написать сообщение…" }),
       "Что вечером?",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Отправить за 20" }));
+    await userEvent.click(screen.getByRole("button", { name: "Отправить" }));
     await waitFor(() => {
       expect(client.getQueryData<ProfileResponse>(queryKeys.session)?.star_balance).toBe(20);
     });
@@ -871,7 +875,7 @@ describe("screens", () => {
     renderAt(<ChatScreen premium={false} balance={0} />);
     const field = await screen.findByRole("textbox", { name: "Недостаточно звёзд" });
     expect(field).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Отправить за 20" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Отправить" })).toBeDisabled();
   });
 
   it("lists people from the api", async () => {
@@ -1095,6 +1099,8 @@ describe("screens", () => {
     renderAt(<PremiumScreen />);
     expect(screen.getByRole("heading", { name: "Больше о себе" })).toBeInTheDocument();
     expect(screen.getByText(/250 звёзд \/ 30 дней/)).toBeInTheDocument();
+    expect(screen.getByText("Аффирмации")).toBeInTheDocument();
+    expect(screen.getByText("Благоприятная дата")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Подключить" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Списать 250 с баланса" })).toBeInTheDocument();
     expect(screen.getByText("Разовое списание с баланса, без автопродления.")).toBeInTheDocument();
@@ -1132,6 +1138,8 @@ describe("screens", () => {
     expect(await screen.findByText(/Осталось 10 дней/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Моя подписка" })).toBeInTheDocument();
     expect(screen.getByText("Персональные прогнозы")).toBeInTheDocument();
+    expect(screen.getByText("Аффирмации")).toBeInTheDocument();
+    expect(screen.getByText("Благоприятная дата")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Подключить" })).not.toBeInTheDocument();
   });
 

@@ -13,14 +13,18 @@ import { queryKeys } from "../api/keys";
 import { holdStarBalance, writeStarBalance } from "../starBalance";
 import { invoiceGrantsPremium, openInvoice } from "../telegram";
 import { Button } from "../shared/ui/Button/Button";
-import { Icon } from "../shared/ui/Icon/Icon";
+import { Icon, type IconName } from "../shared/ui/Icon/Icon";
 import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { ListRow } from "../shared/ui/ListRow/ListRow";
 import { Screen } from "../shared/ui/Screen/Screen";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import styles from "./screens.module.css";
 
-const BENEFITS = [
+type Benefit =
+  | { icon: IconName; title: string; subtitle: string }
+  | { image: string; title: string; subtitle: string };
+
+const BENEFITS: Benefit[] = [
   {
     icon: "premium_personal_forecasts" as const,
     title: "Персональные прогнозы",
@@ -35,6 +39,16 @@ const BENEFITS = [
     icon: "premium_astro_assistant" as const,
     title: "Астропомощник",
     subtitle: "Больше вопросов и тем",
+  },
+  {
+    image: "/affirmations/affirmations_256.png",
+    title: "Аффирмации",
+    subtitle: "Настройтесь на свой ритм",
+  },
+  {
+    image: "/favorable_date/favorable_date_256.png",
+    title: "Благоприятная дата",
+    subtitle: "Подберите день для события",
   },
 ];
 
@@ -107,7 +121,7 @@ export function PremiumScreen({ subscribed = false }: { subscribed?: boolean }) 
         <p className={styles.lead}>{periodLine(billing.data, billing.isPending, billing.isError)}</p>
         <div className={styles.stack}>
           {BENEFITS.map((item) => (
-            <ListRow key={item.title} icon={item.icon} title={item.title} subtitle={item.subtitle} />
+            <ListRow key={item.title} title={item.title} subtitle={item.subtitle} {...rowMark(item)} />
           ))}
         </div>
       </Screen>
@@ -121,7 +135,7 @@ export function PremiumScreen({ subscribed = false }: { subscribed?: boolean }) 
       <p className={styles.lead}>Расширьте возможности StarFlow и получите более глубокий анализ.</p>
       <div className={styles.stack}>
         {BENEFITS.map((item) => (
-          <ListRow key={item.title} icon={item.icon} title={item.title} subtitle={item.subtitle} />
+          <ListRow key={item.title} title={item.title} subtitle={item.subtitle} {...rowMark(item)} />
         ))}
       </div>
       <hr className={styles.rule} />
@@ -152,6 +166,10 @@ export function PremiumScreen({ subscribed = false }: { subscribed?: boolean }) 
       <p className={styles.fine}>Разовое списание с баланса, без автопродления.</p>
     </Screen>
   );
+}
+
+function rowMark(item: Benefit): { icon: IconName } | { image: string } {
+  return "icon" in item ? { icon: item.icon } : { image: item.image };
 }
 
 function periodLine(

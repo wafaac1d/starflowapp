@@ -50,6 +50,12 @@
   color: var(--color-peach);
 }
 
+.picture {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
 .copy {
   flex: 1;
   min-width: 0;

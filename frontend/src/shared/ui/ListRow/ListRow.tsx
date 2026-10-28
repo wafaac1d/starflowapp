@@ -9,6 +9,7 @@ type ListRowProps = {
   subtitle?: string;
   value?: string;
   icon?: IconName;
+  image?: string;
   avatar?: string;
   chevron?: boolean;
   plain?: boolean;
@@ -22,6 +23,7 @@ export function ListRow({
   subtitle,
   value,
   icon,
+  image,
   avatar,
   chevron = false,
   plain = false,
@@ -32,7 +34,12 @@ export function ListRow({
   const body = (
     <>
       {avatar !== undefined ? <span className={styles.avatar}>{avatar}</span> : null}
-      {icon !== undefined ? (
+      {image !== undefined ? (
+        <span className={styles.icon}>
+          <img className={styles.picture} src={image} alt="" />
+        </span>
+      ) : null}
+      {image === undefined && icon !== undefined ? (
         <span className={styles.icon}>
           <Icon name={icon} size={22} />
         </span>

@@ -3,10 +3,7 @@ WORKDIR /src
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/
 COPY frontend/ frontend/
 COPY resources/ resources/
-COPY static/logo.png static/logo.png
-COPY static/font static/font
-COPY static/icons static/icons
-COPY static/illustrations static/illustrations
+COPY static static
 WORKDIR /src/frontend
 RUN corepack enable && corepack prepare pnpm@10.18.0 --activate
 RUN pnpm install --frozen-lockfile

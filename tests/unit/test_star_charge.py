@@ -13,6 +13,8 @@ USER = UUID(int=1)
 class _Profile:
     birth_date = None
     birth_time = None
+    birth_time_unknown = True
+    timezone = None
     display_name = "Анна"
 
 

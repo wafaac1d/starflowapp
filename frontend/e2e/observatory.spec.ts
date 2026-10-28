@@ -502,7 +502,7 @@ test("empty chat explains itself in the middle", async ({ page }) => {
   await expect(note).toContainText("20");
   await expect(page.getByText("звёзд за вопрос")).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Недостаточно звёзд" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Отправить за 20" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Отправить" })).toBeDisabled();
   const box = await note.boundingBox();
   const center = (box?.y ?? 0) + (box?.height ?? 0) / 2;
   expect(center).toBeGreaterThan(280);

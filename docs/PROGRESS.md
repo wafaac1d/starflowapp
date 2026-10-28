@@ -891,6 +891,47 @@ D-085. Внизу «Сегодня» пять карточек: Совмести
 
 Живой клиент Telegram не открывался.
 
+## Картинки практик в образе, 2026-10-28
+
+На «Сегодня» новые картинки открывались как битая иконка. Файлы в `static/` целые, локальный Vite отдаёт их с кодом 200. Стадия frontend образа копировала только логотип, шрифт, `icons` и `illustrations`, поэтому в собранном клиенте не было `compatibility`, `natal_chart`, `retrograde_planets`, `affirmations`, `favorable_date` и `planets`. Стадия теперь копирует весь `static/`.
+
+| Команда | Код |
+| --- | --- |
+| `curl -sI http://127.0.0.1:5173/compatibility/compatibility_256.png` | 200, `Content-Type: image/png`, 11412 байт |
+| `docker build --target frontend -t starflow:practices .` | 0. В `dist` есть `compatibility_256.png`, `natal_chart_256.png`, `retrograde_planets_256.png`, `affirmations_256.png`, `favorable_date_256.png` и `planets` |
+
+## Самолётик в чате без цены, 2026-10-28
+
+D-086. Со кнопки отправки убраны звёздочка и 20. Цена вопроса остаётся на чипе над полем.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'lets a question through\|drops the star balance\|closes the chat field'` | 0, 3 теста |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'empty chat explains\|screenshot chat' --update-snapshots` | 0, 2 теста. Снимок `chat.png` перезаписан |
+
+## Аффирмации и благоприятная дата в Premium, 2026-10-28
+
+D-087. На странице подключения к трём пунктам добавлены «Аффирмации» и «Благоприятная дата». Тот же список виден при уже открытой подписке.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'shows the premium offer\|shows the remaining days'` | 0, 2 теста |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'screenshot premium' --update-snapshots` | 0, 1 тест. Снимок `premium.png` перезаписан |
+
+## Дата и время рождения у астропомощника, 2026-10-28
+
+D-088. В фактах вопроса теперь дата `дд.мм.гггг`, время `чч:мм` и пояс спрашивающего. Неизвестное время остаётся `unknown`. Системный текст просит опираться на эти данные.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по `assistant.py`, `test_assistant_facts.py` и `test_star_charge.py` | 0 |
+| `uv run ruff format --check` по `assistant.py` и `test_assistant_facts.py` | 0 |
+| `uv run mypy src/starflow/services/assistant.py` | 0 |
+| `uv run pytest tests/unit/test_assistant_facts.py tests/unit/test_star_charge.py -q` | 0, 5 тестов |
+
+Живой DeepSeek не вызывался.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

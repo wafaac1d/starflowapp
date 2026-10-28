@@ -121,7 +121,6 @@ export function ChatScreen({ premium, balance = 0 }: { premium: boolean; balance
             pending={ask.isPending || history.isLoading}
             locked={short}
             placeholder={short ? "Недостаточно звёзд" : "Написать сообщение…"}
-            {...(priced ? { price: QUESTION_STARS } : {})}
             onChange={setDraft}
             onSubmit={() => {
               const text = draft.trim();

@@ -1,5 +1,4 @@
 import { Icon } from "../Icon/Icon";
-import { StarPrice } from "../StarPrice/StarPrice";
 import styles from "./ChatInput.module.css";
 
 type ChatInputProps = {
@@ -7,7 +6,6 @@ type ChatInputProps = {
   pending?: boolean;
   locked?: boolean;
   placeholder?: string;
-  price?: number;
   onChange: (value: string) => void;
   onSubmit: () => void;
 };
@@ -17,11 +15,9 @@ export function ChatInput({
   pending = false,
   locked = false,
   placeholder = "Написать сообщение…",
-  price,
   onChange,
   onSubmit,
 }: ChatInputProps) {
-  const label = price === undefined ? "Отправить" : `Отправить за ${price}`;
   return (
     <form
       className={styles.form}
@@ -47,12 +43,11 @@ export function ChatInput({
         }}
       />
       <button
-        className={price === undefined ? styles.send : styles.sendPriced}
+        className={styles.send}
         type="submit"
-        aria-label={label}
+        aria-label="Отправить"
         disabled={locked || pending || value.trim() === ""}
       >
-        {price !== undefined ? <StarPrice amount={price} /> : null}
         <Icon name="send" size={36} />
       </button>
     </form>
