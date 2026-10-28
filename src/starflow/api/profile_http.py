@@ -26,6 +26,7 @@ class ProfileBody(BaseModel):
     latitude: str | None
     longitude: str | None
     calendar_sign: str | None
+    star_balance: int
 
 
 class DraftBody(BaseModel):
@@ -140,7 +141,8 @@ def register_profile_routes(router: APIRouter, container: Container) -> None:
 
 async def profile_body(container: Container, user_id: UUID, is_admin: bool) -> ProfileBody:
     profile, premium, sign = await container.profile_service.read(user_id)
-    return _body(user_id, is_admin, premium, sign, profile)
+    balance = await container.stars_service.balance(user_id)
+    return _body(user_id, is_admin, premium, sign, profile, balance)
 
 
 async def _actor(request: Request, container: Container, unauthorized: str) -> Actor:
@@ -186,6 +188,7 @@ def _body(
     premium: bool,
     sign: str | None,
     profile: Profile,
+    balance: int,
 ) -> ProfileBody:
     return ProfileBody(
         user_id=user_id,
@@ -201,6 +204,7 @@ def _body(
         latitude=None if profile.latitude is None else str(profile.latitude),
         longitude=None if profile.longitude is None else str(profile.longitude),
         calendar_sign=sign,
+        star_balance=balance,
     )
 
 

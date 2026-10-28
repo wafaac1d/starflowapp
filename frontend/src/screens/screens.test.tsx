@@ -36,6 +36,7 @@ function profile(): ProfileResponse {
     latitude: null,
     longitude: null,
     calendar_sign: "Лев",
+    star_balance: 0,
   };
 }
 
@@ -127,6 +128,33 @@ describe("screens", () => {
     expect(screen.getByRole("button", { name: "Совместимость" })).toBeInTheDocument();
     expect(await screen.findByText("Не удалось связаться со звёздами")).toBeInTheDocument();
     expect(screen.queryByText("День для ясных решений")).not.toBeInTheDocument();
+  });
+
+  it("opens a top-up from the balance", async () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
+    renderAt(<TodayScreen profile={{ ...profile(), star_balance: 15 }} />);
+    await userEvent.click(screen.getByRole("button", { name: "Баланс 15" }));
+    const dialog = screen.getByRole("dialog", { name: "Пополнение" });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: (value) => value === "10" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(within(dialog).getByRole("button", { name: "20" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "50" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "100" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Оплатить" })).toBeEnabled();
+    expect(within(dialog).getByRole("link", { name: (value) => value === "Premium" })).toHaveAttribute(
+      "href",
+      "/premium",
+    );
+    expect(within(dialog).getByRole("link", { name: "t.me/PremiumBot" })).toHaveAttribute(
+      "href",
+      "https://t.me/PremiumBot",
+    );
+    expect(dialog).toHaveTextContent("Можно подключить");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Закрыть" }));
+    expect(screen.queryByRole("dialog", { name: "Пополнение" })).not.toBeInTheDocument();
   });
 
   it("shows the day title only after the reading is ready", async () => {
@@ -283,6 +311,38 @@ describe("screens", () => {
     expect(screen.getByRole("tab", { name: "Разбор" })).toHaveAttribute("aria-selected", "true");
   });
 
+  it("asks for 40 stars before showing a natal chart without premium", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input, init) => {
+        if (String(input).includes("/stars/spends") && init?.method === "POST") {
+          return Response.json({ balance: 0 }, { status: 402 });
+        }
+        return Response.json({
+          sun_sign: "лев",
+          sun_sign_source: "ephemeris",
+          moon_sign: "рыбы",
+          ascendant_sign: "скорпион",
+          houses: ["скорпион"],
+          house_cusps: [210],
+          planets: [{ id: "sun", name: "солнце", sign: "лев", degree: 19.4, longitude: 139.4 }],
+          aspects: [],
+          transits: [],
+          lunar_day: null,
+          phase_name: null,
+          limitations: [],
+          natal_access: "stars_required",
+          sections: [],
+        });
+      }),
+    );
+    renderAt(<NatalScreen />);
+    expect(await screen.findByRole("button", { name: "Открыть за 40" })).toBeInTheDocument();
+    expect(screen.queryByText("19°24′")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Открыть за 40" }));
+    expect(await screen.findByRole("dialog", { name: "Пополнение" })).toBeInTheDocument();
+  });
+
   it("waits for a long natal reading instead of the short section", async () => {
     let release: (response: Response) => void = () => undefined;
     const gate = new Promise<Response>((resolve) => {
@@ -398,7 +458,15 @@ describe("screens", () => {
   });
 
   it("shows compatibility cards", async () => {
-    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input) => {
+        if (String(input).includes("/stars/spends")) {
+          return Response.json({ balance: 0, allowed: true, charged: true, price: 40 });
+        }
+        throw new Error("offline");
+      }),
+    );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
@@ -423,7 +491,9 @@ describe("screens", () => {
     await userEvent.click(screen.getByRole("button", { name: "Проверить" }));
     expect(await screen.findByText("Глубокая связь")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Эмоции/ }));
-    expect(screen.getByRole("alertdialog")).toHaveTextContent("Эта функция только с Premium.");
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent(
+      "Не удалось связаться со звёздами",
+    );
   });
 
   it("asks the pair focus instead of a daily topic", async () => {
@@ -494,7 +564,15 @@ describe("screens", () => {
       removeEventListener() {},
     }));
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input) => {
+        if (String(input).includes("/stars/spends")) {
+          return Response.json({ balance: 0, allowed: true, charged: true, price: 40 });
+        }
+        throw new Error("offline");
+      }),
+    );
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={client}>
@@ -611,7 +689,7 @@ describe("screens", () => {
     expect(screen.getAllByText("Один ответ.")).toHaveLength(1);
   });
 
-  it("keeps the composer closed without premium", async () => {
+  it("lets a question through without premium and shows its price", async () => {
     const fetchMock = vi.fn<typeof fetch>(async (_input, init) => {
       if ((init?.method ?? "GET") === "POST") {
         return Response.json({ status: "premium", reply: null, remaining: null, replayed: false, code: "premium_required" });
@@ -631,8 +709,9 @@ describe("screens", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderAt(<ChatScreen premium={false} />);
     expect(await screen.findByText("Старый ответ.")).toBeInTheDocument();
-    expect(screen.getByText("Писать и отправлять сообщения можно с Premium.")).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Написать сообщение…" })).toBeDisabled();
+    expect(screen.getByText("20 звёзд за вопрос")).toBeInTheDocument();
+    expect(screen.queryByText("Писать и отправлять сообщения можно с Premium.")).not.toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Написать сообщение…" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Отправить" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "Отправить" }));
     expect(fetchMock.mock.calls.some((call) => (call[1]?.method ?? "GET") === "POST")).toBe(false);

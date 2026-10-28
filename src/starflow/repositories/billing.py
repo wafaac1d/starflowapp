@@ -12,6 +12,7 @@ from starflow.db.tables import (
     GiftCodeRow,
     OrderRow,
     PaymentChargeRow,
+    StarSpendRow,
     SubscriptionEventRow,
     SubscriptionRow,
     UserRow,
@@ -27,6 +28,7 @@ from starflow.domain.billing import (
 from starflow.domain.entitlement import Grant
 from starflow.domain.errors import Conflict
 from starflow.domain.records import User
+from starflow.domain.stars import SpendResult, settle_spend
 
 
 def _one_row(result: object) -> bool:
@@ -143,6 +145,72 @@ class BillingRepository:
             return None
         return _user(row)
 
+    async def star_balance(self, user_id: UUID) -> int:
+        result = await self._session.execute(
+            select(UserRow.star_balance).where(UserRow.id == user_id)
+        )
+        value = result.scalar_one_or_none()
+        return 0 if value is None else value
+
+    async def credit_stars(self, user_id: UUID, amount: int) -> int:
+        if amount < 1:
+            raise Conflict("star credit is empty")
+        row = await self._locked_user(user_id)
+        row.star_balance += amount
+        await self._session.flush()
+        return row.star_balance
+
+    async def debit_stars(self, user_id: UUID, amount: int) -> int:
+        if amount < 1:
+            raise Conflict("star debit is empty")
+        row = await self._locked_user(user_id)
+        row.star_balance = max(0, row.star_balance - amount)
+        await self._session.flush()
+        return row.star_balance
+
+    async def owns_spend(self, user_id: UUID, feature: str, subject: str) -> bool:
+        result = await self._session.execute(
+            select(StarSpendRow.id).where(
+                StarSpendRow.user_id == user_id,
+                StarSpendRow.feature == feature,
+                StarSpendRow.subject == subject,
+            )
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def spend_stars(
+        self,
+        user_id: UUID,
+        feature: str,
+        subject: str,
+        price: int,
+    ) -> SpendResult:
+        row = await self._locked_user(user_id)
+        already = await self.owns_spend(user_id, feature, subject)
+        settled = settle_spend(row.star_balance, price, already)
+        if not settled.charged:
+            return settled
+        row.star_balance = settled.balance
+        await _save(
+            self._session,
+            StarSpendRow(
+                user_id=user_id,
+                feature=feature,
+                subject=subject,
+                amount=price,
+            ),
+        )
+        return settled
+
+    async def _locked_user(self, user_id: UUID) -> UserRow:
+        result = await self._session.execute(
+            select(UserRow).where(UserRow.id == user_id).with_for_update()
+        )
+        row = result.scalar_one_or_none()
+        if row is None or row.deleted_at is not None:
+            raise Conflict("user is missing")
+        return row
+
     async def by_key(self, user_id: UUID, key: str) -> OrderRecord | None:
         result = await self._session.execute(
             select(OrderRow)
@@ -179,10 +247,12 @@ class BillingRepository:
         key: str,
         subscription_period: int | None,
         now: datetime,
+        *,
+        plan_code: str = "premium",
     ) -> OrderRecord:
         row = OrderRow(
             user_id=user_id,
-            plan_code="premium",
+            plan_code=plan_code,
             amount_stars=amount,
             currency="XTR",
             status="link_pending",

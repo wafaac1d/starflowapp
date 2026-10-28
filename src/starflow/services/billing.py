@@ -27,6 +27,7 @@ from starflow.domain.entitlement import Grant, access_end, grant_is_open
 from starflow.domain.errors import Conflict, FieldInvalid, PaymentUnavailable
 from starflow.domain.plans import Plans
 from starflow.domain.quota import idempotency_key_ok
+from starflow.domain.stars import purchase_effect, topup_amount_ok
 from starflow.domain.time import now_utc
 from starflow.i18n.catalog import Catalog
 from starflow.repositories.billing import BillingRepository
@@ -75,6 +76,14 @@ class BillingView:
     gift_link: str | None
     trial_available: bool
     period_end: datetime | None
+
+
+@dataclass(frozen=True)
+class TopupView:
+    order_id: UUID
+    invoice_link: str
+    balance: int
+    amount: int
 
 
 class BillingService:
@@ -169,6 +178,68 @@ class BillingService:
             await uow.billing.save_link(order_id, link, self._now())
             await uow.commit()
         return await self.view(user_id)
+
+    async def create_topup(self, user_id: UUID, amount: int, key: str) -> TopupView:
+        if not topup_amount_ok(amount):
+            raise FieldInvalid("amount", "errors.validation")
+        if not idempotency_key_ok(key):
+            raise FieldInvalid("idempotency_key", "errors.idempotency_key")
+        now = self._now()
+        order_id: UUID | None = None
+        payload = ""
+        async with self._uow_factory() as uow:
+            await uow.billing.lock_user(user_id)
+            existing = await uow.billing.by_key(user_id, key)
+            if existing is not None and (
+                existing.kind != "topup" or existing.amount_stars != amount
+            ):
+                raise FieldInvalid("idempotency_key", "errors.idempotency_key")
+            if existing is not None and existing.invoice_link:
+                balance = await uow.billing.star_balance(user_id)
+                return TopupView(existing.id, existing.invoice_link, balance, amount)
+            fresh = now - timedelta(seconds=LINK_CLAIM_SEC)
+            if (
+                existing is not None
+                and existing.sync_state == "creating_link"
+                and existing.updated_at > fresh
+            ):
+                raise PaymentUnavailable("invoice link is still opening")
+            if existing is None:
+                existing = await uow.billing.insert_order(
+                    user_id,
+                    "topup",
+                    amount,
+                    key,
+                    None,
+                    now,
+                    plan_code="stars",
+                )
+                signed = sign_payload(existing.id, self._secret)
+                await uow.billing.set_payload(existing.id, signed, now)
+                payload = signed
+            else:
+                payload = existing.invoice_payload
+            claimed = await uow.billing.claim_link(existing.id, now, fresh)
+            if not claimed:
+                await uow.commit()
+                raise PaymentUnavailable("invoice link is still opening")
+            order_id = existing.id
+            await uow.commit()
+        if order_id is None:
+            raise PaymentUnavailable("invoice link is still opening")
+        try:
+            link = await self._gateway.create_invoice_link(self._draft("topup", payload, amount))
+        except Exception as error:
+            _LOG.warning("invoice_link_failed", error_type=type(error).__name__)
+            async with self._uow_factory() as uow:
+                await uow.billing.mark_link_failed(order_id, self._now())
+                await uow.commit()
+            raise PaymentUnavailable("invoice link failed") from error
+        async with self._uow_factory() as uow:
+            await uow.billing.save_link(order_id, link, self._now())
+            balance = await uow.billing.star_balance(user_id)
+            await uow.commit()
+        return TopupView(order_id, link, balance, amount)
 
     async def note_client_status(self, user_id: UUID, order_id: UUID, status: str) -> BillingView:
         if status not in {"paid", "cancelled", "failed", "pending"}:
@@ -414,7 +485,9 @@ class BillingService:
             if user is None or order is None or order.user_id != user.id:
                 _LOG.warning("payment_rejected")
                 return
-            closed = order.status == "link_failed"
+            closed = order.status == "link_failed" or (
+                order.kind == "topup" and order.status == "paid"
+            )
             if reject_pre_checkout(
                 order_found=True,
                 signature_ok=True,
@@ -424,6 +497,31 @@ class BillingService:
                 order_closed=closed,
             ):
                 _LOG.warning("payment_rejected")
+                return
+            if purchase_effect(order.kind) == "balance":
+                await uow.billing.insert_charge(
+                    order.id,
+                    user.id,
+                    telegram_payment_charge_id,
+                    total_amount,
+                    currency,
+                    now,
+                    now,
+                    now,
+                    {
+                        "provider_payment_charge_id": provider_payment_charge_id,
+                        "is_recurring": is_recurring,
+                        "is_first_recurring": is_first_recurring,
+                        "subscription_expiration_date": subscription_expiration_date,
+                    },
+                    is_recurring=False,
+                    is_first_recurring=False,
+                    expiration=None,
+                    grant_id=None,
+                )
+                await uow.billing.credit_stars(user.id, total_amount)
+                await uow.billing.mark_paid(order.id, now)
+                await uow.commit()
                 return
             expiration = _expiration(subscription_expiration_date)
             if order.kind == "subscription" and expiration is not None:
@@ -530,7 +628,7 @@ class BillingService:
         closed = False
         if order is not None:
             closed = order.status == "link_failed" or (
-                order.kind == "gift" and order.status == "paid"
+                order.kind in {"gift", "topup"} and order.status == "paid"
             )
         rejected = reject_pre_checkout(
             order_found=order is not None,
@@ -565,6 +663,13 @@ class BillingService:
                 return
             if charge.refunded_at is None:
                 await uow.billing.mark_refunded(charge.id, now)
+                order = await uow.billing.get_order(charge.order_id)
+                if (
+                    order is not None
+                    and purchase_effect(order.kind) == "balance"
+                    and charge.user_id is not None
+                ):
+                    await uow.billing.debit_stars(charge.user_id, charge.amount_stars)
             if charge.grant_id is not None:
                 others = await uow.billing.other_charges(charge.grant_id, charge.id)
                 if others:
@@ -680,7 +785,16 @@ class BillingService:
             period_end=None if flags is None else flags.period_end,
         )
 
-    def _draft(self, kind: str, payload: str) -> InvoiceDraft:
+    def _draft(self, kind: str, payload: str, amount: int | None = None) -> InvoiceDraft:
+        if kind == "topup":
+            return InvoiceDraft(
+                title=self._catalog.text("bot.invoice_topup_title"),
+                description=self._catalog.text("bot.invoice_topup_description"),
+                payload=payload,
+                amount=0 if amount is None else amount,
+                label="stars",
+                subscription_period=None,
+            )
         if kind == "subscription":
             return InvoiceDraft(
                 title=self._catalog.text("bot.invoice_subscription_title"),

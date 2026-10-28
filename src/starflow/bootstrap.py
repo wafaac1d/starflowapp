@@ -43,6 +43,7 @@ from starflow.services.session import SessionService
 from starflow.services.sky import SkyService
 from starflow.services.telegram_auth import TelegramInitDataVerifier
 from starflow.services.timezones import FinderTimezone
+from starflow.services.wallet import StarsWallet
 
 REQUIRED_TEXTS = (
     "ui.home.title",
@@ -123,6 +124,9 @@ REQUIRED_TEXTS = (
     "bot.invoice_subscription_description",
     "bot.invoice_gift_title",
     "bot.invoice_gift_description",
+    "bot.invoice_topup_title",
+    "bot.invoice_topup_description",
+    "errors.stars_required",
     "ui.reading.day",
     "ui.reading.week",
     "ui.reading.advice",
@@ -202,6 +206,7 @@ class Container:
     forecast_service: ForecastService
     assistant_service: AssistantService
     billing_service: BillingService
+    stars_service: StarsWallet
     sky_service: SkyService
     uow_factory: Callable[[], SqlUnitOfWork]
     health_service: HealthService
@@ -261,7 +266,8 @@ def build_container(settings: Settings) -> Container:
     ephemeris = SwissEphemeris()
     quota_service = QuotaService(uow_factory, plans)
     sky_service = SkyService(uow_factory, ephemeris)
-    chart_service = ChartService(uow_factory, ephemeris, quota_service, sky_service)
+    stars_service = StarsWallet(uow_factory)
+    chart_service = ChartService(uow_factory, ephemeris, quota_service, sky_service, stars_service)
     deepseek = DeepSeekClient(settings)
     forecast_cache = TwoLevelCache(
         TtlCache(settings.memory_cache_size), PostgresLevelTwo(uow_factory)
@@ -280,6 +286,7 @@ def build_container(settings: Settings) -> Container:
         locale=settings.default_locale,
         mini_app_url=settings.mini_app_url,
         chart=chart_service,
+        stars=stars_service,
     )
     assistant_service = AssistantService(
         uow_factory,
@@ -289,6 +296,7 @@ def build_container(settings: Settings) -> Container:
         system=PromptLibrary(settings.resources_dir / "prompts").assistant_system(),
         model_name=settings.deepseek_model_pro,
         chart=chart_service,
+        stars=stars_service,
     )
     outbox_service = OutboxService(uow_factory, catalog)
     ops_service = OpsService(
@@ -375,6 +383,7 @@ def build_container(settings: Settings) -> Container:
         forecast_service=forecast_service,
         assistant_service=assistant_service,
         billing_service=billing_service,
+        stars_service=stars_service,
         sky_service=sky_service,
         uow_factory=uow_factory,
         health_service=health_service,

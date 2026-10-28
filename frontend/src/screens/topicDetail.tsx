@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 
 import { STAR_SILENCE, useReading } from "../readingWait";
 import { AlertDialog } from "../shared/ui/AlertDialog/AlertDialog";
+import { TopUpDialog } from "./TopUpDialog";
 
 const LOCKED = "Эта функция только с Premium.";
 
@@ -25,6 +26,7 @@ export type PairSigns = {
 export function useTopicDetail(premium: boolean, pair?: PairSigns) {
   const navigate = useNavigate();
   const [locked, setLocked] = useState(false);
+  const [topUp, setTopUp] = useState(false);
   const [title, setTitle] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
   const query =
@@ -37,10 +39,6 @@ export function useTopicDetail(premium: boolean, pair?: PairSigns) {
   const open = (id: string, label: string) => {
     if (pair !== undefined) {
       if (!PAIR.has(id)) {
-        return;
-      }
-      if (!premium) {
-        setLocked(true);
         return;
       }
       if (pair.leftSign === "" || pair.rightSign === "") {
@@ -67,6 +65,8 @@ export function useTopicDetail(premium: boolean, pair?: PairSigns) {
     setTopic(null);
   };
   const premiumReply = reading.face.phase === "premium";
+  const starsReply = reading.face.phase === "stars";
+  const starsBody = reading.face.phase === "stars" ? reading.face.body : "";
   const dialog = locked ? (
     <AlertDialog
       title={LOCKED}
@@ -89,21 +89,38 @@ export function useTopicDetail(premium: boolean, pair?: PairSigns) {
             ? reading.face.body
             : reading.face.phase === "premium"
               ? "Разбор темы открывается на оплаченном периоде."
-              : STAR_SILENCE
+              : reading.face.phase === "stars"
+                ? starsBody
+                : STAR_SILENCE
       }
       busy={reading.face.phase === "loading"}
       dismissLabel="Закрыть"
       onDismiss={close}
-      {...(premiumReply
+      {...(starsReply
         ? {
-            actionLabel: "Подключить",
+            actionLabel: "Пополнить",
             onAction: () => {
-              close();
-              void navigate("/premium");
+              setTopUp(true);
             },
           }
-        : {})}
+        : premiumReply
+          ? {
+              actionLabel: "Подключить",
+              onAction: () => {
+                close();
+                void navigate("/premium");
+              },
+            }
+          : {})}
     />
   ) : null;
-  return { open, dialog };
+  return {
+    open,
+    dialog: (
+      <>
+        {dialog}
+        {topUp ? <TopUpDialog balance={null} onClose={() => setTopUp(false)} /> : null}
+      </>
+    ),
+  };
 }

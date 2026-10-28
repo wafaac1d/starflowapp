@@ -1412,6 +1412,111 @@
         }
       }
     },
+    "/api/v1/stars": {
+      "get": {
+        "summary": "Read Balance",
+        "operationId": "read_balance_api_v1_stars_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BalanceBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stars/topups": {
+      "post": {
+        "summary": "Create Topup",
+        "operationId": "create_topup_api_v1_stars_topups_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopupBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stars/spends": {
+      "post": {
+        "summary": "Spend",
+        "operationId": "spend_api_v1_stars_spends_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/assistant/messages": {
       "post": {
         "summary": "Ask Assistant",
@@ -2056,6 +2161,19 @@
           "created_at"
         ],
         "title": "AssistantMessageBody"
+      },
+      "BalanceBody": {
+        "properties": {
+          "balance": {
+            "type": "integer",
+            "title": "Balance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "balance"
+        ],
+        "title": "BalanceBody"
       },
       "BillingBody": {
         "properties": {
@@ -3124,6 +3242,10 @@
               }
             ],
             "title": "Calendar Sign"
+          },
+          "star_balance": {
+            "type": "integer",
+            "title": "Star Balance"
           }
         },
         "type": "object",
@@ -3140,7 +3262,8 @@
           "birth_place",
           "latitude",
           "longitude",
-          "calendar_sign"
+          "calendar_sign",
+          "star_balance"
         ],
         "title": "ProfileBody"
       },
@@ -3515,6 +3638,57 @@
         ],
         "title": "SourceCount"
       },
+      "SpendBody": {
+        "properties": {
+          "balance": {
+            "type": "integer",
+            "title": "Balance"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed"
+          },
+          "charged": {
+            "type": "boolean",
+            "title": "Charged"
+          },
+          "price": {
+            "type": "integer",
+            "title": "Price"
+          }
+        },
+        "type": "object",
+        "required": [
+          "balance",
+          "allowed",
+          "charged",
+          "price"
+        ],
+        "title": "SpendBody"
+      },
+      "SpendRequest": {
+        "properties": {
+          "feature": {
+            "type": "string",
+            "title": "Feature"
+          },
+          "left_sign": {
+            "type": "string",
+            "title": "Left Sign",
+            "default": ""
+          },
+          "right_sign": {
+            "type": "string",
+            "title": "Right Sign",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "feature"
+        ],
+        "title": "SpendRequest"
+      },
       "StationBody": {
         "properties": {
           "planet": {
@@ -3538,6 +3712,50 @@
           "local_date"
         ],
         "title": "StationBody"
+      },
+      "TopupBody": {
+        "properties": {
+          "order_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Order Id"
+          },
+          "invoice_link": {
+            "type": "string",
+            "title": "Invoice Link"
+          },
+          "balance": {
+            "type": "integer",
+            "title": "Balance"
+          },
+          "amount": {
+            "type": "integer",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order_id",
+          "invoice_link",
+          "balance",
+          "amount"
+        ],
+        "title": "TopupBody"
+      },
+      "TopupRequest": {
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount"
+        ],
+        "title": "TopupRequest"
       },
       "ValidationError": {
         "properties": {

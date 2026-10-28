@@ -1,17 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { titled } from "../case";
-import { getChart, type ChartSection } from "../api/client";
+import { ApiRequestError, getChart, spendStars, type ChartSection } from "../api/client";
 import { natalRows } from "../api/fixtures";
 import { queryKeys } from "../api/keys";
 import { STAR_SILENCE, useReading } from "../readingWait";
+import { Button } from "../shared/ui/Button/Button";
 import { Icon } from "../shared/ui/Icon/Icon";
 import { Screen } from "../shared/ui/Screen/Screen";
 import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
 import { SegmentedControl } from "../shared/ui/SegmentedControl/SegmentedControl";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import { degreeInSign } from "./format";
+import { TopUpDialog } from "./TopUpDialog";
 import { natalGrid, wheelPoint, type WheelAspect, type WheelBody } from "./natalWheel";
 import styles from "./screens.module.css";
 
@@ -24,19 +26,42 @@ const TABS = [
 
 export function NatalScreen() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("chart");
+  const [topUp, setTopUp] = useState(false);
+  const queryClient = useQueryClient();
   const chart = useQuery({ queryKey: queryKeys.chart, queryFn: () => getChart() });
+  const buy = useMutation({
+    mutationFn: () => spendStars({ feature: "natal" }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.chart });
+    },
+    onError: (error) => {
+      if (error instanceof ApiRequestError && error.status === 402) {
+        setTopUp(true);
+      }
+    },
+  });
   const rows = chart.data === undefined ? [] : rowsFromChart(chart.data);
+  const locked = chart.data?.natal_access === "stars_required";
   return (
     <Screen tab="today">
       <TopBar title="Натальная карта" back />
       <div className={styles.wheelFrame}>
         <img className={styles.wheel} src="/illustrations/png/natal_chart.png" alt="" />
-        {chart.isSuccess ? <NatalGrid chart={chart.data} /> : null}
+        {chart.isSuccess && !locked ? <NatalGrid chart={chart.data} /> : null}
       </div>
       <SegmentedControl label="Вид карты" value={tab} options={TABS} onChange={setTab} />
       {chart.isPending ? <Skeleton lines={3} /> : null}
       {chart.isError ? <p role="alert">{STAR_SILENCE}</p> : null}
-      {chart.isSuccess && tab === "chart" ? (
+      {chart.isSuccess && locked ? (
+        <section className={styles.reading}>
+          <h2>Натальная карта</h2>
+          <p>Одна карта стоит 40 звёзд. С Premium она входит в период.</p>
+          <Button loading={buy.isPending} onClick={() => buy.mutate()}>
+            Открыть за 40
+          </Button>
+        </section>
+      ) : null}
+      {chart.isSuccess && !locked && tab === "chart" ? (
         <table className={styles.table}>
           <tbody>
             {rows.map((row) => (
@@ -54,13 +79,14 @@ export function NatalScreen() {
           </tbody>
         </table>
       ) : null}
-      {chart.isSuccess && tab === "reading" ? (
+      {chart.isSuccess && !locked && tab === "reading" ? (
         chart.data.natal_access === "allowed" ? (
           <NatalEssay sections={chart.data.sections ?? []} />
         ) : (
           <SectionList sections={chart.data.sections ?? []} />
         )
       ) : null}
+      {topUp ? <TopUpDialog balance={null} onClose={() => setTopUp(false)} /> : null}
     </Screen>
   );
 }

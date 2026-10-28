@@ -45,6 +45,7 @@ from starflow.domain.segments import (
     sun_segment,
     synastry_segment,
 )
+from starflow.domain.stars import pair_subject
 from starflow.domain.time import local_date, now_utc
 from starflow.i18n.catalog import Catalog
 from starflow.logging import get_logger
@@ -57,7 +58,7 @@ from starflow.repositories.sql import (
     ProfileRepository,
     RelatedProfileRepository,
 )
-from starflow.services.chart import ChartView
+from starflow.services.chart import ChartView, NatalStars
 from starflow.services.quota import QuotaStore, ResultWriter, StoredResult
 
 _OPEN = frozenset({"day", "week", "advice", "moon", "compatibility"})
@@ -198,6 +199,7 @@ class ForecastService:
         clock: Callable[[], datetime] | None = None,
         background: bool = True,
         chart: NatalFacts | None = None,
+        stars: NatalStars | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._cache = cache
@@ -213,6 +215,7 @@ class ForecastService:
         self._clock = clock or now_utc
         self._background = background
         self._chart = chart
+        self._stars = stars
         self._jobs: dict[tuple[UUID, str, str], _Job] = {}
         self._answers: dict[tuple[UUID, str], ReadingView] = {}
         self._background_keys: set[str] = set()
@@ -706,7 +709,12 @@ class ForecastService:
     ) -> ReadingView:
         decision = await self._quota.preview(user_id, kind)
         if isinstance(decision, PremiumRequired):
-            return ReadingView(status="premium", body=self._catalog.text("ui.paywall.lead"))
+            if await self._unlocked(user_id, kind, scope):
+                decision = Allowed()
+            elif kind in {"synastry", "natal"} and self._stars is not None:
+                return ReadingView(status="stars", body=self._catalog.text("errors.stars_required"))
+            else:
+                return ReadingView(status="premium", body=self._catalog.text("ui.paywall.lead"))
         if not isinstance(decision, Allowed):
             reset = decision.reset_at if isinstance(decision, LimitReached) else None
             return ReadingView(status="limit", reset_at=reset)
@@ -732,6 +740,24 @@ class ForecastService:
             streak,
             limitations=limitations,
         )
+
+    async def _unlocked(self, user_id: UUID, kind: str, scope: ReadingScope) -> bool:
+        stars = self._stars
+        if stars is None:
+            return False
+        if kind == "natal":
+            return await stars.owns(user_id, "natal", "self")
+        if kind != "synastry":
+            return False
+        if scope.left_sign != "" and scope.right_sign != "":
+            try:
+                subject = pair_subject(scope.left_sign, scope.right_sign)
+            except ValueError:
+                return False
+            return await stars.owns(user_id, "compatibility", subject)
+        if scope.related_id is not None:
+            return await stars.owns(user_id, "compatibility", f"related:{scope.related_id}")
+        return False
 
     async def _prepare_premium(
         self,

@@ -3,6 +3,7 @@ not_found: Запись не найдена
 validation: Проверьте поля
 webhook_rejected: Запрос отклонён
 premium_required: Этот шаг доступен с premium
+stars_required: На балансе не хватает звёзд
 name_required: Введите имя
 name_too_long: Имя длиннее 80 знаков
 date_invalid: Дата в формате дд.мм.гггг

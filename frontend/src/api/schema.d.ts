@@ -638,6 +638,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/stars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Balance */
+        get: operations["read_balance_api_v1_stars_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stars/topups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Topup */
+        post: operations["create_topup_api_v1_stars_topups_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stars/spends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Spend */
+        post: operations["spend_api_v1_stars_spends_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/assistant/messages": {
         parameters: {
             query?: never;
@@ -869,6 +920,11 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /** BalanceBody */
+        BalanceBody: {
+            /** Balance */
+            balance: number;
         };
         /** BillingBody */
         BillingBody: {
@@ -1222,6 +1278,8 @@ export interface components {
             longitude: string | null;
             /** Calendar Sign */
             calendar_sign: string | null;
+            /** Star Balance */
+            star_balance: number;
         };
         /** QuestionBody */
         QuestionBody: {
@@ -1360,6 +1418,32 @@ export interface components {
             /** Count */
             count: number;
         };
+        /** SpendBody */
+        SpendBody: {
+            /** Balance */
+            balance: number;
+            /** Allowed */
+            allowed: boolean;
+            /** Charged */
+            charged: boolean;
+            /** Price */
+            price: number;
+        };
+        /** SpendRequest */
+        SpendRequest: {
+            /** Feature */
+            feature: string;
+            /**
+             * Left Sign
+             * @default
+             */
+            left_sign: string;
+            /**
+             * Right Sign
+             * @default
+             */
+            right_sign: string;
+        };
         /** StationBody */
         StationBody: {
             /** Planet */
@@ -1371,6 +1455,25 @@ export interface components {
             start: string;
             /** Local Date */
             local_date: string;
+        };
+        /** TopupBody */
+        TopupBody: {
+            /**
+             * Order Id
+             * Format: uuid
+             */
+            order_id: string;
+            /** Invoice Link */
+            invoice_link: string;
+            /** Balance */
+            balance: number;
+            /** Amount */
+            amount: number;
+        };
+        /** TopupRequest */
+        TopupRequest: {
+            /** Amount */
+            amount: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -2529,6 +2632,94 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_balance_api_v1_stars_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BalanceBody"];
+                };
+            };
+        };
+    };
+    create_topup_api_v1_stars_topups_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopupBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spend_api_v1_stars_spends_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpendRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpendBody"];
+                };
             };
             /** @description Validation Error */
             422: {

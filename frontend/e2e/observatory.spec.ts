@@ -15,6 +15,7 @@ function profile(step: string) {
     latitude: null,
     longitude: null,
     calendar_sign: step === "done" ? "Лев" : null,
+    star_balance: 0,
   };
 }
 
@@ -55,6 +56,23 @@ async function installApp(page: Page, step = "done", premium = false) {
     const method = route.request().method();
     if (url.includes("/session")) {
       await route.fulfill({ json: current });
+      return;
+    }
+    if (url.includes("/stars/spends") && method === "POST") {
+      await route.fulfill({
+        json: { balance: current.star_balance, allowed: true, charged: false, price: 40 },
+      });
+      return;
+    }
+    if (url.includes("/stars/topups") && method === "POST") {
+      await route.fulfill({
+        json: {
+          order_id: "00000000-0000-0000-0000-0000000000aa",
+          invoice_link: "https://t.me/invoice/test",
+          balance: current.star_balance,
+          amount: 10,
+        },
+      });
       return;
     }
     if (url.includes("/profile/draft")) {
@@ -246,9 +264,24 @@ test("today content starts below the telegram header", async ({ page }) => {
   const box = await greeting.boundingBox();
   expect(box).not.toBeNull();
   expect(box?.y ?? 0).toBeGreaterThanOrEqual(47 + 56);
-  const profile = page.getByRole("button", { name: "Профиль" });
+  const profile = page.getByRole("button", { name: "Баланс 0" });
   const profileBox = await profile.boundingBox();
   expect(profileBox?.y ?? 0).toBeGreaterThanOrEqual(47 + 56);
+  await profile.click();
+  const topUp = page.getByRole("dialog", { name: "Пополнение" });
+  await expect(topUp).toBeVisible();
+  await expect(topUp.getByRole("button", { name: /^10$/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(topUp.getByRole("button", { name: "20" })).toBeVisible();
+  await expect(topUp.getByRole("button", { name: "50" })).toBeVisible();
+  await expect(topUp.getByRole("button", { name: "100" })).toBeVisible();
+  await expect(topUp.getByRole("button", { name: "Оплатить" })).toBeEnabled();
+  await expect(topUp.getByRole("link", { name: /^Premium$/ })).toHaveAttribute("href", "/premium");
+  await expect(topUp.getByRole("link", { name: "t.me/PremiumBot" })).toHaveAttribute(
+    "href",
+    "https://t.me/PremiumBot",
+  );
+  await topUp.getByRole("button", { name: "Закрыть" }).click();
+  await expect(topUp).toHaveCount(0);
 });
 
 test("adding a person keeps equal gaps and the list waits with row silhouettes", async ({ page }) => {
@@ -356,8 +389,8 @@ test("empty chat explains itself in the middle", async ({ page }) => {
   await page.goto("/chat");
   const note = page.getByText(/Это чат с астропомощником/);
   await expect(note).toBeVisible();
-  await expect(page.getByText(/Писать и отправлять сообщения можно с Premium/)).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "Написать сообщение…" })).toBeDisabled();
+  await expect(page.getByText(/Один вопрос стоит 20 звёзд/)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Написать сообщение…" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Отправить" })).toBeDisabled();
   const box = await note.boundingBox();
   const center = (box?.y ?? 0) + (box?.height ?? 0) / 2;
@@ -450,7 +483,7 @@ test("profile edit saves the birth time and an empty field means unknown", async
   });
   await expect(page.getByRole("heading", { name: "Анна" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Профиль" }).click();
+  await page.getByRole("link", { name: "Профиль" }).click();
   await page.getByRole("link", { name: "Данные рождения" }).click();
   await page.getByRole("textbox", { name: "Время рождения" }).fill("");
   const cleared = page.waitForRequest(

@@ -743,6 +743,21 @@ D-076. Крупные блоки экрана делят зазор 24px. Спи
 
 Живой клиент Telegram не открывался.
 
+## Баланс звёзд без Premium, 2026-10-28
+
+D-077. Без подписки совместимость и натальная карта стоят 40 звёзд, вопрос астрологу — 20. Баланс пополняет только проверенный `successful_payment`. На «Сегодня» справа сверху баланс и окно 10 / 20 / 50 / 100 или своя сумма.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check src tests migrations` | 0 |
+| `uv run mypy` | 1, два старых замечания в `forecast.py` около `remember`: `dict[str, str]` против `dict[str, object]`. Новые файлы в списке нет |
+| `uv run pytest tests/unit/test_star_balance.py tests/unit/test_contract.py -q` | 0, 5 тестов |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'opens a top-up\|asks for 40 stars\|lets a question\|shows compatibility cards\|holds the star'` | 0, 5 тестов |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'today content starts\|today opens compatibility\|empty chat\|screenshot today\|screenshot chat'` | 0, 5 тестов. Перезаписаны `today.png` и `chat.png` |
+
+Живой DeepSeek, живой клиент Telegram и живой платёж Stars не проверялись. Статус окна оплаты баланс не увеличивает.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

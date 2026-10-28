@@ -44,3 +44,5 @@ invoice_subscription_title: Premium, 30 дней
 invoice_subscription_description: Доступ на 30 дней. Списание повторяется, пока продление включено.
 invoice_gift_title: Подарок premium
 invoice_gift_description: Разовый доступ на 30 дней без продления.
+invoice_topup_title: Пополнение баланса
+invoice_topup_description: Звёзды на совместимость, натальную карту и вопросы астрологу.

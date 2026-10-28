@@ -31,6 +31,7 @@ class Base(DeclarativeBase):
 
 class UserRow(Base):
     __tablename__ = "users"
+    __table_args__ = (CheckConstraint("star_balance >= 0", name="users_star_balance_ck"),)
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
@@ -47,6 +48,25 @@ class UserRow(Base):
     is_blocked: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )
+    star_balance: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
+    )
+
+
+class StarSpendRow(Base):
+    __tablename__ = "star_spends"
+    __table_args__ = (
+        UniqueConstraint("user_id", "feature", "subject", name="star_spends_once_uq"),
+        CheckConstraint("amount >= 1", name="star_spends_amount_ck"),
+        CheckConstraint("char_length(subject) BETWEEN 1 AND 120", name="star_spends_subject_ck"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    feature: Mapped[str] = mapped_column(Text, nullable=False)
+    subject: Mapped[str] = mapped_column(Text, nullable=False)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
 
 class ProfileRow(Base):

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router";
 
 import type { ProfileResponse } from "../api/client";
@@ -8,6 +9,7 @@ import { Screen } from "../shared/ui/Screen/Screen";
 import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
 import { formatRuDate, greeting } from "./format";
 import styles from "./screens.module.css";
+import { TopUpDialog } from "./TopUpDialog";
 import { useTopicDetail } from "./topicDetail";
 
 const CATEGORIES = [
@@ -19,6 +21,8 @@ const CATEGORIES = [
 
 export function TodayScreen({ profile }: { profile: ProfileResponse }) {
   const navigate = useNavigate();
+  const [topUp, setTopUp] = useState(false);
+  const balance = profile.star_balance ?? 0;
   const now = new Date();
   const reading = useReading("day");
   const waiting = reading.face.phase === "loading";
@@ -38,13 +42,13 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
           </div>
           <button
             type="button"
-            className={styles.profileButton}
-            aria-label="Профиль"
+            className={styles.balanceButton}
+            aria-label={`Баланс ${balance}`}
             onClick={() => {
-              void navigate("/profile");
+              setTopUp(true);
             }}
           >
-            <Icon name="user_circle" size={28} />
+            {balance}
           </button>
         </div>
         <img className={styles.hero} src="/illustrations/png/home_moon_orbits.png" alt="" />
@@ -98,6 +102,7 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
         </div>
       </div>
       {topics.dialog}
+      {topUp ? <TopUpDialog balance={balance} onClose={() => setTopUp(false)} /> : null}
     </Screen>
   );
 }

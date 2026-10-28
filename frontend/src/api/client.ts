@@ -17,6 +17,7 @@ export type ProfileResponse = {
   latitude: string | null;
   longitude: string | null;
   calendar_sign: string | null;
+  star_balance: number;
 };
 
 export type PlaceHit = {
@@ -526,6 +527,47 @@ export type BillingResponse = {
 
 export async function getBilling(fetchImpl: typeof fetch = fetch): Promise<BillingResponse> {
   return requestJson<BillingResponse>("/api/v1/billing", { method: "GET" }, fetchImpl);
+}
+
+export type TopupResponse = {
+  order_id: string;
+  invoice_link: string;
+  balance: number;
+  amount: number;
+};
+
+export type SpendResponse = {
+  balance: number;
+  allowed: boolean;
+  charged: boolean;
+  price: number;
+};
+
+export async function createTopup(
+  amount: number,
+  idempotencyKey: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<TopupResponse> {
+  return requestJson<TopupResponse>(
+    "/api/v1/stars/topups",
+    {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify({ amount }),
+    },
+    fetchImpl,
+  );
+}
+
+export async function spendStars(
+  body: { feature: "natal" } | { feature: "compatibility"; left_sign: string; right_sign: string },
+  fetchImpl: typeof fetch = fetch,
+): Promise<SpendResponse> {
+  return requestJson<SpendResponse>(
+    "/api/v1/stars/spends",
+    { method: "POST", body: JSON.stringify(body) },
+    fetchImpl,
+  );
 }
 
 export async function createBillingOrder(

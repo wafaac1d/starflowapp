@@ -22,6 +22,7 @@ from starflow.domain.calendar_sign import calendar_sign
 from starflow.domain.errors import FieldInvalid
 from starflow.domain.quota import Allowed, LimitReached, PremiumRequired, QuotaDecision
 from starflow.domain.segments import facts_text
+from starflow.domain.stars import SpendResult
 from starflow.domain.time import now_utc
 from starflow.i18n.catalog import Catalog
 from starflow.i18n.guard import contains_emoji
@@ -121,6 +122,12 @@ class AssistantWork(Protocol):
     ) -> None: ...
 
 
+class QuestionStars(Protocol):
+    async def can_pay(self, user_id: UUID, feature: str, subject: str) -> bool: ...
+
+    async def buy(self, user_id: UUID, feature: str, subject: str) -> SpendResult: ...
+
+
 class AssistantService:
     def __init__(
         self,
@@ -133,6 +140,7 @@ class AssistantService:
         model_name: str,
         chart: ChartFacts | None = None,
         clock: Callable[[], datetime] | None = None,
+        stars: QuestionStars | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._model = model
@@ -142,6 +150,7 @@ class AssistantService:
         self._model_name = model_name
         self._chart = chart
         self._clock = clock or now_utc
+        self._stars = stars
         self._inflight: dict[tuple[UUID, str], asyncio.Future[AssistantReply]] = {}
 
     async def ask(self, user_id: UUID, key: str, question: str) -> AssistantReply:
@@ -190,7 +199,9 @@ class AssistantService:
         if isinstance(held, StoredResult):
             return _stored(held)
         if isinstance(held, PremiumRequired):
-            return AssistantReply(status="premium", code="premium_required")
+            if self._stars is None:
+                return AssistantReply(status="premium", code="premium_required")
+            return await self._ask_with_stars(user_id, key, question)
         if isinstance(held, LimitReached):
             return AssistantReply(
                 status="limit",
@@ -227,6 +238,51 @@ class AssistantService:
             remaining=await self._quota.remaining(user_id, "assistant"),
             code="ready",
         )
+
+    async def _ask_with_stars(self, user_id: UUID, key: str, question: str) -> AssistantReply:
+        stars = self._stars
+        if stars is None:
+            return AssistantReply(status="premium", code="premium_required")
+        if not await stars.can_pay(user_id, "assistant", key):
+            return AssistantReply(
+                status="stars",
+                code="stars_required",
+                reply=self._catalog.text("errors.stars_required"),
+            )
+        history = await self._history_pairs(user_id)
+        verdict = classify(question, has_context=len(history) > 0)
+        if verdict != "allow":
+            reply = self._catalog.text(f"ui.assistant.{verdict}")
+            await self._remember_lines(user_id, question, reply)
+            return AssistantReply(status=verdict, reply=reply, code=verdict)
+        facts = await self._facts(user_id)
+        messages = pack_messages(self._system, facts, history, question)
+        parsed = await self._complete(user_id, messages)
+        if parsed is None:
+            repair = {"role": "user", "content": _REPAIR}
+            parsed = await self._complete(user_id, [*messages, repair])
+        if parsed is None:
+            return AssistantReply(
+                status="error",
+                reply=self._catalog.text("errors.reading_failed"),
+                code="invalid_reply",
+            )
+        bought = await stars.buy(user_id, "assistant", key)
+        if not bought.allowed:
+            return AssistantReply(
+                status="stars",
+                code="stars_required",
+                reply=self._catalog.text("errors.stars_required"),
+            )
+        await self._remember_lines(user_id, question, parsed)
+        return AssistantReply(status="ready", reply=parsed, code="ready")
+
+    async def _remember_lines(self, user_id: UUID, question: str, reply: str) -> None:
+        moment = self._clock()
+        async with self._uow_factory() as uow:
+            await uow.assistant_messages.add(user_id, "user", question, moment)
+            await uow.assistant_messages.add(user_id, "assistant", reply, moment)
+            await uow.commit()
 
     async def _finish(
         self,

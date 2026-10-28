@@ -16,6 +16,7 @@ import { Chip } from "../shared/ui/Chip/Chip";
 import { Screen } from "../shared/ui/Screen/Screen";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import styles from "./screens.module.css";
+import { TopUpDialog } from "./TopUpDialog";
 
 const STORED = new Set(["ready", "off_topic", "injection"]);
 
@@ -28,6 +29,7 @@ type Outgoing = {
 export function ChatScreen({ premium }: { premium: boolean }) {
   const client = useQueryClient();
   const [draft, setDraft] = useState("");
+  const [topUp, setTopUp] = useState(false);
   const [live, setLive] = useState<Outgoing | null>(null);
   const history = useQuery({ queryKey: queryKeys.assistant, queryFn: () => getAssistantMessages() });
   const ask = useMutation({
@@ -49,6 +51,11 @@ export function ChatScreen({ premium }: { premium: boolean }) {
   const empty = history.isSuccess && messages.length === 0 && live === null;
   const tail = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (ask.data?.status === "stars") {
+      setTopUp(true);
+    }
+  }, [ask.data]);
+  useEffect(() => {
     const node = tail.current;
     if (node !== null && typeof node.scrollIntoView === "function") {
       node.scrollIntoView({ block: "end" });
@@ -65,7 +72,7 @@ export function ChatScreen({ premium }: { premium: boolean }) {
           {empty ? (
             <p className={styles.chatEmpty}>
               Это чат с астропомощником. Спросите про день, карту или совместимость.
-              {premium ? " " : " Писать и отправлять сообщения можно с Premium. "}
+              {premium ? " " : " Один вопрос стоит 20 звёзд. "}
               Ответ развлекательный и не обещает точное событие.
             </p>
           ) : null}
@@ -84,18 +91,17 @@ export function ChatScreen({ premium }: { premium: boolean }) {
           <div ref={tail} />
         </div>
         <div className={styles.chatDock}>
-          {remaining !== undefined && remaining !== null ? <Chip>Осталось {remaining} вопросов</Chip> : null}
-          {!premium && history.isSuccess && !empty ? (
-            <p className={styles.chatLock}>Писать и отправлять сообщения можно с Premium.</p>
+          {premium && remaining !== undefined && remaining !== null ? (
+            <Chip>Осталось {remaining} вопросов</Chip>
           ) : null}
+          {!premium ? <Chip>20 звёзд за вопрос</Chip> : null}
           <ChatInput
             value={draft}
-            locked={!premium}
             pending={ask.isPending || history.isLoading}
             onChange={setDraft}
             onSubmit={() => {
               const text = draft.trim();
-              if (!premium || text === "" || ask.isPending || history.isLoading) {
+              if (text === "" || ask.isPending || history.isLoading) {
                 return;
               }
               const outgoing = {
@@ -110,6 +116,7 @@ export function ChatScreen({ premium }: { premium: boolean }) {
           />
         </div>
       </div>
+      {topUp ? <TopUpDialog balance={null} onClose={() => setTopUp(false)} /> : null}
     </Screen>
   );
 }
@@ -130,6 +137,9 @@ function alreadyStored(
 }
 
 function assistantLine(reply: AssistantReply | undefined, failed: boolean): string {
+  if (reply?.status === "stars") {
+    return "На балансе не хватает звёзд.";
+  }
   if (reply?.status === "premium") {
     return "Этот шаг доступен с Premium.";
   }

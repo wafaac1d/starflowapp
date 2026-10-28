@@ -107,6 +107,10 @@ class ChartWork(Protocol):
     ) -> None: ...
 
 
+class NatalStars(Protocol):
+    async def owns(self, user_id: UUID, feature: str, subject: str) -> bool: ...
+
+
 class ChartService:
     def __init__(
         self,
@@ -114,15 +118,20 @@ class ChartService:
         ephemeris: Ephemeris,
         quota: AccessPreview,
         sky: DaySky,
+        stars: NatalStars | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._ephemeris = ephemeris
         self._quota = quota
         self._sky = sky
+        self._stars = stars
 
     async def read(self, user_id: UUID) -> ChartView:
         decision = await self._quota.preview(user_id, "natal")
         access = "allowed" if isinstance(decision, Allowed) else "premium_required"
+        if access != "allowed" and self._stars is not None:
+            paid = await self._stars.owns(user_id, "natal", "self")
+            access = "allowed" if paid else "stars_required"
         async with self._uow_factory() as uow:
             profile = await uow.profiles.ensure(user_id)
         fingerprint = _fingerprint(profile, access)

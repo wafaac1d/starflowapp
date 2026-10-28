@@ -18,6 +18,7 @@ export type ReadingFace =
   | { phase: "loading" }
   | { phase: "ready"; title: string; body: string; historyId: string | null }
   | { phase: "premium" }
+  | { phase: "stars"; body: string }
   | { phase: "blocked"; body: string }
   | { phase: "miss" };
 
@@ -34,6 +35,9 @@ export function readingFace(
   }
   if (data.status === "premium") {
     return { phase: "premium" };
+  }
+  if (data.status === "stars") {
+    return { phase: "stars", body: data.body ?? "На балансе не хватает звёзд." };
   }
   if (data.status === "blocked" || data.status === "limit") {
     return { phase: "blocked", body: data.body ?? STAR_SILENCE };

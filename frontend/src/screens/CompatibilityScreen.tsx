@@ -4,8 +4,10 @@ import { useParams } from "react-router";
 
 import {
   addRelated,
+  ApiRequestError,
   getRelated,
   readingKey,
+  spendStars,
   type ProfileResponse,
   type RelatedEntry,
 } from "../api/client";
@@ -25,6 +27,7 @@ import { Toggle } from "../shared/ui/Toggle/Toggle";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import { initialsOf } from "./format";
 import styles from "./screens.module.css";
+import { TopUpDialog } from "./TopUpDialog";
 import { useTopicDetail } from "./topicDetail";
 
 type Choice = "self" | "saved" | "draft";
@@ -76,6 +79,9 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
   );
   const [remembered, setRemembered] = useState<KnownPerson[]>([]);
   const [phase, setPhase] = useState<Phase>("pick");
+  const [topUp, setTopUp] = useState(false);
+  const [notice, setNotice] = useState("");
+  const queryClient = useQueryClient();
   const related = useQuery({ queryKey: queryKeys.related, queryFn: () => getRelated() });
   const rows = useQuery({
     queryKey: queryKeys.compatibility(personId ?? "pair"),
@@ -142,13 +148,41 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
             <Button
               disabled={!ready}
               onClick={() => {
-                if (ready) {
-                  setPhase("link");
+                if (!ready || owner === null || partner === null) {
+                  return;
                 }
+                setNotice("");
+                if (profile.is_premium) {
+                  setPhase("link");
+                  return;
+                }
+                setPhase("link");
+                void spendStars({
+                  feature: "compatibility",
+                  left_sign: owner.sign.toLocaleLowerCase("ru"),
+                  right_sign: partner.sign.toLocaleLowerCase("ru"),
+                })
+                  .then(async (ticket) => {
+                    if (!ticket.allowed) {
+                      setPhase("pick");
+                      setTopUp(true);
+                      return;
+                    }
+                    await queryClient.invalidateQueries({ queryKey: queryKeys.session });
+                  })
+                  .catch((error: unknown) => {
+                    setPhase("pick");
+                    if (error instanceof ApiRequestError && error.status === 402) {
+                      setTopUp(true);
+                      return;
+                    }
+                    setNotice("Не удалось списать звёзды.");
+                  });
               }}
             >
               Проверить
             </Button>
+            {notice !== "" ? <p role="alert">{notice}</p> : null}
           </div>
         </div>
       ) : null}
@@ -185,6 +219,14 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
         </>
       ) : null}
       {topics.dialog}
+      {topUp ? (
+        <TopUpDialog
+          balance={profile.star_balance ?? 0}
+          onClose={() => {
+            setTopUp(false);
+          }}
+        />
+      ) : null}
     </Screen>
   );
 }

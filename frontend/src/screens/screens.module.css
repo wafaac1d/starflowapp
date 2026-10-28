@@ -125,6 +125,18 @@
   cursor: pointer;
 }
 
+.balanceButton {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font: var(--font-body);
+  cursor: pointer;
+}
+
 .topRow {
   display: flex;
   align-items: flex-start;

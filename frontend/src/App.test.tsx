@@ -23,6 +23,7 @@ function profile(step: string) {
     latitude: null,
     longitude: null,
     calendar_sign: null,
+    star_balance: 0,
   };
 }
 
