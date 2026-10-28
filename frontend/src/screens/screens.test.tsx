@@ -19,6 +19,7 @@ import { PremiumScreen } from "./PremiumScreen";
 import { ProfileScreen } from "./ProfileScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { TodayScreen } from "./TodayScreen";
+import styles from "./screens.module.css";
 import { WelcomeScreen } from "./WelcomeScreen";
 
 function profile(): ProfileResponse {
@@ -62,6 +63,75 @@ describe("screens", () => {
     expect(screen.getByText("1 из 3")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Время рождения" })).toBeEnabled();
     expect(screen.queryByRole("switch", { name: "Не знаю время" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Можно оставить пустым, если не знаете время рождения"),
+    ).toBeInTheDocument();
+  });
+
+  it("finishes registration when the birth time field stays untouched", async () => {
+    const calls: Record<string, unknown>[] = [];
+    let step = "welcome";
+    const draft: ProfileResponse = {
+      ...profile(),
+      step: "welcome",
+      display_name: null,
+      birth_date: null,
+      birth_time: null,
+      birth_time_unknown: false,
+      timezone: null,
+      calendar_sign: null,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (_input, init) => {
+        const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+        calls.push(body);
+        if (step === "welcome") {
+          step = "name";
+        } else if (step === "name") {
+          if (typeof body.display_name !== "string") {
+            return Response.json({ message: "name" }, { status: 422 });
+          }
+          step = "date";
+        } else if (step === "date") {
+          step = "time";
+        } else if (step === "time" && body.birth_time_unknown === true) {
+          step = "done";
+        }
+        return Response.json({
+          ...draft,
+          step,
+          display_name: step === "welcome" || step === "name" ? null : "Анна",
+          birth_date:
+            step === "welcome" || step === "name" || step === "date" ? null : "12.08.1995",
+          birth_time: null,
+          birth_time_unknown: step === "done",
+          timezone: step === "done" ? "Europe/Moscow" : null,
+          calendar_sign: step === "done" ? "Лев" : null,
+        });
+      }),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/onboarding/birth"]}>
+          <Routes>
+            <Route
+              path="/onboarding/birth"
+              element={<BirthScreen profile={draft} displayName="Анна" />}
+            />
+            <Route path="/" element={<h1>Сегодня</h1>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await userEvent.type(screen.getByRole("textbox", { name: "Дата рождения" }), "12.08.1995");
+    await userEvent.click(screen.getByRole("button", { name: "Продолжить" }));
+    expect(await screen.findByRole("heading", { name: "Сегодня" })).toBeInTheDocument();
+    expect(calls.some((body) => body.birth_time_unknown === true && body.birth_time === undefined)).toBe(
+      true,
+    );
+    expect(screen.queryByRole("textbox", { name: "Время рождения" })).not.toBeInTheDocument();
   });
 
   it("saves a changed birth time from the finished profile", async () => {
@@ -130,6 +200,18 @@ describe("screens", () => {
     expect(screen.queryByText("День для ясных решений")).not.toBeInTheDocument();
   });
 
+  it("shows unlim beside the balance while premium is active", () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
+    renderAt(<TodayScreen profile={{ ...profile(), is_premium: true, star_balance: 15 }} />);
+    const balance = screen.getByRole("button", { name: "Баланс unlim/15" });
+    const rest = styles.balanceRest;
+    if (rest === undefined) {
+      throw new Error("balance rest style is missing");
+    }
+    expect(within(balance).getByText("unlim")).toBeInTheDocument();
+    expect(within(balance).getByText("/15")).toHaveClass(rest);
+  });
+
   it("opens a top-up from the balance", async () => {
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
     renderAt(<TodayScreen profile={{ ...profile(), star_balance: 15 }} />);
@@ -144,6 +226,8 @@ describe("screens", () => {
     expect(within(dialog).getByRole("button", { name: "50" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "100" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Оплатить" })).toBeEnabled();
+    expect(within(dialog).getByRole("textbox", { name: "Код" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Активировать" })).toBeDisabled();
     expect(within(dialog).getByRole("link", { name: (value) => value === "Premium" })).toHaveAttribute(
       "href",
       "/premium",
@@ -824,6 +908,8 @@ describe("screens", () => {
     expect(screen.getByRole("heading", { name: "Больше о себе" })).toBeInTheDocument();
     expect(screen.getByText(/250 звёзд \/ 30 дней/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Подключить" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Списать 250 с баланса" })).toBeInTheDocument();
+    expect(screen.getByText("Разовое списание с баланса, без автопродления.")).toBeInTheDocument();
   });
 
   it("shows the remaining days when premium is already active", async () => {

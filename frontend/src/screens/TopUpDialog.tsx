@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { Link } from "react-router";
 
-import { ApiRequestError, createTopup, postInvoiceStatus } from "../api/client";
+import { ApiRequestError, createTopup, postInvoiceStatus, redeemBalanceCode } from "../api/client";
 import { queryKeys } from "../api/keys";
 import { Button } from "../shared/ui/Button/Button";
 import { Field } from "../shared/ui/Field/Field";
@@ -22,7 +22,19 @@ export function TopUpDialog({ balance, onClose }: TopUpDialogProps) {
   const [preset, setPreset] = useState<(typeof PRESETS)[number]>(10);
   const [custom, setCustom] = useState("");
   const [notice, setNotice] = useState("");
+  const [code, setCode] = useState("");
   const amount = chosenAmount(preset, custom);
+  const redeem = useMutation({
+    mutationFn: () => redeemBalanceCode(code.trim()),
+    onSuccess: async () => {
+      setCode("");
+      setNotice("Код зачислил звёзды на баланс.");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.session });
+    },
+    onError: (error) => {
+      setNotice(error instanceof ApiRequestError ? error.message : "Код не подошёл");
+    },
+  });
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -106,6 +118,23 @@ export function TopUpDialog({ balance, onClose }: TopUpDialogProps) {
           }}
         >
           Оплатить
+        </Button>
+        <Field
+          label="Код"
+          value={code}
+          chevron={false}
+          onChange={setCode}
+        />
+        <Button
+          variant="secondary"
+          disabled={code.trim() === ""}
+          loading={redeem.isPending}
+          onClick={() => {
+            setNotice("");
+            redeem.mutate();
+          }}
+        >
+          Активировать
         </Button>
         {notice !== "" ? <p className={styles.notice}>{notice}</p> : null}
         <p className={styles.body}>

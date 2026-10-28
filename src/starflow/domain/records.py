@@ -112,6 +112,7 @@ class OutboxJob:
     text_key: str
     page: str = ""
     planet: str = ""
+    body: str = ""
 
 
 @dataclass(frozen=True)

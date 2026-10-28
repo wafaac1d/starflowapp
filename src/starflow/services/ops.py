@@ -1,6 +1,7 @@
 """Планирование уведомлений, прогрев кэша и очистка. Модель для рассылки не вызывается."""
 
 import asyncio
+import contextlib
 import json
 from collections.abc import Callable
 from datetime import date, datetime, timedelta
@@ -13,6 +14,7 @@ from starflow.ai.catalog import PromptCatalog
 from starflow.ai.client import ModelReply
 from starflow.ai.guard import guarded_copy
 from starflow.cache.two_level import TwoLevelCache
+from starflow.domain.broadcast import audience_ok, broadcast_text_ok
 from starflow.domain.calendar_sign import calendar_sign
 from starflow.domain.errors import Conflict, FieldInvalid
 from starflow.domain.notify_clock import (
@@ -115,6 +117,45 @@ class OpsService:
         self._fast_model = fast_model
         self._pro_model = pro_model
         self._clock = clock or now_utc
+
+    async def queue_broadcast(self, *, actor_is_admin: bool, body: str, audience: str) -> UUID:
+        if not actor_is_admin:
+            raise FieldInvalid("admin", "errors.unauthorized")
+        cleaned = body.strip()
+        if not broadcast_text_ok(cleaned) or not audience_ok(audience):
+            raise FieldInvalid("body", "errors.validation")
+        now = self._clock()
+        async with self._uow_factory() as uow:
+            broadcast_id = await uow.ops.insert_broadcast(cleaned, audience, now)
+            await uow.commit()
+        return broadcast_id
+
+    async def fill_broadcasts(self) -> int:
+        now = self._clock()
+        async with self._uow_factory() as uow:
+            job = await uow.ops.next_queued_broadcast()
+            if job is None:
+                return 0
+            user_ids = await uow.ops.broadcast_user_ids(job.audience, job.id, now)
+            if not user_ids:
+                await uow.ops.finish_broadcast(job.id, now)
+                await uow.commit()
+                return 0
+            day = now.date()
+            for user_id in user_ids:
+                with contextlib.suppress(Conflict):
+                    await uow.outbox.enqueue(
+                        user_id,
+                        "broadcast",
+                        "bot.broadcast",
+                        day,
+                        now,
+                        event_key=str(job.id),
+                        body=job.body,
+                    )
+                await uow.ops.remember_broadcast_target(job.id, user_id)
+            await uow.commit()
+        return len(user_ids)
 
     async def plan(self) -> int:
         now = self._clock()

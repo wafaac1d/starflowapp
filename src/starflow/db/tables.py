@@ -69,6 +69,63 @@ class StarSpendRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
 
+class BalanceCodeRow(Base):
+    __tablename__ = "balance_codes"
+    __table_args__ = (
+        CheckConstraint("stars >= 1", name="balance_codes_stars_ck"),
+        CheckConstraint("max_uses >= 1", name="balance_codes_uses_ck"),
+        CheckConstraint("used_count >= 0", name="balance_codes_used_ck"),
+        CheckConstraint("used_count <= max_uses", name="balance_codes_left_ck"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    code: Mapped[str] = mapped_column(Text, nullable=False)
+    code_norm: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
+    stars: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_uses: Mapped[int] = mapped_column(Integer, nullable=False)
+    used_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
+class BalanceCodeRedemptionRow(Base):
+    __tablename__ = "balance_code_redemptions"
+
+    code_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("balance_codes.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
+class BroadcastRow(Base):
+    __tablename__ = "broadcasts"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    audience: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
+class BroadcastTargetRow(Base):
+    __tablename__ = "broadcast_targets"
+
+    broadcast_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("broadcasts.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+
 class ProfileRow(Base):
     __tablename__ = "profiles"
     __table_args__ = (

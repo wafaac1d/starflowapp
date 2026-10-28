@@ -1,8 +1,9 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import {
   ApiRequestError,
+  buyPremium,
   createBillingOrder,
   getBilling,
   postInvoiceStatus,
@@ -37,7 +38,26 @@ const BENEFITS = [
 
 export function PremiumScreen({ subscribed = false }: { subscribed?: boolean }) {
   const [notice, setNotice] = useState("");
+  const queryClient = useQueryClient();
   const billing = useQuery({ queryKey: queryKeys.billing, queryFn: () => getBilling() });
+  const fromBalance = useMutation({
+    mutationFn: async () => {
+      const key = crypto.randomUUID().replaceAll("-", "");
+      return buyPremium(key);
+    },
+    onSuccess: async () => {
+      setNotice("");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.session });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.billing });
+    },
+    onError: (error) => {
+      if (error instanceof ApiRequestError && error.status === 402) {
+        setNotice("На балансе не хватает звёзд");
+        return;
+      }
+      setNotice(error instanceof ApiRequestError ? error.message : "Не удалось списать звёзды");
+    },
+  });
   const pay = useMutation({
     mutationFn: async () => {
       const key = rememberKey();
@@ -110,6 +130,17 @@ export function PremiumScreen({ subscribed = false }: { subscribed?: boolean }) 
         Подключить
       </Button>
       <p className={styles.fine}>Автопродление, отмена в любой момент.</p>
+      <Button
+        variant="secondary"
+        loading={fromBalance.isPending}
+        onClick={() => {
+          setNotice("");
+          fromBalance.mutate();
+        }}
+      >
+        Списать {price} с баланса
+      </Button>
+      <p className={styles.fine}>Разовое списание с баланса, без автопродления.</p>
     </Screen>
   );
 }

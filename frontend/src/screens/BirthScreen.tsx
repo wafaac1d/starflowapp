@@ -38,18 +38,23 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
         return editProfile({ birth_date: date, ...clock });
       }
       let current = profile;
-      if (current.step === "welcome" || current.step === "name") {
-        const name = current.display_name ?? displayName;
-        current = await saveDraft({ display_name: name });
-      }
-      if (current.step === "date" || current.step === "welcome" || current.step === "name") {
-        current = await saveDraft({ birth_date: date });
-      }
-      if (current.step === "time") {
-        current = await saveDraft(clock);
-      }
-      if (current.step === "timezone") {
-        current = await saveDraft({ timezone: current.timezone ?? deviceTimezone() });
+      const name = current.display_name ?? displayName;
+      for (let hop = 0; hop < 6; hop += 1) {
+        const step = current.step;
+        if (step === "welcome" || step === "name") {
+          current = await saveDraft({ display_name: name });
+        } else if (step === "date") {
+          current = await saveDraft({ birth_date: date });
+        } else if (step === "time") {
+          current = await saveDraft({ ...clock, timezone: deviceTimezone() });
+        } else if (step === "timezone") {
+          current = await saveDraft({ timezone: current.timezone ?? deviceTimezone() });
+        } else {
+          break;
+        }
+        if (current.step === step) {
+          break;
+        }
       }
       return current;
     },
@@ -69,7 +74,10 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
         <p className={styles.lead}>Укажите дату и время рождения, чтобы получить точный прогноз.</p>
         <div className={styles.stack}>
           <Field label="Дата рождения" icon="date_calendar" value={date} onChange={setDate} />
-          <Field label="Время рождения" icon="clock" value={time} onChange={setTime} />
+          <div className={styles.fieldNote}>
+            <Field label="Время рождения" icon="clock" value={time} onChange={setTime} />
+            <p className={styles.meta}>Можно оставить пустым, если не знаете время рождения</p>
+          </div>
         </div>
         {save.isError ? <ErrorState message="Не удалось сохранить данные рождения" /> : null}
         <div className={styles.dock}>

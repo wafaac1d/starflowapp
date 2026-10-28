@@ -85,6 +85,7 @@ class SchedulerRuntime:
         self._started = False
 
     async def _tick(self) -> None:
+        await self._guard("broadcast_fill_failed", self._ops.fill_broadcasts())
         await self._guard("outbox_tick_failed", self._outbox.dispatch_due(self._sender))
 
     async def _plan(self) -> None:

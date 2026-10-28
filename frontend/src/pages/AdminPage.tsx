@@ -1,7 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { getAdminUsers, grantAdminPeriod, type AdminUser } from "../api/client";
+import {
+  createBalanceCode,
+  getAdminUsers,
+  grantAdminPeriod,
+  queueBroadcast,
+  type AdminUser,
+} from "../api/client";
 import { queryKeys } from "../api/keys";
 import { BackHome, Button } from "../components/ui/controls";
 import { formatText, text } from "../resources";
@@ -14,6 +20,12 @@ type AdminPageProps = {
 
 const INITIAL_DAYS = "7";
 const PAGE_SIZE = 10;
+const AUDIENCES = [
+  { id: "all", label: "ui.admin.broadcast_all" },
+  { id: "inactive", label: "ui.admin.broadcast_inactive" },
+  { id: "topup", label: "ui.admin.broadcast_topup" },
+  { id: "premium", label: "ui.admin.broadcast_premium" },
+] as const;
 
 export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
   const [userId, setUserId] = useState("");
@@ -21,6 +33,14 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
   const [reason, setReason] = useState("");
   const [grantConfirmed, setGrantConfirmed] = useState(false);
   const [page, setPage] = useState(1);
+  const [codeName, setCodeName] = useState("");
+  const [codeStars, setCodeStars] = useState("50");
+  const [codeUses, setCodeUses] = useState("1");
+  const [codeDays, setCodeDays] = useState("30");
+  const [codeNotice, setCodeNotice] = useState("");
+  const [message, setMessage] = useState("");
+  const [audience, setAudience] = useState<(typeof AUDIENCES)[number]["id"]>("all");
+  const [broadcastNotice, setBroadcastNotice] = useState("");
   const client = useQueryClient();
   const people = useQuery({
     queryKey: [...queryKeys.adminUsers, page],
@@ -35,6 +55,25 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
       setReason("");
       setGrantConfirmed(false);
       await client.refetchQueries({ queryKey: queryKeys.adminUsers });
+    },
+  });
+  const code = useMutation({
+    mutationFn: () =>
+      createBalanceCode(codeName.trim(), Number(codeStars), Number(codeUses), Number(codeDays), fetchImpl),
+    onSuccess: (created) => {
+      setCodeName("");
+      setCodeStars("50");
+      setCodeUses("1");
+      setCodeDays("30");
+      setCodeNotice(`${text("ui.admin.code_done")}: ${created.code}`);
+    },
+  });
+  const broadcast = useMutation({
+    mutationFn: () => queueBroadcast(message.trim(), audience, fetchImpl),
+    onSuccess: () => {
+      setMessage("");
+      setAudience("all");
+      setBroadcastNotice(text("ui.admin.broadcast_done"));
     },
   });
   if (!isAdmin) {
@@ -109,8 +148,102 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
           void grant.mutateAsync();
         }}
       />
-      <BackHome />
       </div>
+      <h2>{text("ui.admin.code_title")}</h2>
+      <p>{text("ui.admin.code_lead")}</p>
+      <div className={styles.form}>
+        <label className="field">
+          <span>{text("ui.admin.code_name")}</span>
+          <input
+            className="as-typed"
+            value={codeName}
+            onChange={(event) => {
+              setCodeName(event.target.value);
+            }}
+          />
+        </label>
+        <label className="field">
+          <span>{text("ui.admin.code_stars")}</span>
+          <input
+            value={codeStars}
+            inputMode="numeric"
+            onChange={(event) => {
+              setCodeStars(event.target.value);
+            }}
+          />
+        </label>
+        <label className="field">
+          <span>{text("ui.admin.code_uses")}</span>
+          <input
+            value={codeUses}
+            inputMode="numeric"
+            onChange={(event) => {
+              setCodeUses(event.target.value);
+            }}
+          />
+        </label>
+        <label className="field">
+          <span>{text("ui.admin.code_days")}</span>
+          <input
+            value={codeDays}
+            inputMode="numeric"
+            onChange={(event) => {
+              setCodeDays(event.target.value);
+            }}
+          />
+        </label>
+        <Button
+          label={text("ui.admin.code_create")}
+          disabled={codeName.trim() === "" || code.isPending}
+          onClick={() => {
+            setCodeNotice("");
+            void code.mutateAsync();
+          }}
+        />
+        {codeNotice !== "" ? <p role="status">{codeNotice}</p> : null}
+      </div>
+      <h2>{text("ui.admin.broadcast_title")}</h2>
+      <p>{text("ui.admin.broadcast_lead")}</p>
+      <div className={styles.form}>
+        <label className="field">
+          <span>{text("ui.admin.broadcast_body")}</span>
+          <input
+            value={message}
+            onChange={(event) => {
+              setMessage(event.target.value);
+            }}
+          />
+        </label>
+        <label className="field">
+          <span>{text("ui.admin.broadcast_audience")}</span>
+          <select
+            className={styles.select}
+            value={audience}
+            onChange={(event) => {
+              const next = AUDIENCES.find((item) => item.id === event.target.value);
+              if (next !== undefined) {
+                setAudience(next.id);
+              }
+            }}
+          >
+            {AUDIENCES.map((item) => (
+              <option key={item.id} value={item.id}>
+                {text(item.label)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button
+          label={text("ui.admin.broadcast_send")}
+          disabled={message.trim() === "" || broadcast.isPending}
+          onClick={() => {
+            setBroadcastNotice("");
+            void broadcast.mutateAsync();
+          }}
+        />
+        {broadcastNotice !== "" ? <p role="status">{broadcastNotice}</p> : null}
+      </div>
+      <BackHome />
     </main>
   );
 }

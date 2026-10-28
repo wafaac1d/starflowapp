@@ -9,6 +9,7 @@ from starflow.domain.calendar_sign import calendar_sign
 from starflow.domain.errors import FieldInvalid, PremiumRequired
 from starflow.domain.onboarding import (
     next_after,
+    optional_birth_time,
     parse_birth_date,
     parse_birth_time,
     parse_display_name,
@@ -162,7 +163,12 @@ class ProfileService:
     ) -> Profile:
         step = profile.onboarding_step
         if step == "welcome":
-            return await uow.profiles.save_onboarding(profile.user_id, step="name")
+            if incoming.display_name is None:
+                return await uow.profiles.save_onboarding(profile.user_id, step="name")
+            name = parse_display_name(incoming.display_name)
+            return await uow.profiles.save_onboarding(
+                profile.user_id, step="date", display_name=name
+            )
         if step == "name":
             name = parse_display_name(incoming.display_name)
             return await uow.profiles.save_onboarding(
@@ -174,14 +180,14 @@ class ProfileService:
                 profile.user_id, step=next_after(step, premium=premium), birth_date=parsed
             )
         if step == "time":
-            clock = parse_birth_time(incoming.birth_time, incoming.birth_time_unknown)
+            clock, unknown = optional_birth_time(incoming.birth_time, incoming.birth_time_unknown)
             zone = parse_timezone(incoming.timezone or self._default_timezone)
             return await uow.profiles.save_onboarding(
                 profile.user_id,
                 step=next_after(step, premium=premium),
                 birth_time=clock,
-                birth_time_unknown=incoming.birth_time_unknown,
-                clear_time=incoming.birth_time_unknown,
+                birth_time_unknown=unknown,
+                clear_time=unknown,
                 timezone=zone,
             )
         if step == "timezone":

@@ -43,12 +43,19 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
           <button
             type="button"
             className={styles.balanceButton}
-            aria-label={`Баланс ${balance}`}
+            aria-label={profile.is_premium ? `Баланс unlim/${balance}` : `Баланс ${balance}`}
             onClick={() => {
               setTopUp(true);
             }}
           >
-            {balance}
+            {profile.is_premium ? (
+              <>
+                <span>unlim</span>
+                <span className={styles.balanceRest}>/{balance}</span>
+              </>
+            ) : (
+              balance
+            )}
           </button>
         </div>
         <img className={styles.hero} src="/illustrations/png/home_moon_orbits.png" alt="" />

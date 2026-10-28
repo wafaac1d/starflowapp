@@ -275,6 +275,8 @@ test("today content starts below the telegram header", async ({ page }) => {
   await expect(topUp.getByRole("button", { name: "50" })).toBeVisible();
   await expect(topUp.getByRole("button", { name: "100" })).toBeVisible();
   await expect(topUp.getByRole("button", { name: "Оплатить" })).toBeEnabled();
+  await expect(topUp.getByRole("textbox", { name: "Код" })).toBeVisible();
+  await expect(topUp.getByRole("button", { name: "Активировать" })).toBeDisabled();
   await expect(topUp.getByRole("link", { name: /^Premium$/ })).toHaveAttribute("href", "/premium");
   await expect(topUp.getByRole("link", { name: "t.me/PremiumBot" })).toHaveAttribute(
     "href",
@@ -282,6 +284,31 @@ test("today content starts below the telegram header", async ({ page }) => {
   );
   await topUp.getByRole("button", { name: "Закрыть" }).click();
   await expect(topUp).toHaveCount(0);
+});
+
+test("premium balance shows unlim and the star count", async ({ page }) => {
+  await installApp(page, "done", true);
+  await page.goto("/");
+  const balance = page.getByRole("button", { name: "Баланс unlim/0" });
+  await expect(balance).toBeVisible();
+  const unlim = balance.locator("span").nth(0);
+  const rest = balance.locator("span").nth(1);
+  await expect(unlim).toHaveText("unlim");
+  await expect(rest).toHaveText("/0");
+  const sizes = await Promise.all([
+    unlim.evaluate((node) => getComputedStyle(node).fontSize),
+    rest.evaluate((node) => getComputedStyle(node).fontSize),
+  ]);
+  expect(sizes[0]).toBe("15px");
+  expect(sizes[1]).toBe("13px");
+});
+
+test("premium can be paid from the star balance", async ({ page }) => {
+  await openReady(page, "/premium");
+  const pay = page.getByRole("button", { name: "Списать 250 с баланса" });
+  await pay.scrollIntoViewIfNeeded();
+  await expect(pay).toBeVisible();
+  await expect(page.getByText("Разовое списание с баланса, без автопродления.")).toBeVisible();
 });
 
 test("adding a person keeps equal gaps and the list waits with row silhouettes", async ({ page }) => {
@@ -320,6 +347,16 @@ test("adding a person keeps equal gaps and the list waits with row silhouettes",
     return [Math.round(next.y - (box.y + box.height))];
   });
   expect(gaps).toEqual([24, 24, 24]);
+});
+
+test("onboarding accepts an untouched birth time", async ({ page }) => {
+  await installApp(page, "welcome");
+  await page.goto("/");
+  await page.getByRole("button", { name: "Начать" }).click();
+  await expect(page.getByText("Можно оставить пустым, если не знаете время рождения")).toBeVisible();
+  await page.getByRole("textbox", { name: "Дата рождения" }).fill("12.08.1995");
+  await page.getByRole("button", { name: "Продолжить" }).click();
+  await expect(page.getByRole("heading", { name: "Анна" })).toBeVisible();
 });
 
 test("onboarding leads to today and the forecast period changes", async ({ page }) => {

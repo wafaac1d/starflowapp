@@ -758,6 +758,42 @@ D-077. Без подписки совместимость и натальная 
 
 Живой DeepSeek, живой клиент Telegram и живой платёж Stars не проверялись. Статус окна оплаты баланс не увеличивает.
 
+## Пустое время при регистрации, 2026-10-28
+
+D-078. Незаполненное поле времени рождения завершает регистрацию с первого «Продолжить». Под полем написано, что его можно оставить пустым.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check tests/unit/test_onboarding.py src/starflow/services/profile.py` | 0 |
+| `uv run ruff format --check tests/unit/test_onboarding.py src/starflow/services/profile.py` | 0 |
+| `uv run mypy src/starflow/services/profile.py` | 0 |
+| `uv run pytest tests/unit/test_onboarding.py::test_blank_birth_time_finishes_registration_without_a_touch -q` | 0, 1 тест |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'birth time\|untouched\|empty birth'` | 0, 4 теста |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'untouched birth time\|onboarding leads to today\|profile edit saves the birth time\|screenshot birth'` | 0, 4 теста |
+| та же команда `-g 'screenshot birth' --update-snapshots` после удаления `birth.png` | 0, снимок перезаписан |
+
+Живой клиент Telegram не открывался.
+
+## Premium с баланса, коды и рассылка, 2026-10-28
+
+D-079. С Premium баланс читается `unlim/N`. Период списывается с внутреннего баланса. Коды на звёзды создаёт только админ. Рассылка ставится в очередь и уходит пачками по 25.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по затронутым модулям, миграции и `tests/unit/test_balance_shop.py` | 0 |
+| `uv run ruff format --check` по восьми файлам фичи | 0, уже отформатированы |
+| `uv run mypy` по десяти модулям фичи | 0 |
+| `uv run pytest tests/unit/test_balance_shop.py -q` | 0, 5 тестов |
+| `uv run pytest tests/unit/test_contract.py::test_openapi_document_matches_the_committed_contract tests/unit/test_balance_shop.py -q` | 0, 6 тестов |
+| `corepack pnpm exec tsc --noEmit --pretty false` и vitest `unlim\|top-up\|premium offer\|balance code\|queues a balance` | 0, 4 теста |
+| `corepack pnpm exec vitest run src/pages/OpsPages.test.tsx` | 0, 7 тестов |
+| `corepack pnpm exec openapi-typescript openapi.json --output src/api/schema.d.ts` | 0 |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'today content starts\|screenshot today\|screenshot premium'` | 0, 3 теста |
+| та же команда `-g 'premium balance shows unlim\|premium can be paid'` и повторный `tsc --noEmit` | 0, 2 теста Playwright и tsc 0 |
+
+Живой DeepSeek, живой клиент Telegram и живой платёж Stars не проверялись. Статус окна оплаты Premium не выдаёт и баланс не увеличивает.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

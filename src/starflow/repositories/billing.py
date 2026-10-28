@@ -8,6 +8,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from starflow.db.tables import (
+    BalanceCodeRedemptionRow,
+    BalanceCodeRow,
     GiftAttemptRow,
     GiftCodeRow,
     OrderRow,
@@ -25,6 +27,7 @@ from starflow.domain.billing import (
     OrderRecord,
     SyncJob,
 )
+from starflow.domain.codes import BalanceCode
 from starflow.domain.entitlement import Grant
 from starflow.domain.errors import Conflict
 from starflow.domain.records import User
@@ -159,6 +162,61 @@ class BillingRepository:
         row.star_balance += amount
         await self._session.flush()
         return row.star_balance
+
+    async def insert_balance_code(
+        self,
+        code: str,
+        stars: int,
+        max_uses: int,
+        expires_at: datetime,
+    ) -> BalanceCode:
+        row = BalanceCodeRow(
+            code=code,
+            code_norm=code.casefold(),
+            stars=stars,
+            max_uses=max_uses,
+            used_count=0,
+            expires_at=expires_at,
+        )
+        await _save(self._session, row)
+        return _balance_code(row)
+
+    async def lock_balance_code(self, name: str) -> BalanceCode | None:
+        result = await self._session.execute(
+            select(BalanceCodeRow)
+            .where(BalanceCodeRow.code_norm == name.strip().casefold())
+            .with_for_update()
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return _balance_code(row)
+
+    async def has_balance_redemption(self, code_id: UUID, user_id: UUID) -> bool:
+        result = await self._session.execute(
+            select(BalanceCodeRedemptionRow.code_id).where(
+                BalanceCodeRedemptionRow.code_id == code_id,
+                BalanceCodeRedemptionRow.user_id == user_id,
+            )
+        )
+        return result.scalar_one_or_none() is not None
+
+    async def add_balance_redemption(self, code_id: UUID, user_id: UUID, now: datetime) -> None:
+        await _save(
+            self._session,
+            BalanceCodeRedemptionRow(code_id=code_id, user_id=user_id, created_at=now),
+        )
+
+    async def consume_balance_code(self, code_id: UUID) -> bool:
+        result = await self._session.execute(
+            update(BalanceCodeRow)
+            .where(
+                BalanceCodeRow.id == code_id,
+                BalanceCodeRow.used_count < BalanceCodeRow.max_uses,
+            )
+            .values(used_count=BalanceCodeRow.used_count + 1)
+        )
+        return _one_row(result)
 
     async def debit_stars(self, user_id: UUID, amount: int) -> int:
         if amount < 1:
@@ -749,3 +807,14 @@ class BillingRepository:
             for row, telegram_id in refunds.all()
         )
         return tuple(jobs)
+
+
+def _balance_code(row: BalanceCodeRow) -> BalanceCode:
+    return BalanceCode(
+        id=row.id,
+        code=row.code,
+        stars=row.stars,
+        max_uses=row.max_uses,
+        used_count=row.used_count,
+        expires_at=row.expires_at,
+    )

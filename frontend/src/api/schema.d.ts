@@ -689,6 +689,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/stars/premium": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Buy Premium */
+        post: operations["buy_premium_api_v1_stars_premium_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stars/codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Redeem Code */
+        post: operations["redeem_code_api_v1_stars_codes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/assistant/messages": {
         parameters: {
             query?: never;
@@ -770,6 +804,40 @@ export interface paths {
         get: operations["admin_users_api_v1_admin_users_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/balance-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Balance Code */
+        post: operations["create_balance_code_api_v1_admin_balance_codes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/broadcasts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Broadcast */
+        post: operations["create_broadcast_api_v1_admin_broadcasts_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -926,6 +994,22 @@ export interface components {
             /** Balance */
             balance: number;
         };
+        /** BalanceCodeCreate */
+        BalanceCodeCreate: {
+            /** Code */
+            code: string;
+            /** Stars */
+            stars: number;
+            /** Uses */
+            uses: number;
+            /** Days */
+            days: number;
+        };
+        /** BalanceCodeCreated */
+        BalanceCodeCreated: {
+            /** Code */
+            code: string;
+        };
         /** BillingBody */
         BillingBody: {
             /** Premium */
@@ -966,6 +1050,23 @@ export interface components {
             trial_available: boolean;
             /** Period End */
             period_end: string | null;
+        };
+        /** BroadcastCreate */
+        BroadcastCreate: {
+            /** Body */
+            body: string;
+            /** Audience */
+            audience: string;
+        };
+        /** BroadcastCreated */
+        BroadcastCreated: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
         };
         /** CacheCount */
         CacheCount: {
@@ -1025,6 +1126,16 @@ export interface components {
         ClientStatusBody: {
             /** Status */
             status: string;
+        };
+        /** CodeRedeemBody */
+        CodeRedeemBody: {
+            /** Balance */
+            balance: number;
+        };
+        /** CodeRedeemRequest */
+        CodeRedeemRequest: {
+            /** Code */
+            code: string;
         };
         /** CompatibilityResult */
         CompatibilityResult: {
@@ -1246,6 +1357,13 @@ export interface components {
             retrograde: boolean;
             /** Exact */
             exact: boolean;
+        };
+        /** PremiumBuyBody */
+        PremiumBuyBody: {
+            /** Balance */
+            balance: number;
+            /** Charged */
+            charged: boolean;
         };
         /** ProfileBody */
         ProfileBody: {
@@ -2732,6 +2850,70 @@ export interface operations {
             };
         };
     };
+    buy_premium_api_v1_stars_premium_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PremiumBuyBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    redeem_code_api_v1_stars_codes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeRedeemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CodeRedeemBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_assistant_api_v1_assistant_messages_get: {
         parameters: {
             query?: {
@@ -2923,6 +3105,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AdminUsersBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_balance_code_api_v1_admin_balance_codes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BalanceCodeCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BalanceCodeCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_broadcast_api_v1_admin_broadcasts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BroadcastCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BroadcastCreated"];
                 };
             };
             /** @description Validation Error */

@@ -559,6 +559,54 @@ export async function createTopup(
   );
 }
 
+export async function buyPremium(
+  idempotencyKey: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ balance: number; charged: boolean }> {
+  return requestJson<{ balance: number; charged: boolean }>(
+    "/api/v1/stars/premium",
+    { method: "POST", headers: { "Idempotency-Key": idempotencyKey } },
+    fetchImpl,
+  );
+}
+
+export async function redeemBalanceCode(
+  code: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ balance: number }> {
+  return requestJson<{ balance: number }>(
+    "/api/v1/stars/codes",
+    { method: "POST", body: JSON.stringify({ code }) },
+    fetchImpl,
+  );
+}
+
+export async function createBalanceCode(
+  code: string,
+  stars: number,
+  uses: number,
+  days: number,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ code: string }> {
+  return requestJson<{ code: string }>(
+    "/api/v1/admin/balance-codes",
+    { method: "POST", body: JSON.stringify({ code, stars, uses, days }) },
+    fetchImpl,
+  );
+}
+
+export async function queueBroadcast(
+  body: string,
+  audience: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ id: string; status: string }> {
+  return requestJson<{ id: string; status: string }>(
+    "/api/v1/admin/broadcasts",
+    { method: "POST", body: JSON.stringify({ body, audience }) },
+    fetchImpl,
+  );
+}
+
 export async function spendStars(
   body: { feature: "natal" } | { feature: "compatibility"; left_sign: string; right_sign: string },
   fetchImpl: typeof fetch = fetch,

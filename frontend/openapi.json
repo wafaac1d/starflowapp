@@ -1517,6 +1517,83 @@
         }
       }
     },
+    "/api/v1/stars/premium": {
+      "post": {
+        "summary": "Buy Premium",
+        "operationId": "buy_premium_api_v1_stars_premium_post",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PremiumBuyBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/stars/codes": {
+      "post": {
+        "summary": "Redeem Code",
+        "operationId": "redeem_code_api_v1_stars_codes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeRedeemRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CodeRedeemBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/assistant/messages": {
       "post": {
         "summary": "Ask Assistant",
@@ -1797,6 +1874,82 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AdminUsersBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/balance-codes": {
+      "post": {
+        "summary": "Create Balance Code",
+        "operationId": "create_balance_code_api_v1_admin_balance_codes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BalanceCodeCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BalanceCodeCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/broadcasts": {
+      "post": {
+        "summary": "Create Broadcast",
+        "operationId": "create_broadcast_api_v1_admin_broadcasts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BroadcastCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BroadcastCreated"
                 }
               }
             }
@@ -2175,6 +2328,55 @@
         ],
         "title": "BalanceBody"
       },
+      "BalanceCodeCreate": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "stars": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Stars"
+          },
+          "uses": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "minimum": 1.0,
+            "title": "Uses"
+          },
+          "days": {
+            "type": "integer",
+            "maximum": 366.0,
+            "minimum": 1.0,
+            "title": "Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "stars",
+          "uses",
+          "days"
+        ],
+        "title": "BalanceCodeCreate"
+      },
+      "BalanceCodeCreated": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "BalanceCodeCreated"
+      },
       "BillingBody": {
         "properties": {
           "premium": {
@@ -2337,6 +2539,47 @@
           "period_end"
         ],
         "title": "BillingBody"
+      },
+      "BroadcastCreate": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Body"
+          },
+          "audience": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Audience"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body",
+          "audience"
+        ],
+        "title": "BroadcastCreate"
+      },
+      "BroadcastCreated": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "BroadcastCreated"
       },
       "CacheCount": {
         "properties": {
@@ -2549,6 +2792,34 @@
           "status"
         ],
         "title": "ClientStatusBody"
+      },
+      "CodeRedeemBody": {
+        "properties": {
+          "balance": {
+            "type": "integer",
+            "title": "Balance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "balance"
+        ],
+        "title": "CodeRedeemBody"
+      },
+      "CodeRedeemRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "CodeRedeemRequest"
       },
       "CompatibilityResult": {
         "properties": {
@@ -3131,6 +3402,24 @@
           "exact"
         ],
         "title": "PlanetBody"
+      },
+      "PremiumBuyBody": {
+        "properties": {
+          "balance": {
+            "type": "integer",
+            "title": "Balance"
+          },
+          "charged": {
+            "type": "boolean",
+            "title": "Charged"
+          }
+        },
+        "type": "object",
+        "required": [
+          "balance",
+          "charged"
+        ],
+        "title": "PremiumBuyBody"
       },
       "ProfileBody": {
         "properties": {

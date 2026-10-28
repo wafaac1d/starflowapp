@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
-SOURCES = ("subscription", "gift", "trial", "referral", "admin")
+SOURCES = ("subscription", "gift", "trial", "referral", "admin", "balance")
 
 
 @dataclass(frozen=True)

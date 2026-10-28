@@ -81,6 +81,27 @@ class AdminUsersBody(BaseModel):
     page_size: int
 
 
+class BalanceCodeCreate(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+    stars: int = Field(ge=1, le=10000)
+    uses: int = Field(ge=1, le=10000)
+    days: int = Field(ge=1, le=366)
+
+
+class BalanceCodeCreated(BaseModel):
+    code: str
+
+
+class BroadcastCreate(BaseModel):
+    body: str = Field(min_length=1, max_length=500)
+    audience: str = Field(min_length=1, max_length=16)
+
+
+class BroadcastCreated(BaseModel):
+    id: UUID
+    status: str
+
+
 class AdminBody(BaseModel):
     start: date
     end: date
@@ -238,6 +259,40 @@ def register_ops_routes(router: APIRouter, container: Container) -> None:
             page=page,
             page_size=page_size,
         )
+
+    @router.post("/admin/balance-codes", response_model=BalanceCodeCreated)
+    async def create_balance_code(body: BalanceCodeCreate, request: Request) -> BalanceCodeCreated:
+        require_intent(request, unauthorized)
+        actor = await actor_from_cookie(request, container, unauthorized)
+        if not actor.view.is_admin:
+            raise ApiError(403, "unauthorized", unauthorized)
+        try:
+            code = await container.stars_service.create_code(
+                actor_is_admin=True,
+                name=body.code,
+                stars=body.stars,
+                uses=body.uses,
+                days=body.days,
+            )
+        except FieldInvalid as error:
+            raise _field(container, error) from error
+        return BalanceCodeCreated(code=code)
+
+    @router.post("/admin/broadcasts", response_model=BroadcastCreated)
+    async def create_broadcast(body: BroadcastCreate, request: Request) -> BroadcastCreated:
+        require_intent(request, unauthorized)
+        actor = await actor_from_cookie(request, container, unauthorized)
+        if not actor.view.is_admin:
+            raise ApiError(403, "unauthorized", unauthorized)
+        try:
+            broadcast_id = await ops.queue_broadcast(
+                actor_is_admin=True,
+                body=body.body,
+                audience=body.audience,
+            )
+        except FieldInvalid as error:
+            raise _field(container, error) from error
+        return BroadcastCreated(id=broadcast_id, status="queued")
 
 
 def _window(start: date | None, end: date | None) -> tuple[datetime, datetime]:

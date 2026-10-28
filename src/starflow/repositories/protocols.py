@@ -42,6 +42,7 @@ class OutboxRepository(Protocol):
         event_key: str | None = None,
         page: str = "",
         planet: str = "",
+        body: str = "",
     ) -> UUID: ...
 
     async def claim_due(self, now: datetime, limit: int = 25) -> list[OutboxJob]: ...

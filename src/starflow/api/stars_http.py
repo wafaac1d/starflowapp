@@ -42,6 +42,19 @@ class SpendBody(BaseModel):
     price: int
 
 
+class PremiumBuyBody(BaseModel):
+    balance: int
+    charged: bool
+
+
+class CodeRedeemRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=32)
+
+
+class CodeRedeemBody(BaseModel):
+    balance: int
+
+
 def register_star_routes(router: APIRouter, container: Container) -> None:
     unauthorized = container.catalog.text("errors.unauthorized")
 
@@ -90,6 +103,40 @@ def register_star_routes(router: APIRouter, container: Container) -> None:
             charged=result.charged,
             price=result.price,
         )
+
+    @router.post("/stars/premium", response_model=PremiumBuyBody)
+    async def buy_premium(
+        request: Request,
+        idempotency_key: Annotated[str, Header(alias="Idempotency-Key")],
+    ) -> PremiumBuyBody:
+        require_intent(request, unauthorized)
+        actor = await actor_from_cookie(request, container, unauthorized)
+        try:
+            bought = await container.stars_service.buy_premium(
+                actor.view.user_id,
+                idempotency_key,
+                container.settings.premium_price_stars,
+                container.plans.premium.period_days,
+            )
+        except FieldInvalid as error:
+            if error.message_key == "errors.stars_required":
+                raise ApiError(
+                    402,
+                    "stars_required",
+                    container.catalog.text("errors.stars_required"),
+                ) from error
+            raise _field(container, error) from error
+        return PremiumBuyBody(balance=bought.balance, charged=bought.charged)
+
+    @router.post("/stars/codes", response_model=CodeRedeemBody)
+    async def redeem_code(body: CodeRedeemRequest, request: Request) -> CodeRedeemBody:
+        require_intent(request, unauthorized)
+        actor = await actor_from_cookie(request, container, unauthorized)
+        try:
+            balance = await container.stars_service.redeem_code(actor.view.user_id, body.code)
+        except FieldInvalid as error:
+            raise _field(container, error) from error
+        return CodeRedeemBody(balance=balance)
 
 
 def _subject(body: SpendRequest) -> str:

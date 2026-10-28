@@ -1,4 +1,6 @@
+from dataclasses import replace
 from datetime import UTC, date, datetime, time
+from uuid import UUID
 
 import pytest
 import time_machine
@@ -14,7 +16,9 @@ from starflow.domain.onboarding import (
     parse_display_name,
     previous_step,
 )
+from starflow.domain.records import Profile
 from starflow.domain.start_param import normalize_start_param
+from starflow.services.profile import DraftInput, ProfileService
 from starflow.services.telegram_auth import TelegramInitDataVerifier
 from tests.support import make_settings
 from tests.unit.test_skeleton import _init_data
@@ -79,6 +83,114 @@ def test_optional_birth_time_is_unknown_when_the_field_is_empty() -> None:
     assert optional_birth_time("14:30", False) == (time(14, 30), False)
     with pytest.raises(FieldInvalid):
         optional_birth_time("25:00", False)
+
+
+class _Profiles:
+    def __init__(self, profile: Profile) -> None:
+        self.profile = profile
+
+    async def ensure(self, user_id: UUID) -> Profile:
+        return self.profile
+
+    async def save_onboarding(
+        self,
+        user_id: UUID,
+        *,
+        step: str,
+        display_name: str | None = None,
+        birth_date: date | None = None,
+        birth_time: time | None = None,
+        birth_time_unknown: bool | None = None,
+        timezone: str | None = None,
+        clear_time: bool = False,
+    ) -> Profile:
+        updated = replace(self.profile, onboarding_step=step)
+        if display_name is not None:
+            updated = replace(updated, display_name=display_name)
+        if birth_date is not None:
+            updated = replace(updated, birth_date=birth_date)
+        if birth_time_unknown is not None:
+            updated = replace(updated, birth_time_unknown=birth_time_unknown)
+        if clear_time:
+            updated = replace(updated, birth_time=None)
+        elif birth_time is not None:
+            updated = replace(updated, birth_time=birth_time)
+        if timezone is not None:
+            updated = replace(updated, timezone=timezone)
+        self.profile = updated
+        return updated
+
+
+class _Subscriptions:
+    async def has_active(self, user_id: UUID, moment: datetime) -> bool:
+        return False
+
+
+class _Work:
+    def __init__(self, profiles: _Profiles) -> None:
+        self.profiles = profiles
+        self.subscriptions = _Subscriptions()
+
+    async def __aenter__(self) -> "_Work":
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        return None
+
+    async def commit(self) -> None:
+        return None
+
+
+class _Zones:
+    def zone(self, latitude: float, longitude: float) -> str | None:
+        return None
+
+
+def _draft(
+    *,
+    display_name: str | None = None,
+    birth_date: str | None = None,
+    birth_time: str | None = None,
+    birth_time_unknown: bool = False,
+    timezone: str | None = None,
+) -> DraftInput:
+    return DraftInput(
+        display_name=display_name,
+        birth_date=birth_date,
+        birth_time=birth_time,
+        birth_time_unknown=birth_time_unknown,
+        timezone=timezone,
+    )
+
+
+async def test_blank_birth_time_finishes_registration_without_a_touch() -> None:
+    user_id = UUID("00000000-0000-0000-0000-000000000041")
+    profiles = _Profiles(
+        Profile(
+            id=user_id,
+            user_id=user_id,
+            display_name=None,
+            birth_date=None,
+            birth_time=None,
+            birth_time_unknown=False,
+            birth_place=None,
+            latitude=None,
+            longitude=None,
+            timezone=None,
+            onboarding_step="welcome",
+        )
+    )
+    service = ProfileService(lambda: _Work(profiles), _Zones())
+    named = await service.continue_draft(user_id, _draft(display_name="Анна"))
+    assert named.onboarding_step == "date"
+    assert named.display_name == "Анна"
+    dated = await service.continue_draft(user_id, _draft(birth_date="12.08.1995"))
+    assert dated.onboarding_step == "time"
+    finished = await service.continue_draft(user_id, _draft())
+    assert finished.onboarding_step == "done"
+    assert finished.birth_time is None
+    assert finished.birth_time_unknown is True
+    assert finished.timezone == "Europe/Moscow"
 
 
 def test_screen_url_keeps_the_screen_name() -> None:

@@ -134,6 +134,24 @@ admin:
   grant_days: Дни
   reason: Причина
   confirm: Подтверждаю
+  code_title: Подарочный код
+  code_lead: Код зачисляет звёзды на баланс. Купить его нельзя, его создаёт только админ.
+  code_name: Название
+  code_stars: Звёзды
+  code_uses: Использований
+  code_days: Срок, дни
+  code_create: Создать код
+  code_done: Код создан
+  broadcast_title: Рассылка
+  broadcast_lead: Сообщение уходит пачками через уже существующую очередь, не всем сразу.
+  broadcast_body: Сообщение
+  broadcast_audience: Кому
+  broadcast_all: Всем
+  broadcast_inactive: Давно не заходили
+  broadcast_topup: Недавно пополняли баланс
+  broadcast_premium: Premium
+  broadcast_send: Поставить в очередь
+  broadcast_done: Сообщение поставлено в очередь
   refund: Возврат
   charge: Идентификатор платежа
 delete:

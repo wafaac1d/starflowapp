@@ -3,7 +3,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import delete, func, or_, select, text
+from sqlalchemy import Select, case, delete, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,6 +11,8 @@ from starflow.db.tables import (
     AiRequestRow,
     AssistantMessageRow,
     AuthSessionRow,
+    BroadcastRow,
+    BroadcastTargetRow,
     DailySkyRow,
     FavoriteRow,
     ForecastCacheRow,
@@ -30,7 +32,13 @@ from starflow.db.tables import (
     UsageCounterRow,
     UserRow,
 )
-from starflow.domain.entitlement import Grant, access_end
+from starflow.domain.broadcast import (
+    BROADCAST_BATCH,
+    INACTIVE_DAYS,
+    TOPUP_DAYS,
+    BroadcastJob,
+)
+from starflow.domain.entitlement import SOURCES, Grant, access_end
 from starflow.domain.errors import Conflict, QuotaExceeded
 from starflow.domain.notify_clock import LEASE
 from starflow.domain.profile import ensure_birth_time
@@ -1222,12 +1230,13 @@ class SqlOutboxRepository:
         event_key: str | None = None,
         page: str = "",
         planet: str = "",
+        body: str = "",
     ) -> UUID:
         row = NotificationOutboxRow(
             user_id=user_id,
             kind=kind,
             event_key=event_key or local_date.isoformat(),
-            payload={"text_key": text_key, "page": page, "planet": planet},
+            payload={"text_key": text_key, "page": page, "planet": planet, "body": body},
             local_date=local_date,
             status="pending",
             attempts=0,
@@ -1285,6 +1294,7 @@ class SqlOutboxRepository:
             text_key = payload.get("text_key")
             page = payload.get("page")
             planet = payload.get("planet")
+            body = payload.get("body")
             if not isinstance(text_key, str) or text_key == "":
                 continue
             jobs.append(
@@ -1294,6 +1304,7 @@ class SqlOutboxRepository:
                     text_key=text_key,
                     page=page if isinstance(page, str) else "",
                     planet=planet if isinstance(planet, str) else "",
+                    body=body if isinstance(body, str) else "",
                 )
             )
         await self._session.flush()
@@ -1493,6 +1504,100 @@ class OpsRepository:
             )
             for user_id, telegram_id, username, display_name in result.all()
         )
+
+    async def insert_broadcast(self, body: str, audience: str, now: datetime) -> UUID:
+        row = BroadcastRow(
+            body=body,
+            audience=audience,
+            status="queued",
+            created_at=now,
+            updated_at=now,
+        )
+        await _save(self._session, row)
+        return row.id
+
+    async def next_queued_broadcast(self) -> BroadcastJob | None:
+        result = await self._session.execute(
+            select(BroadcastRow)
+            .where(BroadcastRow.status == "queued")
+            .order_by(BroadcastRow.created_at, BroadcastRow.id)
+            .limit(1)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return BroadcastJob(id=row.id, body=row.body, audience=row.audience)
+
+    async def finish_broadcast(self, broadcast_id: UUID, now: datetime) -> None:
+        await self._session.execute(
+            update(BroadcastRow)
+            .where(BroadcastRow.id == broadcast_id)
+            .values(status="done", updated_at=now)
+        )
+        await self._session.flush()
+
+    async def remember_broadcast_target(self, broadcast_id: UUID, user_id: UUID) -> None:
+        await _save(
+            self._session,
+            BroadcastTargetRow(broadcast_id=broadcast_id, user_id=user_id),
+        )
+
+    async def broadcast_user_ids(
+        self,
+        audience: str,
+        broadcast_id: UUID,
+        now: datetime,
+        limit: int = BROADCAST_BATCH,
+    ) -> list[UUID]:
+        targeted = select(BroadcastTargetRow.user_id).where(
+            BroadcastTargetRow.broadcast_id == broadcast_id
+        )
+        statement = select(UserRow.id).where(
+            UserRow.deleted_at.is_(None),
+            UserRow.is_blocked.is_(False),
+            UserRow.id.not_in(targeted),
+        )
+        if audience == "inactive":
+            last_seen = (
+                select(func.max(AuthSessionRow.created_at))
+                .where(AuthSessionRow.user_id == UserRow.id)
+                .correlate(UserRow)
+                .scalar_subquery()
+            )
+            statement = statement.where(
+                func.coalesce(last_seen, UserRow.created_at) < now - timedelta(days=INACTIVE_DAYS)
+            )
+        elif audience == "topup":
+            recent = select(OrderRow.user_id).where(
+                OrderRow.user_id.is_not(None),
+                OrderRow.kind == "topup",
+                OrderRow.status == "paid",
+                OrderRow.updated_at >= now - timedelta(days=TOPUP_DAYS),
+            )
+            statement = statement.where(UserRow.id.in_(recent))
+        elif audience == "premium":
+            statement = statement.where(UserRow.id.in_(_open_premium(now)))
+        elif audience != "all":
+            return []
+        result = await self._session.execute(statement.order_by(UserRow.id).limit(limit))
+        return list(result.scalars())
+
+
+def _open_premium(now: datetime) -> Select[UUID]:
+    period_end = case(
+        (
+            SubscriptionRow.source == "subscription",
+            func.coalesce(SubscriptionRow.grace_until, SubscriptionRow.current_period_end),
+        ),
+        else_=SubscriptionRow.current_period_end,
+    )
+    return select(SubscriptionRow.user_id).where(
+        SubscriptionRow.status == "active",
+        SubscriptionRow.revoked_at.is_(None),
+        SubscriptionRow.source.in_(SOURCES),
+        SubscriptionRow.current_period_start <= now,
+        period_end > now,
+    )
 
 
 def _apply_profile(row: ProfileRow, draft: ProfileDraft) -> None:

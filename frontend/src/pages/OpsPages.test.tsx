@@ -200,4 +200,44 @@ describe("notice settings, deletion and admin", () => {
     expect(screen.getByText("2 из 2")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: text("ui.admin.page_next") })).toBeDisabled();
   });
+
+  it("queues a balance code and a broadcast without sending it immediately", async () => {
+    const sent: { url: string; body: Record<string, unknown> }[] = [];
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = requestUrl(input);
+      if (url.includes("/admin/users")) {
+        return new Response(JSON.stringify({ users: [], total: 0, page: 1, page_size: 10 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      sent.push({ url, body: JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown> });
+      if (url.includes("/balance-codes")) {
+        return new Response(JSON.stringify({ code: "Лето-1" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      return new Response(
+        JSON.stringify({ id: "00000000-0000-0000-0000-0000000000aa", status: "queued" }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+    }) as typeof fetch;
+    renderPage(<AdminPage isAdmin fetchImpl={fetchImpl} />);
+    await userEvent.type(screen.getByRole("textbox", { name: text("ui.admin.code_name") }), "Лето-1");
+    await userEvent.click(screen.getByRole("button", { name: text("ui.admin.code_create") }));
+    expect(await screen.findByText("Код создан: Лето-1")).toBeInTheDocument();
+    await userEvent.type(
+      screen.getByRole("textbox", { name: text("ui.admin.broadcast_body") }),
+      "Тихий вечер",
+    );
+    await userEvent.selectOptions(
+      screen.getByRole("combobox", { name: text("ui.admin.broadcast_audience") }),
+      "inactive",
+    );
+    await userEvent.click(screen.getByRole("button", { name: text("ui.admin.broadcast_send") }));
+    expect(await screen.findByText(text("ui.admin.broadcast_done"))).toBeInTheDocument();
+    expect(sent[0]?.body).toMatchObject({ code: "Лето-1", stars: 50, uses: 1, days: 30 });
+    expect(sent[1]?.body).toEqual({ body: "Тихий вечер", audience: "inactive" });
+  });
 });

@@ -61,9 +61,12 @@ class OutboxService:
         delivered = 0
         for job in jobs:
             await self._pace.wait()
-            text = self._catalog.text(job.text_key)
-            if job.planet:
-                text = self._catalog.format(job.text_key, planet=job.planet)
+            if job.body != "":
+                text = job.body
+            else:
+                text = self._catalog.text(job.text_key)
+                if job.planet:
+                    text = self._catalog.format(job.text_key, planet=job.planet)
             try:
                 await sender.send_notice(job.telegram_id, text, job.page)
             except DeliveryBlocked as error:

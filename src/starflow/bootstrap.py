@@ -124,6 +124,7 @@ REQUIRED_TEXTS = (
     "bot.invoice_subscription_description",
     "bot.invoice_gift_title",
     "bot.invoice_gift_description",
+    "bot.broadcast",
     "bot.invoice_topup_title",
     "bot.invoice_topup_description",
     "errors.stars_required",
