@@ -399,6 +399,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/favorites/{history_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Favorite */
+        get: operations["read_favorite_api_v1_favorites__history_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/readings/{history_id}/feedback": {
         parameters: {
             query?: never;
@@ -1201,6 +1218,18 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** FavoriteReading */
+        FavoriteReading: {
+            /**
+             * History Id
+             * Format: uuid
+             */
+            history_id: string;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+        };
         /** FavoriteResult */
         FavoriteResult: {
             /**
@@ -1504,6 +1533,15 @@ export interface components {
              */
             consent: boolean;
         };
+        /** RetroPeriodBody */
+        RetroPeriodBody: {
+            /** Planet */
+            planet: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+        };
         /** SectionBody */
         SectionBody: {
             /** Id */
@@ -1561,18 +1599,6 @@ export interface components {
              * @default
              */
             right_sign: string;
-        };
-        /** StationBody */
-        StationBody: {
-            /** Planet */
-            planet: string;
-            /**
-             * Start
-             * Format: date-time
-             */
-            start: string;
-            /** Local Date */
-            local_date: string;
         };
         /** TopupBody */
         TopupBody: {
@@ -2327,6 +2353,37 @@ export interface operations {
             };
         };
     };
+    read_favorite_api_v1_favorites__history_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                history_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FavoriteReading"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     add_feedback_api_v1_readings__history_id__feedback_post: {
         parameters: {
             query?: never;
@@ -3049,7 +3106,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StationBody"][];
+                    "application/json": components["schemas"]["RetroPeriodBody"][];
                 };
             };
         };

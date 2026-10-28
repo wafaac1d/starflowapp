@@ -1,7 +1,7 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { getShare, readingKey, saveFavorite } from "../api/client";
+import { getFavorites, getShare, readingKey, saveFavorite } from "../api/client";
 import { forecastTopics, getForecastTopics } from "../api/fixtures";
 import { queryKeys } from "../api/keys";
 import { STAR_SILENCE, useReading } from "../readingWait";
@@ -31,13 +31,22 @@ const KIND: Record<Period, string> = {
 
 export function ForecastScreen({ premium }: { premium: boolean }) {
   const [period, setPeriod] = useState<Period>("day");
+  const client = useQueryClient();
   const detail = useTopicDetail(premium);
   const topics = useQuery({ queryKey: queryKeys.forecastTopics, queryFn: getForecastTopics });
+  const favorites = useQuery({ queryKey: queryKeys.favorites, queryFn: () => getFavorites() });
   const reading = useReading(KIND[period]);
+  const historyId = reading.face.phase === "ready" ? reading.face.historyId : null;
   const keep = useMutation({
-    mutationFn: () =>
-      saveFavorite(reading.face.phase === "ready" ? (reading.face.historyId ?? "") : "", readingKey()),
+    mutationFn: (id: string) => saveFavorite(id, readingKey()),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: queryKeys.favorites });
+    },
   });
+  const saved =
+    historyId !== null &&
+    (favorites.data?.some((item) => item.history_id === historyId) === true ||
+      (keep.isSuccess && keep.variables === historyId));
   const share = useMutation({
     mutationFn: async () => {
       const historyId = reading.face.phase === "ready" ? reading.face.historyId : null;
@@ -86,12 +95,15 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
           variant="secondary"
           icon="save_bookmark"
           fit
-          disabled={reading.face.phase !== "ready" || reading.face.historyId == null || keep.isSuccess}
+          disabled={historyId === null || saved || keep.isPending || favorites.isPending}
           onClick={() => {
-            keep.mutate();
+            if (historyId === null) {
+              return;
+            }
+            keep.mutate(historyId);
           }}
         >
-          Сохранить
+          {saved ? "Сохранено" : "Сохранить"}
         </Button>
         <Button
           icon="share"

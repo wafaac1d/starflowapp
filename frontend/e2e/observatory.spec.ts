@@ -207,6 +207,16 @@ async function installApp(page: Page, step = "done", premium = false) {
       });
       return;
     }
+    if (url.includes("/retro") && method === "GET") {
+      await route.fulfill({
+        json: [
+          { planet: "меркурий", start: "2025-08-01", end: "2025-08-25" },
+          { planet: "сатурн", start: "2025-07-26", end: "2025-12-10" },
+          { planet: "венера", start: "2025-09-01", end: "2025-09-20" },
+        ],
+      });
+      return;
+    }
     if (url.includes("/notifications") && method === "GET") {
       await route.fulfill({
         json: { local_time: "08:30", timezone: "Europe/Moscow", day: true, moon: false, retro: false },
@@ -226,6 +236,17 @@ async function installApp(page: Page, step = "done", premium = false) {
           subscription_invoice_link: null,
           subscription_order_id: null,
           subscription_payment_state: "none",
+        },
+      });
+      return;
+    }
+    if (url.includes("/favorites/") && method === "GET") {
+      const historyId = url.split("/favorites/")[1]?.split("?")[0] ?? "";
+      await route.fulfill({
+        json: {
+          history_id: historyId,
+          title: "День для ясных решений",
+          body: "Сегодня благоприятный день для важных разговоров и новых начинаний.",
         },
       });
       return;
@@ -251,6 +272,25 @@ async function openReady(page: Page, path: string, premium = false) {
   await installApp(page, "done", premium);
   await page.goto(path);
 }
+
+test("today opens retrograde planets", async ({ page }) => {
+  await openReady(page, "/");
+  const practices = page.getByRole("heading", { name: "Ваши астропрактики" });
+  await practices.scrollIntoViewIfNeeded();
+  await expect(practices).toBeVisible();
+  const badge = page.getByText("2 периода");
+  await badge.scrollIntoViewIfNeeded();
+  await expect(badge).toBeVisible();
+  await page.getByRole("button", { name: "Ретроградные планеты" }).click();
+  await expect(page.getByRole("heading", { name: "Ретроградные планеты" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Меркурий" })).toBeVisible();
+  await expect(page.getByText("Ретроградный").first()).toBeVisible();
+  await page.getByRole("tab", { name: "Скоро" }).click();
+  await expect(page.getByRole("heading", { name: "Венера" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Меркурий" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Напомнить о периоде" }).click();
+  await expect(page.getByRole("button", { name: "Напоминание включено" })).toBeDisabled();
+});
 
 test("today content starts below the telegram header", async ({ page }) => {
   await openReady(page, "/");
@@ -291,8 +331,8 @@ test("premium balance shows unlim and the star count", async ({ page }) => {
   await page.goto("/");
   const balance = page.getByRole("button", { name: "Баланс unlim/0" });
   await expect(balance).toBeVisible();
-  const unlim = balance.locator("span").nth(0);
-  const rest = balance.locator("span").nth(1);
+  const unlim = balance.getByText("unlim", { exact: true });
+  const rest = balance.getByText("/0", { exact: true });
   await expect(unlim).toHaveText("unlim");
   await expect(rest).toHaveText("/0");
   const sizes = await Promise.all([
@@ -301,6 +341,20 @@ test("premium balance shows unlim and the star count", async ({ page }) => {
   ]);
   expect(sizes[0]).toBe("15px");
   expect(sizes[1]).toBe("13px");
+  const offset = await balance.evaluate((node) => {
+    const button = node.getBoundingClientRect();
+    const pieces = [...node.querySelectorAll("span")].map((piece) => piece.getBoundingClientRect());
+    const left = Math.min(...pieces.map((piece) => piece.left));
+    const right = Math.max(...pieces.map((piece) => piece.right));
+    const top = Math.min(...pieces.map((piece) => piece.top));
+    const bottom = Math.max(...pieces.map((piece) => piece.bottom));
+    return {
+      dx: (left + right) / 2 - (button.left + button.width / 2),
+      dy: (top + bottom) / 2 - (button.top + button.height / 2),
+    };
+  });
+  expect(Math.abs(offset.dx)).toBeLessThan(1);
+  expect(Math.abs(offset.dy)).toBeLessThan(1);
 });
 
 test("premium can be paid from the star balance", async ({ page }) => {
@@ -347,6 +401,25 @@ test("adding a person keeps equal gaps and the list waits with row silhouettes",
     return [Math.round(next.y - (box.y + box.height))];
   });
   expect(gaps).toEqual([24, 24, 24]);
+});
+
+test("a saved forecast stays saved and opens from favorites", async ({ page }) => {
+  await installApp(page, "done");
+  await page.route("**/api/v1/favorites", async (route) => {
+    if (route.request().method() !== "GET" || route.request().url().includes("/favorites/")) {
+      await route.fallback();
+      return;
+    }
+    await route.fulfill({
+      json: [{ history_id: "hist-1", title: "День для ясных решений" }],
+    });
+  });
+  await page.goto("/forecast");
+  await expect(page.getByRole("button", { name: "Сохранено" })).toBeDisabled();
+  await page.goto("/favorites");
+  await page.getByRole("link", { name: "День для ясных решений" }).click();
+  await expect(page.getByRole("heading", { name: "День для ясных решений" })).toBeVisible();
+  await expect(page.getByText(/благоприятный день/)).toBeVisible();
 });
 
 test("onboarding accepts an untouched birth time", async ({ page }) => {
@@ -426,9 +499,10 @@ test("empty chat explains itself in the middle", async ({ page }) => {
   await page.goto("/chat");
   const note = page.getByText(/Это чат с астропомощником/);
   await expect(note).toBeVisible();
-  await expect(page.getByText(/Один вопрос стоит 20 звёзд/)).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "Написать сообщение…" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Отправить" })).toBeDisabled();
+  await expect(note).toContainText("20");
+  await expect(page.getByText("звёзд за вопрос")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Недостаточно звёзд" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Отправить за 20" })).toBeDisabled();
   const box = await note.boundingBox();
   const center = (box?.y ?? 0) + (box?.height ?? 0) / 2;
   expect(center).toBeGreaterThan(280);
@@ -573,6 +647,7 @@ const SHOTS: { name: string; path: string }[] = [
   { name: "welcome", path: "/welcome" },
   { name: "birth", path: "/onboarding/birth" },
   { name: "today", path: "/" },
+  { name: "retro", path: "/retro" },
   { name: "forecast", path: "/forecast" },
   { name: "calendar", path: "/calendar?day=2025-08-12" },
   { name: "natal", path: "/natal" },
@@ -592,6 +667,9 @@ for (const shot of SHOTS) {
     await expect(page.locator("body")).toBeVisible();
     if (shot.name === "today") {
       await expect(page.getByRole("button", { name: "День для ясных решений" })).toBeVisible();
+    }
+    if (shot.name === "retro") {
+      await expect(page.getByRole("heading", { name: "Меркурий" })).toBeVisible();
     }
     if (shot.name === "forecast") {
       await expect(page.getByText(/благоприятный день/)).toBeVisible();

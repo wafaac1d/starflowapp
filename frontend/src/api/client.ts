@@ -207,6 +207,12 @@ export type FavoriteEntry = {
   title: string;
 };
 
+export type FavoriteReading = {
+  history_id: string;
+  title: string;
+  body: string;
+};
+
 export type RelatedEntry = {
   related_id: string;
   display_name: string;
@@ -269,6 +275,17 @@ export async function getHistory(fetchImpl: typeof fetch = fetch): Promise<Histo
 
 export async function getFavorites(fetchImpl: typeof fetch = fetch): Promise<FavoriteEntry[]> {
   return requestJson<FavoriteEntry[]>("/api/v1/favorites", { method: "GET" }, fetchImpl);
+}
+
+export async function getFavoriteReading(
+  historyId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<FavoriteReading> {
+  return requestJson<FavoriteReading>(
+    `/api/v1/favorites/${historyId}`,
+    { method: "GET" },
+    fetchImpl,
+  );
 }
 
 export async function saveFavorite(
@@ -371,14 +388,14 @@ export async function saveNotifications(
   );
 }
 
-export type RetroStation = {
+export type RetroPeriod = {
   planet: string;
   start: string;
-  local_date: string;
+  end: string;
 };
 
-export async function getRetro(fetchImpl: typeof fetch = fetch): Promise<RetroStation[]> {
-  return requestJson<RetroStation[]>("/api/v1/retro", { method: "GET" }, fetchImpl);
+export async function getRetro(fetchImpl: typeof fetch = fetch): Promise<RetroPeriod[]> {
+  return requestJson<RetroPeriod[]>("/api/v1/retro", { method: "GET" }, fetchImpl);
 }
 
 export type AdminOverview = {

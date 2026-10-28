@@ -14,7 +14,10 @@ import { ChatBubble } from "../shared/ui/ChatBubble/ChatBubble";
 import { ChatInput } from "../shared/ui/ChatInput/ChatInput";
 import { Chip } from "../shared/ui/Chip/Chip";
 import { Screen } from "../shared/ui/Screen/Screen";
+import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
+import { holdStarBalance } from "../starBalance";
+import { QUESTION_STARS } from "../stars";
 import styles from "./screens.module.css";
 import { TopUpDialog } from "./TopUpDialog";
 
@@ -26,7 +29,7 @@ type Outgoing = {
   knownIds: string[];
 };
 
-export function ChatScreen({ premium }: { premium: boolean }) {
+export function ChatScreen({ premium, balance = 0 }: { premium: boolean; balance?: number }) {
   const client = useQueryClient();
   const [draft, setDraft] = useState("");
   const [topUp, setTopUp] = useState(false);
@@ -34,11 +37,21 @@ export function ChatScreen({ premium }: { premium: boolean }) {
   const history = useQuery({ queryKey: queryKeys.assistant, queryFn: () => getAssistantMessages() });
   const ask = useMutation({
     mutationFn: (outgoing: Outgoing) => askAssistant(outgoing.text, readingKey()),
-    onSuccess: (result) => {
+    onMutate: () => (premium ? undefined : holdStarBalance(client, QUESTION_STARS)),
+    onSuccess: (result, _outgoing, restore) => {
+      if (!premium && result.status !== "ready") {
+        restore?.();
+      }
+      if (!premium && result.status === "ready") {
+        void client.invalidateQueries({ queryKey: queryKeys.session });
+      }
       if (!STORED.has(result.status) || result.reply == null || result.reply === "") {
         return;
       }
       void client.invalidateQueries({ queryKey: queryKeys.assistant, exact: true });
+    },
+    onError: (_error, _outgoing, restore) => {
+      restore?.();
     },
   });
   const messages = history.data?.messages ?? [];
@@ -49,6 +62,8 @@ export function ChatScreen({ premium }: { premium: boolean }) {
   const showAssistant = live !== null && !alreadyStored(messages, known, "assistant", answer);
   const remaining = ask.data?.remaining ?? history.data?.remaining;
   const empty = history.isSuccess && messages.length === 0 && live === null;
+  const priced = !premium;
+  const short = priced && balance < QUESTION_STARS;
   const tail = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (ask.data?.status === "stars") {
@@ -72,7 +87,9 @@ export function ChatScreen({ premium }: { premium: boolean }) {
           {empty ? (
             <p className={styles.chatEmpty}>
               Это чат с астропомощником. Спросите про день, карту или совместимость.
-              {premium ? " " : " Один вопрос стоит 20 звёзд. "}
+              {premium ? " " : " Один вопрос стоит "}
+              {premium ? null : <StarPrice amount={QUESTION_STARS} />}
+              {premium ? null : " звёзд. "}
               Ответ развлекательный и не обещает точное событие.
             </p>
           ) : null}
@@ -94,14 +111,21 @@ export function ChatScreen({ premium }: { premium: boolean }) {
           {premium && remaining !== undefined && remaining !== null ? (
             <Chip>Осталось {remaining} вопросов</Chip>
           ) : null}
-          {!premium ? <Chip>20 звёзд за вопрос</Chip> : null}
+          {!premium ? (
+            <Chip>
+              <StarPrice amount={QUESTION_STARS} /> звёзд за вопрос
+            </Chip>
+          ) : null}
           <ChatInput
             value={draft}
             pending={ask.isPending || history.isLoading}
+            locked={short}
+            placeholder={short ? "Недостаточно звёзд" : "Написать сообщение…"}
+            {...(priced ? { price: QUESTION_STARS } : {})}
             onChange={setDraft}
             onSubmit={() => {
               const text = draft.trim();
-              if (text === "" || ask.isPending || history.isLoading) {
+              if (text === "" || ask.isPending || history.isLoading || short) {
                 return;
               }
               const outgoing = {

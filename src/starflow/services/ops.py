@@ -4,7 +4,7 @@ import asyncio
 import contextlib
 import json
 from collections.abc import Callable
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from types import TracebackType
 from typing import Protocol
 from uuid import UUID
@@ -35,7 +35,7 @@ from starflow.domain.segments import (
     period_key,
     representative_facts,
 )
-from starflow.domain.stations import Station, find_stations
+from starflow.domain.stations import Station, find_retro_periods, find_stations
 from starflow.domain.time import now_utc
 from starflow.domain.warmup_plan import SIGNS, WARM_BUDGET, WARM_PARALLEL, unordered_pairs
 from starflow.repositories.protocols import OutboxRepository, UserRepository
@@ -335,6 +335,45 @@ class OpsService:
 
         return find_stations(speed_at, start, end)
 
+    async def retrograde_periods(self) -> tuple[tuple[str, str, str], ...]:
+        """Один расчёт на местные сутки. Остальные читают тот же кеш."""
+        zone = ZoneInfo(self._zone_name)
+        local = self._clock().astimezone(zone)
+        key = f"retrograde|{local.date().isoformat()}"
+        expires = datetime.combine(local.date() + timedelta(days=1), time.min, tzinfo=zone)
+
+        async def produce() -> dict[str, object]:
+            memo: dict[datetime, dict[str, float]] = {}
+
+            def speed_at(moment: datetime, planet: str) -> float:
+                speeds = memo.get(moment)
+                if speeds is None:
+                    speeds = {}
+                    for body in self._ephemeris.positions(moment):
+                        name = getattr(body, "name", None)
+                        speed = getattr(body, "speed", None)
+                        if isinstance(name, str) and isinstance(speed, int | float):
+                            speeds[name] = float(speed)
+                    memo[moment] = speeds
+                return speeds.get(planet, 0.0)
+
+            periods = find_retro_periods(speed_at, self._clock())
+            rows: list[dict[str, str]] = []
+            for item in periods:
+                rows.append(
+                    {
+                        "planet": item.planet,
+                        "start": item.start.astimezone(zone).date().isoformat(),
+                        "end": item.end.astimezone(zone).date().isoformat(),
+                    }
+                )
+            payload: dict[str, object] = {}
+            payload["periods"] = rows
+            return payload
+
+        hit = await self._cache.get_or_create(key, "retrograde", expires, produce)
+        return _read_periods(hit.payload)
+
     async def _day_ready(self, uow: OpsStore, birth: date | None, moment: datetime) -> bool:
         if birth is None:
             return False
@@ -508,3 +547,19 @@ def _payload(content: str) -> dict[str, object] | None:
         return None
     clean_title, clean_body = copied
     return {"title": clean_title, "body": clean_body, "source": "model"}
+
+
+def _read_periods(payload: dict[str, object]) -> tuple[tuple[str, str, str], ...]:
+    raw = payload.get("periods")
+    if not isinstance(raw, list):
+        return ()
+    listed: list[tuple[str, str, str]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        planet = item.get("planet")
+        start = item.get("start")
+        end = item.get("end")
+        if isinstance(planet, str) and isinstance(start, str) and isinstance(end, str):
+            listed.append((planet, start, end))
+    return tuple(listed)

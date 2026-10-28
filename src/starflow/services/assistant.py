@@ -1,4 +1,7 @@
-"""Диалог помощника. Квота списывается только после сохранённого ответа."""
+"""Диалог помощника. Квота периода списывается после сохранённого ответа.
+
+Звёзды без Premium списываются до запроса к модели и возвращаются, если ответа нет.
+"""
 
 import asyncio
 import json
@@ -126,6 +129,8 @@ class QuestionStars(Protocol):
     async def can_pay(self, user_id: UUID, feature: str, subject: str) -> bool: ...
 
     async def buy(self, user_id: UUID, feature: str, subject: str) -> SpendResult: ...
+
+    async def credit(self, user_id: UUID, amount: int) -> int: ...
 
 
 class AssistantService:
@@ -255,6 +260,13 @@ class AssistantService:
             reply = self._catalog.text(f"ui.assistant.{verdict}")
             await self._remember_lines(user_id, question, reply)
             return AssistantReply(status=verdict, reply=reply, code=verdict)
+        bought = await stars.buy(user_id, "assistant", key)
+        if not bought.allowed:
+            return AssistantReply(
+                status="stars",
+                code="stars_required",
+                reply=self._catalog.text("errors.stars_required"),
+            )
         facts = await self._facts(user_id)
         messages = pack_messages(self._system, facts, history, question)
         parsed = await self._complete(user_id, messages)
@@ -262,17 +274,12 @@ class AssistantService:
             repair = {"role": "user", "content": _REPAIR}
             parsed = await self._complete(user_id, [*messages, repair])
         if parsed is None:
+            if bought.charged:
+                await stars.credit(user_id, bought.price)
             return AssistantReply(
                 status="error",
                 reply=self._catalog.text("errors.reading_failed"),
                 code="invalid_reply",
-            )
-        bought = await stars.buy(user_id, "assistant", key)
-        if not bought.allowed:
-            return AssistantReply(
-                status="stars",
-                code="stars_required",
-                reply=self._catalog.text("errors.stars_required"),
             )
         await self._remember_lines(user_id, question, parsed)
         return AssistantReply(status="ready", reply=parsed, code="ready")

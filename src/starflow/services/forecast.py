@@ -642,6 +642,22 @@ class ForecastService:
                 found.append((row.target_id, title if isinstance(title, str) else row.target_type))
         return tuple(found)
 
+    async def open_favorite(self, user_id: UUID, history_id: UUID) -> tuple[str, str]:
+        async with self._uow_factory() as uow:
+            rows = await uow.favorites.list_for_user(user_id)
+            kept = any(
+                row.target_id == history_id and row.target_type == "forecast" for row in rows
+            )
+            payload = await uow.forecast_history.payload_for(user_id, history_id) if kept else None
+        if payload is None:
+            raise FieldInvalid("forecast", "errors.not_found")
+        body = payload.get("body")
+        if not isinstance(body, str) or body.strip() == "":
+            raise FieldInvalid("forecast", "errors.not_found")
+        title = payload.get("title")
+        label = title.strip() if isinstance(title, str) and title.strip() != "" else "Прогноз"
+        return label, body
+
     async def feedback(self, user_id: UUID, history_id: UUID, score: int) -> None:
         if score not in {1, 5}:
             raise FieldInvalid("score", "errors.validation")

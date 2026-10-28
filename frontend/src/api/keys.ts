@@ -12,5 +12,6 @@ export const queryKeys = {
   forecastTopics: ["forecast", "topics"] as const,
   compatibility: (personId: string) => ["compatibility", personId] as const,
   lunarDay: (iso: string) => ["lunar", iso] as const,
+  retro: ["retro"] as const,
   profileTrait: ["profile", "trait"] as const,
 };

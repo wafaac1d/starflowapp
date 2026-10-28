@@ -22,6 +22,9 @@ import { ErrorState } from "../shared/ui/ErrorState/ErrorState";
 import { Field } from "../shared/ui/Field/Field";
 import { ListRow } from "../shared/ui/ListRow/ListRow";
 import { Screen } from "../shared/ui/Screen/Screen";
+import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
+import { holdStarBalance, writeStarBalance } from "../starBalance";
+import { COMPATIBILITY_STARS } from "../stars";
 import { SegmentedControl } from "../shared/ui/SegmentedControl/SegmentedControl";
 import { Toggle } from "../shared/ui/Toggle/Toggle";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
@@ -157,20 +160,25 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
                   return;
                 }
                 setPhase("link");
+                const restore = holdStarBalance(queryClient, COMPATIBILITY_STARS);
                 void spendStars({
                   feature: "compatibility",
                   left_sign: owner.sign.toLocaleLowerCase("ru"),
                   right_sign: partner.sign.toLocaleLowerCase("ru"),
                 })
-                  .then(async (ticket) => {
+                  .then((ticket) => {
+                    if (ticket.charged) {
+                      writeStarBalance(queryClient, ticket.balance);
+                    } else {
+                      restore();
+                    }
                     if (!ticket.allowed) {
                       setPhase("pick");
                       setTopUp(true);
-                      return;
                     }
-                    await queryClient.invalidateQueries({ queryKey: queryKeys.session });
                   })
                   .catch((error: unknown) => {
+                    restore();
                     setPhase("pick");
                     if (error instanceof ApiRequestError && error.status === 402) {
                       setTopUp(true);
@@ -181,6 +189,7 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
               }}
             >
               Проверить
+              {profile.is_premium ? null : <StarPrice amount={COMPATIBILITY_STARS} />}
             </Button>
             {notice !== "" ? <p role="alert">{notice}</p> : null}
           </div>

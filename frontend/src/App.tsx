@@ -8,7 +8,6 @@ import { ErrorState } from "./shared/ui/ErrorState/ErrorState";
 import { Skeleton } from "./shared/ui/Skeleton/Skeleton";
 import { AdminPage } from "./pages/AdminPage";
 import { DeletePage } from "./pages/DeletePage";
-import { RetroPage } from "./pages/RetroPage";
 import { HistoryPage, ReferralPage } from "./pages/LibraryPages";
 import { HelpPage, PaySupportPage, TermsPage } from "./pages/InfoPages";
 import { OpenAppPage } from "./pages/OpenAppPage";
@@ -18,10 +17,12 @@ import { ChatScreen } from "./screens/ChatScreen";
 import { CompatibilityScreen } from "./screens/CompatibilityScreen";
 import { ForecastScreen } from "./screens/ForecastScreen";
 import { NatalScreen } from "./screens/NatalScreen";
-import { FavoritesScreen } from "./screens/FavoritesScreen";
+import { FavoritesScreen, SavedFavoriteScreen } from "./screens/FavoritesScreen";
+import { AffirmationsScreen, FavorableDateScreen } from "./screens/PracticeScreens";
 import { PeopleScreen } from "./screens/PeopleScreen";
 import { PremiumScreen } from "./screens/PremiumScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
+import { RetroScreen } from "./screens/RetroScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { TodayScreen } from "./screens/TodayScreen";
 import { WelcomeScreen } from "./screens/WelcomeScreen";
@@ -79,16 +80,22 @@ function AuthedApp({ initData }: { initData: string }) {
       <Route path="/natal" element={<NatalScreen />} />
       <Route path="/compatibility" element={<CompatibilityScreen profile={profile} />} />
       <Route path="/compatibility/:personId" element={<CompatibilityScreen profile={profile} />} />
-      <Route path="/chat" element={<ChatScreen premium={profile.is_premium} />} />
+      <Route
+        path="/chat"
+        element={<ChatScreen premium={profile.is_premium} balance={profile.star_balance ?? 0} />}
+      />
       <Route path="/people" element={<PeopleScreen />} />
       <Route path="/profile" element={<ProfileScreen profile={profile} />} />
       <Route path="/settings" element={<SettingsScreen />} />
       <Route path="/premium" element={<PremiumScreen subscribed={profile.is_premium} />} />
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/favorites" element={<FavoritesScreen />} />
+      <Route path="/favorites/:historyId" element={<SavedFavoriteScreen />} />
       <Route path="/referral" element={<ReferralPage />} />
       <Route path="/delete" element={<DeletePage />} />
-      <Route path="/retro" element={<RetroPage />} />
+      <Route path="/retro" element={<RetroScreen />} />
+      <Route path="/affirmations" element={<AffirmationsScreen />} />
+      <Route path="/favorable" element={<FavorableDateScreen />} />
       <Route path="/admin" element={<AdminPage isAdmin={profile.is_admin} />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/help" element={<HelpPage />} />

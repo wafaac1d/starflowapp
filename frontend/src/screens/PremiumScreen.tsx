@@ -10,9 +10,11 @@ import {
   type BillingResponse,
 } from "../api/client";
 import { queryKeys } from "../api/keys";
+import { holdStarBalance, writeStarBalance } from "../starBalance";
 import { invoiceGrantsPremium, openInvoice } from "../telegram";
 import { Button } from "../shared/ui/Button/Button";
 import { Icon } from "../shared/ui/Icon/Icon";
+import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { ListRow } from "../shared/ui/ListRow/ListRow";
 import { Screen } from "../shared/ui/Screen/Screen";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
@@ -45,12 +47,19 @@ export function PremiumScreen({ subscribed = false }: { subscribed?: boolean }) 
       const key = crypto.randomUUID().replaceAll("-", "");
       return buyPremium(key);
     },
-    onSuccess: async () => {
+    onMutate: () => holdStarBalance(queryClient, billing.data?.price_stars ?? 250),
+    onSuccess: async (bought, _variables, restore) => {
       setNotice("");
+      if (bought.charged) {
+        writeStarBalance(queryClient, bought.balance);
+      } else {
+        restore?.();
+      }
       await queryClient.invalidateQueries({ queryKey: queryKeys.session });
       await queryClient.invalidateQueries({ queryKey: queryKeys.billing });
     },
-    onError: (error) => {
+    onError: (error, _variables, restore) => {
+      restore?.();
       if (error instanceof ApiRequestError && error.status === 402) {
         setNotice("На балансе не хватает звёзд");
         return;
@@ -138,7 +147,7 @@ export function PremiumScreen({ subscribed = false }: { subscribed?: boolean }) 
           fromBalance.mutate();
         }}
       >
-        Списать {price} с баланса
+        Списать <StarPrice amount={price} /> с баланса
       </Button>
       <p className={styles.fine}>Разовое списание с баланса, без автопродления.</p>
     </Screen>

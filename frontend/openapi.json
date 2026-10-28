@@ -903,6 +903,46 @@
         }
       }
     },
+    "/api/v1/favorites/{history_id}": {
+      "get": {
+        "summary": "Read Favorite",
+        "operationId": "read_favorite_api_v1_favorites__history_id__get",
+        "parameters": [
+          {
+            "name": "history_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "History Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteReading"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/readings/{history_id}/feedback": {
       "post": {
         "summary": "Add Feedback",
@@ -1763,7 +1803,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/StationBody"
+                    "$ref": "#/components/schemas/RetroPeriodBody"
                   },
                   "type": "array",
                   "title": "Response Read Retro Api V1 Retro Get"
@@ -2970,6 +3010,30 @@
         ],
         "title": "FavoriteItem"
       },
+      "FavoriteReading": {
+        "properties": {
+          "history_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "History Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "history_id",
+          "title",
+          "body"
+        ],
+        "title": "FavoriteReading"
+      },
       "FavoriteResult": {
         "properties": {
           "favorite_id": {
@@ -3842,6 +3906,29 @@
         ],
         "title": "RelatedItem"
       },
+      "RetroPeriodBody": {
+        "properties": {
+          "planet": {
+            "type": "string",
+            "title": "Planet"
+          },
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "planet",
+          "start",
+          "end"
+        ],
+        "title": "RetroPeriodBody"
+      },
       "SectionBody": {
         "properties": {
           "id": {
@@ -3977,30 +4064,6 @@
           "feature"
         ],
         "title": "SpendRequest"
-      },
-      "StationBody": {
-        "properties": {
-          "planet": {
-            "type": "string",
-            "title": "Planet"
-          },
-          "start": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Start"
-          },
-          "local_date": {
-            "type": "string",
-            "title": "Local Date"
-          }
-        },
-        "type": "object",
-        "required": [
-          "planet",
-          "start",
-          "local_date"
-        ],
-        "title": "StationBody"
       },
       "TopupBody": {
         "properties": {

@@ -29,16 +29,29 @@
   outline-offset: 2px;
 }
 
-.send {
-  width: 44px;
+.send,
+.sendPriced {
+  min-width: 44px;
   height: 44px;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
   padding: 0;
   border: 0;
   border-radius: var(--radius-pill);
   background: transparent;
+  color: var(--color-text-primary);
+  font: var(--font-caption);
   cursor: pointer;
+}
+
+.send {
+  width: 44px;
+}
+
+.sendPriced {
+  padding: 0 var(--space-2) 0 var(--space-3);
 }
 
 .send:disabled {

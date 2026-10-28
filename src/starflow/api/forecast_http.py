@@ -52,6 +52,12 @@ class FavoriteItem(BaseModel):
     title: str
 
 
+class FavoriteReading(BaseModel):
+    history_id: UUID
+    title: str
+    body: str
+
+
 class FeedbackBody(BaseModel):
     score: int
 
@@ -153,6 +159,17 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
         actor = await actor_from_cookie(request, container, unauthorized)
         rows = await container.forecast_service.favorites(actor.view.user_id)
         return [FavoriteItem(history_id=item[0], title=item[1]) for item in rows]
+
+    @router.get("/favorites/{history_id}", response_model=FavoriteReading)
+    async def read_favorite(history_id: UUID, request: Request) -> FavoriteReading:
+        actor = await actor_from_cookie(request, container, unauthorized)
+        try:
+            title, body = await container.forecast_service.open_favorite(
+                actor.view.user_id, history_id
+            )
+        except FieldInvalid as error:
+            raise _field_error(container, error) from error
+        return FavoriteReading(history_id=history_id, title=title, body=body)
 
     @router.post("/readings/{history_id}/feedback", status_code=204)
     async def add_feedback(history_id: UUID, body: FeedbackBody, request: Request) -> None:

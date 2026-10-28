@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { maskBirthDate } from "./birthDate";
+import { maskBirthDate, maskBirthTime } from "./birthDate";
 
 describe("birth date mask", () => {
   it("inserts dots while the user types digits", () => {
@@ -13,5 +13,15 @@ describe("birth date mask", () => {
     expect(maskBirthDate("02.01.1990")).toBe("02.01.1990");
     expect(maskBirthDate("32131990")).toBe("32.13.1990");
     expect(maskBirthDate("02.01.199099")).toBe("02.01.1990");
+  });
+
+  it("inserts a colon while the user types a birth time", () => {
+    expect(maskBirthTime("")).toBe("");
+    expect(maskBirthTime("1")).toBe("1");
+    expect(maskBirthTime("14")).toBe("14");
+    expect(maskBirthTime("143")).toBe("14:3");
+    expect(maskBirthTime("1430")).toBe("14:30");
+    expect(maskBirthTime("14:30")).toBe("14:30");
+    expect(maskBirthTime("143099")).toBe("14:30");
   });
 });

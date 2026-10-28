@@ -8,6 +8,9 @@ import { queryKeys } from "../api/keys";
 import { STAR_SILENCE, useReading } from "../readingWait";
 import { Button } from "../shared/ui/Button/Button";
 import { Icon } from "../shared/ui/Icon/Icon";
+import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
+import { holdStarBalance, writeStarBalance } from "../starBalance";
+import { NATAL_STARS } from "../stars";
 import { Screen } from "../shared/ui/Screen/Screen";
 import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
 import { SegmentedControl } from "../shared/ui/SegmentedControl/SegmentedControl";
@@ -31,10 +34,17 @@ export function NatalScreen() {
   const chart = useQuery({ queryKey: queryKeys.chart, queryFn: () => getChart() });
   const buy = useMutation({
     mutationFn: () => spendStars({ feature: "natal" }),
-    onSuccess: async () => {
+    onMutate: () => holdStarBalance(queryClient, NATAL_STARS),
+    onSuccess: async (ticket, _variables, restore) => {
+      if (ticket.charged) {
+        writeStarBalance(queryClient, ticket.balance);
+      } else {
+        restore?.();
+      }
       await queryClient.invalidateQueries({ queryKey: queryKeys.chart });
     },
-    onError: (error) => {
+    onError: (error, _variables, restore) => {
+      restore?.();
       if (error instanceof ApiRequestError && error.status === 402) {
         setTopUp(true);
       }
@@ -55,9 +65,11 @@ export function NatalScreen() {
       {chart.isSuccess && locked ? (
         <section className={styles.reading}>
           <h2>Натальная карта</h2>
-          <p>Одна карта стоит 40 звёзд. С Premium она входит в период.</p>
+          <p>
+            Одна карта стоит <StarPrice amount={NATAL_STARS} /> звёзд. С Premium она входит в период.
+          </p>
           <Button loading={buy.isPending} onClick={() => buy.mutate()}>
-            Открыть за 40
+            Открыть за <StarPrice amount={NATAL_STARS} />
           </Button>
         </section>
       ) : null}

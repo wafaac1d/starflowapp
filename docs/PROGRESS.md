@@ -794,6 +794,103 @@ D-079. С Premium баланс читается `unlim/N`. Период спис
 
 Живой DeepSeek, живой клиент Telegram и живой платёж Stars не проверялись. Статус окна оплаты Premium не выдаёт и баланс не увеличивает.
 
+## Подпись unlim по центру пилюли, 2026-10-28
+
+`unlim/N` собрана в одну строку и стоит по центру кнопки баланса. Мелкий хвост остаётся на общей базовой линии.
+
+| Команда | Код |
+| --- | --- |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'premium balance shows unlim\|screenshot today'` | 0, 2 теста. Центр подписи совпадает с центром кнопки ближе чем на 1px. Снимок `today.png` не сдвинулся |
+
+Живой клиент Telegram не открывался.
+
+## Сохранённый прогноз, 2026-10-28
+
+D-080. Уже сохранённый прогноз не сохраняется повторно. Строка избранного открывает его текст.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по `forecast.py`, `forecast_http.py` и `tests/unit/test_saved_forecast.py` | 0 |
+| `uv run ruff format` для `forecast.py` | 1 файл |
+| `uv run mypy src/starflow/services/forecast.py src/starflow/api/forecast_http.py` | 1, два старых замечания в `forecast.py` около `remember`. Новых нет |
+| `uv run pytest tests/unit/test_saved_forecast.py -q` | 0, 2 теста |
+| `uv run pytest tests/unit/test_contract.py::test_openapi_document_matches_the_committed_contract -q` | 0, 1 тест |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'saved forecast\|favorites\|already stored\|forecast is stored\|switches the forecast'` | 0, 6 тестов |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'saved forecast stays saved\|screenshot favorites\|screenshot forecast'` | 0, 3 теста. «Сохранено» недоступна, строка избранного открывает текст |
+
+Живой клиент Telegram не открывался.
+
+## Звёздочка у оплаты и закрытый чат, 2026-10-28
+
+D-081. У цен в звёздах стоит `stars_currency`. В чате без баланса поле закрыто, а на отправке видна цена вопроса.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'star balance cannot pay\|without premium and shows its price\|asks for 40\|top-up\|premium offer\|compatibility\|holds the star'` | 0, 7 тестов |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'empty chat explains\|today opens compatibility\|screenshot chat\|screenshot premium\|premium can be paid'` | 0, 5 тестов |
+| та же команда `-g 'screenshot chat' --update-snapshots` | снимок `chat.png` перезаписан |
+
+Живой клиент Telegram не открывался.
+
+## Мгновенное списание звёзд, 2026-10-28
+
+D-082. Покупка в приложении уменьшает баланс сразу. Вопрос списывает звёзды до ответа модели и возвращает их, если ответа нет.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по `assistant.py`, `wallet.py` и `tests/unit/test_star_charge.py` | 0 |
+| `uv run ruff format --check` по тем же файлам | 0 |
+| `uv run pytest tests/unit/test_star_charge.py -q` | 0, 2 теста |
+| `uv run mypy src/starflow/services/assistant.py src/starflow/services/wallet.py` | 0 |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'drops the star balance\|asks for 40\|compatibility\|premium offer\|without premium'` | 0, 5 тестов |
+
+Живой клиент Telegram и живой DeepSeek не проверялись.
+
+## Маска даты и времени рождения, 2026-10-28
+
+D-083. При регистрации точки в дате и двоеточие во времени подставляются сами.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec vitest run src/birthDate.test.ts src/screens/screens.test.tsx -t 'birth date mask\|inserts dots\|untouched\|birth time'` | 0, 7 тестов |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'untouched birth time\|onboarding leads to today'` | 0, 2 теста |
+
+Живой клиент Telegram не открывался.
+
+## Ретроградные планеты, 2026-10-28
+
+D-084. Экран `/retro` по макету, кнопка на «Сегодня». Периоды считаются один раз на местные сутки и дальше читаются из общего кеша.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по `stations.py`, `ops.py`, `ops_http.py` и `tests/unit/test_retrograde.py` | 0 |
+| `uv run ruff format --check` по тем же файлам | 0 |
+| `uv run mypy` по `stations.py`, `ops.py` и `ops_http.py` | 0 |
+| `uv run pytest tests/unit/test_retrograde.py tests/unit/test_ops.py -q` | 0, 7 тестов |
+| `uv run pytest tests/unit/test_contract.py::test_openapi_document_matches_the_committed_contract -q` | 0, 1 тест |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'opens retrograde\|opens today with the forecast'` | 0, 2 теста |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'today opens retrograde\|screenshot today\|screenshot retro'` | 0, 3 теста. Снимки `today.png` и `retro.png` перезаписаны |
+| разовый `find_retro_periods` на 2026-10-28 через Мошье | 0, 1239 положений, 188 мс. На 28 октября 2026 в ходе Меркурий, Венера, Сатурн, Уран и Нептун |
+
+Живой клиент Telegram не открывался. Живой DeepSeek для этого экрана не вызывается.
+
+## Астропрактики на «Сегодня», 2026-10-28
+
+D-085. Внизу «Сегодня» пять карточек: Совместимость, Натальная карта, Ретроградные планеты, Аффирмации, Благоприятная дата. У ретроградных планет бейдж с числом текущих периодов.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'opens today with the forecast\|opens retrograde\|opens affirmations'` | 0, 3 теста |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'today opens retrograde\|today opens compatibility\|tab bar, calendar'` | 0, 3 теста |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'screenshot today\|screenshot retro\|today opens retrograde'` | 0, 3 теста. Снимок `today.png` перезаписан |
+
+Живой клиент Telegram не открывался.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

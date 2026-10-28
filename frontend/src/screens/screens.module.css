@@ -127,21 +127,32 @@
 
 .balanceButton {
   min-width: 44px;
-  min-height: 44px;
+  height: 44px;
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
   padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-pill);
   background: var(--color-surface);
   color: var(--color-text-primary);
   font: var(--font-body);
+  line-height: 1;
+  appearance: none;
   cursor: pointer;
+}
+
+.balanceFace {
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
 }
 
 .balanceRest {
   color: var(--color-text-secondary);
   font: var(--font-caption);
+  line-height: 1;
 }
 
 .topRow {
@@ -387,7 +398,82 @@
   margin-top: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-3);
+}
+
+.practices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.practiceHeading {
+  margin: 0 0 var(--space-1);
+  font: var(--font-title-screen);
+}
+
+.practice {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.practice:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.practiceIcon,
+.practiceHero {
+  display: block;
+  object-fit: contain;
+  flex: none;
+}
+
+.practiceIcon {
+  width: 40px;
+  height: 40px;
+}
+
+.practiceHero {
+  width: 72px;
+  height: 72px;
+}
+
+.practiceCopy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.practiceTitle {
+  font: var(--font-title-card);
+}
+
+.practiceLead {
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.practiceBadge {
+  margin-top: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font: var(--font-caption);
+  line-height: 1.2;
 }
 
 .linkStage {
@@ -508,4 +594,181 @@
 
 .sign {
   text-align: center;
+}
+
+.orbits {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.filters {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.filterOn,
+.filterOff {
+  min-height: var(--size-touch);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  font: var(--font-button);
+  cursor: pointer;
+}
+
+.filterOn {
+  border: 0;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.filterOff {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+.filterOn:focus-visible,
+.filterOff:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.retroCard,
+.retroNote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.retroHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.glyph,
+.chevron,
+.noteIcon {
+  display: block;
+  object-fit: contain;
+  flex: none;
+}
+
+.bell {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  background: currentColor;
+  mask-image: url("/planets/ui/bell_256.png");
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
+  -webkit-mask-image: url("/planets/ui/bell_256.png");
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+}
+
+.glyph {
+  width: 36px;
+  height: 36px;
+}
+
+.chevron,
+.noteIcon {
+  width: 22px;
+  height: 22px;
+}
+
+.retroCopy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.retroTitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.retroTitle {
+  margin: 0;
+  font: var(--font-title-card);
+}
+
+.retroBadge {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font: var(--font-caption);
+  line-height: 1.2;
+}
+
+.retroDates {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.bar {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-toggle-off);
+  overflow: hidden;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+}
+
+.barLabels {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-text-secondary);
+  font: var(--font-caption);
+}
+
+.noteList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.noteList li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.noteList li::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-text-secondary);
+}
+
+.retroRemind {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }

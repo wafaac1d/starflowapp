@@ -72,6 +72,12 @@ class StarsWallet:
             await uow.commit()
             return result
 
+    async def credit(self, user_id: UUID, amount: int) -> int:
+        async with self._uow_factory() as uow:
+            balance = await uow.billing.credit_stars(user_id, amount)
+            await uow.commit()
+            return balance
+
     async def buy_premium(self, user_id: UUID, key: str, price: int, days: int) -> PremiumPurchase:
         if not idempotency_key_ok(key) or price < 1 or days < 1:
             raise FieldInvalid("idempotency_key", "errors.idempotency_key")

@@ -6,6 +6,7 @@ import { ApiRequestError, createTopup, postInvoiceStatus, redeemBalanceCode } fr
 import { queryKeys } from "../api/keys";
 import { Button } from "../shared/ui/Button/Button";
 import { Field } from "../shared/ui/Field/Field";
+import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { invoiceGrantsPremium, openInvoice } from "../telegram";
 import styles from "./TopUpDialog.module.css";
 
@@ -81,7 +82,11 @@ export function TopUpDialog({ balance, onClose }: TopUpDialogProps) {
         <h2 id={titleId} className={styles.title}>
           Пополнение
         </h2>
-        {balance !== null ? <p className={styles.body}>Сейчас на балансе {balance}.</p> : null}
+        {balance !== null ? (
+          <p className={styles.body}>
+            Сейчас на балансе <StarPrice amount={balance} />.
+          </p>
+        ) : null}
         <div className={styles.presets}>
           {PRESETS.map((value) => (
             <button
@@ -94,12 +99,13 @@ export function TopUpDialog({ balance, onClose }: TopUpDialogProps) {
                 setPreset(value);
               }}
             >
-              {value}
+              <StarPrice amount={value} />
             </button>
           ))}
         </div>
         <Field
           label="Своя сумма"
+          icon="stars_currency"
           value={custom}
           chevron={false}
           onChange={(value) => {
@@ -118,6 +124,7 @@ export function TopUpDialog({ balance, onClose }: TopUpDialogProps) {
           }}
         >
           Оплатить
+          {amount !== null ? <StarPrice amount={amount} /> : null}
         </Button>
         <Field
           label="Код"

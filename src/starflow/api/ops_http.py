@@ -1,9 +1,8 @@
-"""Настройки уведомлений, ретроградные станции и сводка администратора."""
+"""Настройки уведомлений, ретроградные периоды и сводка администратора."""
 
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Annotated
 from uuid import UUID
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel, Field
@@ -31,10 +30,10 @@ class NoticeWrite(BaseModel):
     retro: bool
 
 
-class StationBody(BaseModel):
+class RetroPeriodBody(BaseModel):
     planet: str
-    start: datetime
-    local_date: str
+    start: str
+    end: str
 
 
 class SourceCount(BaseModel):
@@ -156,20 +155,12 @@ def register_ops_routes(router: APIRouter, container: Container) -> None:
             retro=saved[4],
         )
 
-    @router.get("/retro", response_model=list[StationBody])
-    async def read_retro(request: Request) -> list[StationBody]:
+    @router.get("/retro", response_model=list[RetroPeriodBody])
+    async def read_retro(request: Request) -> list[RetroPeriodBody]:
         await actor_from_cookie(request, container, unauthorized)
-        now = now_utc()
-        zone = container.settings.default_timezone
-        found = ops.stations(now - timedelta(days=1), now + timedelta(days=40))
+        found = await ops.retrograde_periods()
         return [
-            StationBody(
-                planet=item.planet,
-                start=item.start,
-                local_date=item.start.astimezone(ZoneInfo(zone)).date().isoformat(),
-            )
-            for item in found
-            if item.start >= now - timedelta(days=1)
+            RetroPeriodBody(planet=planet, start=start, end=end) for planet, start, end in found
         ]
 
     @router.get("/admin/overview", response_model=AdminBody)

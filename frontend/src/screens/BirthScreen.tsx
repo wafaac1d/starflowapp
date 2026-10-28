@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 
 import { editProfile, saveDraft, type DraftPayload, type ProfileResponse } from "../api/client";
+import { maskBirthDate, maskBirthTime } from "../birthDate";
 import { queryKeys } from "../api/keys";
 import { deviceTimezone } from "../deviceZone";
 import { Button } from "../shared/ui/Button/Button";
@@ -73,9 +74,23 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
         <h1 className={styles.welcomeTitle}>Когда вы родились?</h1>
         <p className={styles.lead}>Укажите дату и время рождения, чтобы получить точный прогноз.</p>
         <div className={styles.stack}>
-          <Field label="Дата рождения" icon="date_calendar" value={date} onChange={setDate} />
+          <Field
+            label="Дата рождения"
+            icon="date_calendar"
+            value={date}
+            onChange={(value) => {
+              setDate(maskBirthDate(value));
+            }}
+          />
           <div className={styles.fieldNote}>
-            <Field label="Время рождения" icon="clock" value={time} onChange={setTime} />
+            <Field
+              label="Время рождения"
+              icon="clock"
+              value={time}
+              onChange={(value) => {
+                setTime(maskBirthTime(value));
+              }}
+            />
             <p className={styles.meta}>Можно оставить пустым, если не знаете время рождения</p>
           </div>
         </div>

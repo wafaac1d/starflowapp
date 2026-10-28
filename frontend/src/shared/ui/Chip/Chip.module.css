@@ -1,4 +1,8 @@
 .chip {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: var(--space-1);
   margin: 0 auto;
   width: fit-content;
   padding: var(--space-2) var(--space-3);

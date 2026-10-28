@@ -1,7 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
-import type { ProfileResponse } from "../api/client";
+import { getRetro, type ProfileResponse } from "../api/client";
+import { queryKeys } from "../api/keys";
 import { STAR_SILENCE, useReading } from "../readingWait";
 import { Button } from "../shared/ui/Button/Button";
 import { Icon } from "../shared/ui/Icon/Icon";
@@ -19,6 +21,61 @@ const CATEGORIES = [
   { id: "finance", label: "Финансы", icon: "cat_finance" as const },
 ];
 
+const PRACTICES = [
+  {
+    title: "Совместимость",
+    lead: "Связь между двумя людьми",
+    image: "/compatibility/compatibility_256.png",
+    to: "/compatibility",
+  },
+  {
+    title: "Натальная карта",
+    lead: "Солнце, Луна и асцендент",
+    image: "/natal_chart/natal_chart_256.png",
+    to: "/natal",
+  },
+  {
+    title: "Ретроградные планеты",
+    lead: "Периоды и рекомендации",
+    image: "/retrograde_planets/retrograde_planets_256.png",
+    to: "/retro",
+  },
+  {
+    title: "Аффирмации",
+    lead: "Настройтесь на свой ритм",
+    image: "/affirmations/affirmations_256.png",
+    to: "/affirmations",
+  },
+  {
+    title: "Благоприятная дата",
+    lead: "Подберите день для события",
+    image: "/favorable_date/favorable_date_256.png",
+    to: "/favorable",
+  },
+] as const;
+
+function isoToday(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
+function periodBadge(count: number): string | null {
+  if (count <= 0) {
+    return null;
+  }
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  let word = "периодов";
+  if (mod10 === 1 && mod100 !== 11) {
+    word = "период";
+  } else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    word = "периода";
+  }
+  return `${count} ${word}`;
+}
+
 export function TodayScreen({ profile }: { profile: ProfileResponse }) {
   const navigate = useNavigate();
   const [topUp, setTopUp] = useState(false);
@@ -28,6 +85,15 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
   const waiting = reading.face.phase === "loading";
   const title = reading.face.phase === "ready" ? reading.face.title : STAR_SILENCE;
   const topics = useTopicDetail(profile.is_premium);
+  const retro = useQuery({
+    queryKey: queryKeys.retro,
+    queryFn: () => getRetro(),
+  });
+  const today = isoToday();
+  const currentPeriods = (retro.data ?? []).filter(
+    (period) => period.start <= today && today <= period.end,
+  ).length;
+  const retroBadge = periodBadge(currentPeriods);
   const openForecast = () => {
     void navigate("/forecast");
   };
@@ -49,10 +115,7 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
             }}
           >
             {profile.is_premium ? (
-              <>
-                <span>unlim</span>
-                <span className={styles.balanceRest}>/{balance}</span>
-              </>
+              <span className={styles.balanceFace}><span>unlim</span><span className={styles.balanceRest}>/{balance}</span></span>
             ) : (
               balance
             )}
@@ -89,24 +152,32 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
             </button>
           ))}
         </div>
-        <div className={styles.todayAction}>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              void navigate("/natal");
-            }}
-          >
-            Натальная карта
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              void navigate("/compatibility");
-            }}
-          >
-            Совместимость
-          </Button>
-        </div>
+        <section className={styles.practices} aria-labelledby="practices-title">
+          <h2 id="practices-title" className={styles.practiceHeading}>
+            Ваши астропрактики
+          </h2>
+          {PRACTICES.map((item) => {
+            const badge = item.to === "/retro" ? retroBadge : null;
+            return (
+              <button
+                key={item.to}
+                type="button"
+                className={styles.practice}
+                onClick={() => {
+                  void navigate(item.to);
+                }}
+              >
+                <img className={styles.practiceIcon} src={item.image} alt="" />
+                <span className={styles.practiceCopy}>
+                  <span className={styles.practiceTitle}>{item.title}</span>
+                  <span className={styles.practiceLead}>{item.lead}</span>
+                  {badge !== null ? <span className={styles.practiceBadge}>{badge}</span> : null}
+                </span>
+                <Icon name="chevron_right" size={18} />
+              </button>
+            );
+          })}
+        </section>
       </div>
       {topics.dialog}
       {topUp ? <TopUpDialog balance={balance} onClose={() => setTopUp(false)} /> : null}

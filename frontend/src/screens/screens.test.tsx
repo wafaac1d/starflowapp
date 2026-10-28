@@ -6,6 +6,7 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ProfileResponse } from "../api/client";
+import { queryKeys } from "../api/keys";
 import { applyTheme, readThemeChoice } from "../theme";
 import { BirthScreen } from "./BirthScreen";
 import { CalendarScreen } from "./CalendarScreen";
@@ -13,10 +14,12 @@ import { ChatScreen } from "./ChatScreen";
 import { CompatibilityScreen } from "./CompatibilityScreen";
 import { ForecastScreen } from "./ForecastScreen";
 import { NatalScreen } from "./NatalScreen";
-import { FavoritesScreen } from "./FavoritesScreen";
+import { FavoritesScreen, SavedFavoriteScreen } from "./FavoritesScreen";
+import { AffirmationsScreen, FavorableDateScreen } from "./PracticeScreens";
 import { PeopleScreen } from "./PeopleScreen";
 import { PremiumScreen } from "./PremiumScreen";
 import { ProfileScreen } from "./ProfileScreen";
+import { RetroScreen } from "./RetroScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { TodayScreen } from "./TodayScreen";
 import styles from "./screens.module.css";
@@ -56,6 +59,16 @@ describe("screens", () => {
     expect(screen.getByRole("heading", { name: /Ваш ритм/ })).toBeInTheDocument();
     expect(screen.getByText(/персональный астропомощник/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Начать" })).toBeInTheDocument();
+  });
+
+  it("inserts dots and a colon while the birth date and time are typed", async () => {
+    renderAt(<BirthScreen profile={{ ...profile(), step: "date", birth_date: null, birth_time: null }} displayName="Анна" />);
+    const date = screen.getByRole("textbox", { name: "Дата рождения" });
+    const time = screen.getByRole("textbox", { name: "Время рождения" });
+    await userEvent.type(date, "12081995");
+    await userEvent.type(time, "1430");
+    expect(date).toHaveValue("12.08.1995");
+    expect(time).toHaveValue("14:30");
   });
 
   it("keeps the birth time field open without an unknown toggle", () => {
@@ -194,8 +207,12 @@ describe("screens", () => {
     expect(screen.getByRole("heading", { name: "Анна" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Открыть прогноз" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Любовь" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Натальная карта" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Совместимость" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ваши астропрактики" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: (value) => value.startsWith("Натальная карта") })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: (value) => value.startsWith("Совместимость") })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: (value) => value.startsWith("Ретроградные планеты") })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: (value) => value.startsWith("Аффирмации") })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: (value) => value.startsWith("Благоприятная дата") })).toBeInTheDocument();
     expect(await screen.findByText("Не удалось связаться со звёздами")).toBeInTheDocument();
     expect(screen.queryByText("День для ясных решений")).not.toBeInTheDocument();
   });
@@ -225,7 +242,7 @@ describe("screens", () => {
     expect(within(dialog).getByRole("button", { name: "20" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "50" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "100" })).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Оплатить" })).toBeEnabled();
+    expect(within(dialog).getByRole("button", { name: (value) => value.startsWith("Оплатить") })).toBeEnabled();
     expect(within(dialog).getByRole("textbox", { name: "Код" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Активировать" })).toBeDisabled();
     expect(within(dialog).getByRole("link", { name: (value) => value === "Premium" })).toHaveAttribute(
@@ -521,7 +538,7 @@ describe("screens", () => {
     );
     expect(screen.getByRole("switch", { name: "Сохранить в близкие" })).toBeInTheDocument();
     await userEvent.type(within(second).getByRole("textbox", { name: "Время рождения" }), "09:15");
-    expect(screen.getByRole("button", { name: "Проверить" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: (value) => value.startsWith("Проверить") })).toBeEnabled();
     expect(screen.queryByText("Глубокая связь")).not.toBeInTheDocument();
     expect(calls.some((call) => call.method === "POST")).toBe(false);
     await userEvent.click(screen.getByRole("switch", { name: "Сохранить в близкие" }));
@@ -572,7 +589,7 @@ describe("screens", () => {
       addEventListener() {},
       removeEventListener() {},
     }));
-    await userEvent.click(screen.getByRole("button", { name: "Проверить" }));
+    await userEvent.click(screen.getByRole("button", { name: (value) => value.startsWith("Проверить") }));
     expect(await screen.findByText("Глубокая связь")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Эмоции/ }));
     expect(await screen.findByRole("alertdialog")).toHaveTextContent(
@@ -623,7 +640,7 @@ describe("screens", () => {
         </MemoryRouter>
       </QueryClientProvider>,
     );
-    await userEvent.click(screen.getByRole("button", { name: "Проверить" }));
+    await userEvent.click(screen.getByRole("button", { name: (value) => value.startsWith("Проверить") }));
     await userEvent.click(await screen.findByRole("button", { name: /Эмоции/ }));
     expect(
       await screen.findByText("Этим двоим ближе тихий разговор, чем общий прогноз на день."),
@@ -671,7 +688,7 @@ describe("screens", () => {
       </QueryClientProvider>,
     );
     try {
-      fireEvent.click(screen.getByRole("button", { name: "Проверить" }));
+      fireEvent.click(screen.getByRole("button", { name: (value) => value.startsWith("Проверить") }));
       expect(screen.getByRole("status")).toHaveTextContent("Связь со звёздами");
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1999);
@@ -791,14 +808,70 @@ describe("screens", () => {
       });
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderAt(<ChatScreen premium={false} />);
+    renderAt(<ChatScreen premium={false} balance={20} />);
     expect(await screen.findByText("Старый ответ.")).toBeInTheDocument();
-    expect(screen.getByText("20 звёзд за вопрос")).toBeInTheDocument();
+    expect(
+      screen.getByText((_, node) => node?.textContent?.replace(/\s+/g, " ").trim() === "20 звёзд за вопрос"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Писать и отправлять сообщения можно с Premium.")).not.toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Написать сообщение…" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Отправить" })).toBeDisabled();
-    await userEvent.click(screen.getByRole("button", { name: "Отправить" }));
+    expect(screen.getByRole("button", { name: "Отправить за 20" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Отправить за 20" }));
     expect(fetchMock.mock.calls.some((call) => (call[1]?.method ?? "GET") === "POST")).toBe(false);
+  });
+
+  it("drops the star balance as soon as a question is sent", async () => {
+    let release: (response: Response) => void = () => undefined;
+    const gate = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (_input, init) => {
+        if ((init?.method ?? "GET") === "POST") {
+          return gate;
+        }
+        return Response.json({ messages: [], remaining: null });
+      }),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    client.setQueryData(queryKeys.session, { ...profile(), star_balance: 40 });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <ChatScreen premium={false} balance={40} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await userEvent.type(
+      await screen.findByRole("textbox", { name: "Написать сообщение…" }),
+      "Что вечером?",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Отправить за 20" }));
+    await waitFor(() => {
+      expect(client.getQueryData<ProfileResponse>(queryKeys.session)?.star_balance).toBe(20);
+    });
+    release(
+      Response.json({
+        status: "ready",
+        reply: "Тихий вечер.",
+        remaining: null,
+        replayed: false,
+        code: "ready",
+      }),
+    );
+    expect(await screen.findByText("Тихий вечер.")).toBeInTheDocument();
+  });
+
+  it("closes the chat field when the star balance cannot pay for a question", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async () => Response.json({ messages: [], remaining: null })),
+    );
+    renderAt(<ChatScreen premium={false} balance={0} />);
+    const field = await screen.findByRole("textbox", { name: "Недостаточно звёзд" });
+    expect(field).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Отправить за 20" })).toBeDisabled();
   });
 
   it("lists people from the api", async () => {
@@ -857,9 +930,124 @@ describe("screens", () => {
     );
     renderAt(<FavoritesScreen />);
     expect(screen.getByRole("heading", { name: "Избранное" })).toBeInTheDocument();
-    expect(await screen.findByText("День для ясных решений")).toBeInTheDocument();
-    expect(screen.getByText("Неделя спокойных дел")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "День для ясных решений" })).toHaveAttribute(
+      "href",
+      "/favorites/11111111-1111-1111-1111-111111111111",
+    );
+    expect(screen.getByRole("link", { name: "Неделя спокойных дел" })).toBeInTheDocument();
     expect(screen.queryByText("В избранном пока пусто")).not.toBeInTheDocument();
+  });
+
+  it("opens a saved forecast from the favorites list", async () => {
+    const historyId = "11111111-1111-1111-1111-111111111111";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input) => {
+        const url = String(input);
+        if (url.includes(`/favorites/${historyId}`)) {
+          return Response.json({
+            history_id: historyId,
+            title: "День для ясных решений",
+            body: "Текст сохранённого дня.",
+          });
+        }
+        return Response.json([{ history_id: historyId, title: "День для ясных решений" }]);
+      }),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/favorites"]}>
+          <Routes>
+            <Route path="/favorites" element={<FavoritesScreen />} />
+            <Route path="/favorites/:historyId" element={<SavedFavoriteScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await userEvent.click(await screen.findByRole("link", { name: "День для ясных решений" }));
+    expect(await screen.findByRole("heading", { name: "День для ясных решений" })).toBeInTheDocument();
+    expect(screen.getByText("Текст сохранённого дня.")).toBeInTheDocument();
+  });
+
+  it("keeps save closed when the forecast is already stored", async () => {
+    const historyId = "11111111-1111-1111-1111-111111111111";
+    const reading = {
+      status: "ready",
+      title: "День",
+      body: "Текст дня.",
+      greeting: null,
+      user_sign: null,
+      shared_facts: null,
+      history_id: historyId,
+      streak: null,
+      replayed: true,
+      reset_at: null,
+    };
+    const stored = [{ history_id: historyId, title: "День" }];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input, init) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+        if (url.includes("/favorites") && method === "POST") {
+          return Response.json({ favorite_id: historyId, target_id: historyId, replayed: false });
+        }
+        if (url.includes("/favorites")) {
+          return Response.json(stored);
+        }
+        if (url.includes("/readings/")) {
+          return Response.json(reading);
+        }
+        return Response.json([]);
+      }),
+    );
+    const first = renderAt(<ForecastScreen premium={false} />);
+    expect(await screen.findByRole("button", { name: "Сохранено" })).toBeDisabled();
+    first.unmount();
+    renderAt(<ForecastScreen premium={false} />);
+    expect(await screen.findByRole("button", { name: "Сохранено" })).toBeDisabled();
+  });
+
+  it("closes save after the forecast is stored and keeps it closed", async () => {
+    const historyId = "11111111-1111-1111-1111-111111111111";
+    const reading = {
+      status: "ready",
+      title: "День",
+      body: "Текст дня.",
+      greeting: null,
+      user_sign: null,
+      shared_facts: null,
+      history_id: historyId,
+      streak: null,
+      replayed: false,
+      reset_at: null,
+    };
+    const stored: { history_id: string; title: string }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input, init) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+        if (url.includes("/favorites") && method === "POST") {
+          stored.push({ history_id: historyId, title: "День" });
+          return Response.json({ favorite_id: historyId, target_id: historyId, replayed: false });
+        }
+        if (url.includes("/favorites")) {
+          return Response.json(stored);
+        }
+        if (url.includes("/readings/")) {
+          return Response.json(reading);
+        }
+        return Response.json([]);
+      }),
+    );
+    const first = renderAt(<ForecastScreen premium={false} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Сохранить" }));
+    expect(await screen.findByRole("button", { name: "Сохранено" })).toBeDisabled();
+    first.unmount();
+    renderAt(<ForecastScreen premium={false} />);
+    expect(await screen.findByRole("button", { name: "Сохранено" })).toBeDisabled();
   });
 
   it("shows an empty favorites screen", async () => {
@@ -945,6 +1133,104 @@ describe("screens", () => {
     expect(screen.getByRole("heading", { name: "Моя подписка" })).toBeInTheDocument();
     expect(screen.getByText("Персональные прогнозы")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Подключить" })).not.toBeInTheDocument();
+  });
+
+  it("opens retrograde planets from today and reminds about the period", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-18T12:00:00"));
+    const calls: { url: string; method: string; body: Record<string, unknown> }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+        const body =
+          typeof init?.body === "string"
+            ? (JSON.parse(init.body) as Record<string, unknown>)
+            : {};
+        calls.push({ url, method, body });
+        if (url.includes("/retro")) {
+          return Response.json([
+            { planet: "меркурий", start: "2026-11-09", end: "2026-11-29" },
+            { planet: "сатурн", start: "2026-07-26", end: "2026-12-10" },
+            { planet: "венера", start: "2026-12-05", end: "2026-12-20" },
+          ]);
+        }
+        if (url.includes("/notifications")) {
+          if (method === "PUT") {
+            return Response.json(body);
+          }
+          return Response.json({
+            local_time: "08:30",
+            timezone: "Europe/Moscow",
+            day: true,
+            moon: false,
+            retro: false,
+          });
+        }
+        return Response.json({
+          title: "День для ясных решений",
+          body: "Короткий день.",
+          source: "model",
+        });
+      }),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    try {
+      render(
+        <QueryClientProvider client={client}>
+          <MemoryRouter initialEntries={["/"]}>
+            <Routes>
+              <Route path="/" element={<TodayScreen profile={profile()} />} />
+              <Route path="/retro" element={<RetroScreen />} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+      expect(await screen.findByText("2 периода")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: (value) => value.startsWith("Ретроградные планеты") }));
+      expect(await screen.findByRole("heading", { name: "Ретроградные планеты" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Меркурий" })).toBeInTheDocument();
+      expect(screen.getByText("9–29 ноября")).toBeInTheDocument();
+      expect(screen.getAllByText("Ретроградный")).toHaveLength(2);
+      await userEvent.click(screen.getByRole("tab", { name: "Скоро" }));
+      expect(screen.getByRole("heading", { name: "Венера" })).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "Меркурий" })).not.toBeInTheDocument();
+      await userEvent.click(screen.getByRole("tab", { name: "Все" }));
+      expect(screen.getByRole("heading", { name: "Сатурн" })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Напомнить о периоде" }));
+      await waitFor(() => {
+        expect(calls.some((call) => call.url.includes("/notifications") && call.method === "PUT")).toBe(true);
+      });
+      const saved = calls.find((call) => call.method === "PUT");
+      expect(saved?.body).toMatchObject({ retro: true, local_time: "08:30" });
+      expect(screen.getByRole("button", { name: "Напоминание включено" })).toBeDisabled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("opens affirmations and a favorable date from today", async () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/"]}>
+          <Routes>
+            <Route path="/" element={<TodayScreen profile={profile()} />} />
+            <Route path="/affirmations" element={<AffirmationsScreen />} />
+            <Route path="/favorable" element={<FavorableDateScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: (value) => value.startsWith("Аффирмации") }));
+    expect(await screen.findByRole("heading", { name: "Аффирмации" })).toBeInTheDocument();
+    expect(screen.getByText("Настройтесь на свой ритм")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Назад" }));
+    await userEvent.click(screen.getByRole("button", { name: (value) => value.startsWith("Благоприятная дата") }));
+    expect(await screen.findByRole("heading", { name: "Благоприятная дата" })).toBeInTheDocument();
+    expect(screen.getByText("Подберите день для события")).toBeInTheDocument();
   });
 
   it("opens the relative form from the profile list", () => {
