@@ -414,7 +414,21 @@ export type FavorableMonth = {
   access: string;
   price: number;
   days: FavorableDay[];
+  free_chosen_label?: string | null;
 };
+
+export type FavorableStatus = {
+  chosen_event: string | null;
+  chosen_custom: string | null;
+  chosen_label: string | null;
+  is_premium: boolean;
+};
+
+export async function getFavorableStatus(
+  fetchImpl: typeof fetch = fetch,
+): Promise<FavorableStatus> {
+  return requestJson<FavorableStatus>("/api/v1/favorable/status", { method: "GET" }, fetchImpl);
+}
 
 export async function getFavorable(
   month: string,

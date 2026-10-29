@@ -2007,6 +2007,24 @@
         }
       }
     },
+    "/api/v1/favorable/status": {
+      "get": {
+        "summary": "Read Favorable Status",
+        "operationId": "read_favorable_status_api_v1_favorable_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavorableStatusBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/favorable": {
       "get": {
         "summary": "Read Favorable",
@@ -3099,6 +3117,17 @@
             },
             "type": "array",
             "title": "Days"
+          },
+          "free_chosen_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Chosen Label"
           }
         },
         "type": "object",
@@ -3113,6 +3142,50 @@
           "days"
         ],
         "title": "FavorableMonthBody"
+      },
+      "FavorableStatusBody": {
+        "properties": {
+          "chosen_event": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chosen Event"
+          },
+          "chosen_custom": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chosen Custom"
+          },
+          "chosen_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chosen Label"
+          },
+          "is_premium": {
+            "type": "boolean",
+            "title": "Is Premium",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "FavorableStatusBody"
       },
       "FavoriteBody": {
         "properties": {

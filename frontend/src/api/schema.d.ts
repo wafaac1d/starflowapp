@@ -861,6 +861,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/favorable/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Favorable Status */
+        get: operations["read_favorable_status_api_v1_favorable_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/favorable": {
         parameters: {
             query?: never;
@@ -1246,6 +1263,22 @@ export interface components {
             price: number;
             /** Days */
             days: components["schemas"]["FavorableDayBody"][];
+            /** Free Chosen Label */
+            free_chosen_label?: string | null;
+        };
+        /** FavorableStatusBody */
+        FavorableStatusBody: {
+            /** Chosen Event */
+            chosen_event?: string | null;
+            /** Chosen Custom */
+            chosen_custom?: string | null;
+            /** Chosen Label */
+            chosen_label?: string | null;
+            /**
+             * Is Premium
+             * @default false
+             */
+            is_premium: boolean;
         };
         /** FavoriteBody */
         FavoriteBody: {
@@ -3299,6 +3332,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_favorable_status_api_v1_favorable_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FavorableStatusBody"];
                 };
             };
         };

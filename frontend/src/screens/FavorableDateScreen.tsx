@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
-import { ApiRequestError, getFavorable, spendStars, type FavorableDay } from "../api/client";
+import { ApiRequestError, getFavorable, getFavorableStatus, spendStars, type FavorableDay } from "../api/client";
 import { queryKeys } from "../api/keys";
 import { Button } from "../shared/ui/Button/Button";
 import { Field } from "../shared/ui/Field/Field";
@@ -30,11 +30,37 @@ export function FavorableDateScreen() {
   const queryClient = useQueryClient();
   const [topUp, setTopUp] = useState(false);
   const today = new Date();
-  const [event, setEvent] = useState<EventId>("meeting");
+  const statusQuery = useQuery({
+    queryKey: queryKeys.favorableStatus,
+    queryFn: () => getFavorableStatus(),
+  });
+  const isPremium = statusQuery.data?.is_premium === true;
+  const initialEvent = useMemo<EventId | null>(() => {
+    if (statusQuery.data?.chosen_event) {
+      return statusQuery.data.chosen_event as EventId;
+    }
+    if (isPremium) {
+      return "meeting";
+    }
+    return null;
+  }, [statusQuery.data, isPremium]);
+
+  const [event, setEvent] = useState<EventId | null>(null);
   const [draft, setDraft] = useState("");
   const [committed, setCommitted] = useState("");
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
   const [selected, setSelected] = useState("");
+
+  useEffect(() => {
+    if (event === null && initialEvent !== null) {
+      setEvent(initialEvent);
+      if (initialEvent === "custom" && statusQuery.data?.chosen_custom) {
+        setDraft(statusQuery.data.chosen_custom);
+        setCommitted(statusQuery.data.chosen_custom);
+      }
+    }
+  }, [initialEvent, event, statusQuery.data]);
+
   useEffect(() => {
     const handle = window.setTimeout(() => {
       setCommitted(draft.trim());
@@ -43,12 +69,14 @@ export function FavorableDateScreen() {
       window.clearTimeout(handle);
     };
   }, [draft]);
+
   const month = `${cursor.year}-${String(cursor.month).padStart(2, "0")}`;
   const custom = event === "custom" ? committed : "";
-  const ready = event !== "custom" || custom.length >= 2;
+  const ready = event !== null && (event !== "custom" || custom.length >= 2);
+  const activeEvent = event ?? "meeting";
   const favorable = useQuery({
-    queryKey: queryKeys.favorable(month, event, custom),
-    queryFn: () => getFavorable(month, event, custom),
+    queryKey: queryKeys.favorable(month, activeEvent, custom),
+    queryFn: () => getFavorable(month, activeEvent, custom),
     enabled: ready,
   });
   const days = useMemo(
@@ -69,10 +97,15 @@ export function FavorableDateScreen() {
   const marks = new Set(days.map((day) => day.date));
   const chosen = days.find((day) => day.date === selected);
   const failed = favorable.isError || favorable.data?.status === "unavailable";
-  const locked = favorable.data?.access === "preview" && (favorable.data.price ?? 0) > 0;
+  const isLocked = favorable.data?.access === "locked";
+  const isPreview = favorable.data?.access === "preview" && (favorable.data.price ?? 0) > 0;
+  const locked = isLocked || isPreview;
   const price = favorable.data?.price ?? FAVORABLE_STARS;
   const buy = useMutation({
-    mutationFn: () => spendStars({ feature: "favorable", month, event, custom }),
+    mutationFn: () =>
+      event !== null
+        ? spendStars({ feature: "favorable", month, event, custom })
+        : Promise.reject(new Error("no event selected")),
     onMutate: () => holdStarBalance(queryClient, price),
     onSuccess: async (ticket, _variables, restore) => {
       if (ticket.charged) {
@@ -80,7 +113,12 @@ export function FavorableDateScreen() {
       } else {
         restore?.();
       }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.favorable(month, event, custom) });
+      if (event !== null) {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.favorable(month, event, custom),
+        });
+      }
+      await queryClient.invalidateQueries({ queryKey: queryKeys.favorableStatus });
     },
     onError: (error, _variables, restore) => {
       restore?.();
@@ -128,60 +166,90 @@ export function FavorableDateScreen() {
         {event === "custom" ? (
           <Field label="Своё событие" value={draft} chevron={false} onChange={setDraft} />
         ) : null}
-        <MonthGrid
-          year={cursor.year}
-          month={cursor.month}
-          selected={selected}
-          marks={marks}
-          onSelect={setSelected}
-          onPrevious={() => {
-            setCursor((current) => shift(current, -1));
-          }}
-          onNext={() => {
-            setCursor((current) => shift(current, 1));
-          }}
-        />
-        <p className={styles.favorableLegend}>
-          <span className={styles.favorableDot} />
-          Благоприятный день
-        </p>
-        {favorable.isPending && ready ? <Skeleton lines={3} /> : null}
-        {failed ? <p role="status">Не удалось подобрать дни.</p> : null}
-        {chosen !== undefined ? (
+        {event === null ? (
           <article className={styles.favorableCard}>
-            <div className={styles.favorableHead}>
-              <h2>{dayTitle(chosen.date)}</h2>
-              <p className={styles.favorableSuit}>{suitFor(event, custom)}</p>
-            </div>
-            <p className={styles.favorableTime}>
-              <Icon name="clock" size={18} />
-              Лучшее время · {chosen.start}–{chosen.end}
+            <p className={styles.favorableNote}>
+              Выберите категорию выше, чтобы рассчитать ближайший благоприятный день по вашему знаку зодиака, дате и времени рождения. Бесплатно доступен один расчёт в день.
             </p>
-            <p className={styles.favorableNote}>{chosen.note}</p>
           </article>
-        ) : null}
-        {!favorable.isPending &&
-        ready &&
-        !failed &&
-        chosen === undefined &&
-        selected.startsWith(month) ? (
-          <p className={styles.favorableNote}>Этот день не отмечен.</p>
-        ) : null}
-        <Button
-          icon="date_calendar"
-          disabled={chosen === undefined}
-          onClick={() => {
-            if (chosen !== undefined) {
-              addToCalendar(event === "custom" ? custom : presetTitle(event), chosen);
-            }
-          }}
-        >
-          Добавить в календарь
-        </Button>
+        ) : (
+          <>
+            <MonthGrid
+              year={cursor.year}
+              month={cursor.month}
+              selected={selected}
+              marks={marks}
+              onSelect={setSelected}
+              onPrevious={() => {
+                setCursor((current) => shift(current, -1));
+              }}
+              onNext={() => {
+                setCursor((current) => shift(current, 1));
+              }}
+            />
+            <p className={styles.favorableLegend}>
+              <span className={styles.favorableDot} />
+              Благоприятный день
+            </p>
+            {favorable.isPending && ready ? <Skeleton lines={3} /> : null}
+            {failed ? <p role="status">Не удалось подобрать дни.</p> : null}
+            {isLocked ? (
+              <article className={styles.favorableCard}>
+                <div className={styles.favorableHead}>
+                  <h2>Категория недоступна бесплатно</h2>
+                  {favorable.data?.free_chosen_label ? (
+                    <p className={styles.favorableSuit}>Выбрано: {favorable.data.free_chosen_label}</p>
+                  ) : null}
+                </div>
+                <p className={styles.favorableNote}>
+                  {favorable.data?.free_chosen_label
+                    ? `Бесплатно в день доступен просмотр только одной категории. Сегодня вы уже выбрали «${favorable.data.free_chosen_label}».`
+                    : "Бесплатно в день доступен просмотр только одной категории."}{" "}
+                  Полный календарь месяца для события «{presetTitle(event)}» доступен за{" "}
+                  <StarPrice amount={price} /> звёзд или с Premium.
+                </p>
+              </article>
+            ) : null}
+            {chosen !== undefined ? (
+              <article className={styles.favorableCard}>
+                <div className={styles.favorableHead}>
+                  <h2>{dayTitle(chosen.date)}</h2>
+                  <p className={styles.favorableSuit}>{suitFor(event, custom)}</p>
+                </div>
+                <p className={styles.favorableTime}>
+                  <Icon name="clock" size={18} />
+                  Лучшее время · {chosen.start}–{chosen.end}
+                </p>
+                <p className={styles.favorableNote}>{chosen.note}</p>
+              </article>
+            ) : null}
+            {!favorable.isPending &&
+            ready &&
+            !failed &&
+            !isLocked &&
+            chosen === undefined &&
+            selected.startsWith(month) ? (
+              <p className={styles.favorableNote}>Этот день не отмечен.</p>
+            ) : null}
+            <Button
+              icon="date_calendar"
+              disabled={chosen === undefined}
+              onClick={() => {
+                if (chosen !== undefined) {
+                  addToCalendar(event === "custom" ? custom : presetTitle(event), chosen);
+                }
+              }}
+            >
+              Добавить в календарь
+            </Button>
+          </>
+        )}
         {locked ? (
           <section className={styles.favorableOffer}>
             <p>
-              Ближайший день бесплатно. Полный календарь месяца для этого события стоит{" "}
+              {isLocked
+                ? `Полный календарь месяца для этого события стоит `
+                : `Ближайший день бесплатно. Полный календарь месяца для этого события стоит `}
               <StarPrice amount={price} /> звёзд. С Premium он без ограничений.
             </p>
             <Button
@@ -200,7 +268,10 @@ export function FavorableDateScreen() {
   );
 }
 
-function suitFor(event: EventId, custom: string): string {
+function suitFor(event: EventId | null, custom: string): string {
+  if (event === null) {
+    return "";
+  }
   const preset = PRESETS.find((item) => item.id === event);
   if (preset !== undefined) {
     return preset.suit;
@@ -208,7 +279,10 @@ function suitFor(event: EventId, custom: string): string {
   return `Подходит для ${custom}`;
 }
 
-function presetTitle(event: EventId): string {
+function presetTitle(event: EventId | null): string {
+  if (event === null) {
+    return "Событие";
+  }
   const preset = PRESETS.find((item) => item.id === event);
   return preset?.title ?? "Событие";
 }

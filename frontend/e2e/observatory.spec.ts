@@ -271,6 +271,17 @@ async function installApp(page: Page, step = "done", premium = false) {
       await route.fulfill({ json: { text: "https://example.test/share" } });
       return;
     }
+    if (url.includes("/favorable/status")) {
+      await route.fulfill({
+        json: {
+          chosen_event: "meeting",
+          chosen_custom: null,
+          chosen_label: "Встреча",
+          is_premium: premium,
+        },
+      });
+      return;
+    }
     if (url.includes("/favorable")) {
       const params = new URL(url).searchParams;
       const month = params.get("month") ?? "2025-08";

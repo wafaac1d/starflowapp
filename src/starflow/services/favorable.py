@@ -14,7 +14,7 @@ from starflow.ai.client import CircuitOpen, ModelReply
 from starflow.cache.two_level import TwoLevelCache
 from starflow.domain.calendar_reading import parse_month
 from starflow.domain.calendar_sign import calendar_sign
-from starflow.domain.errors import FieldInvalid
+from starflow.domain.errors import Conflict, FieldInvalid
 from starflow.domain.favorable import (
     FavorableDay,
     accept_favorable,
@@ -26,7 +26,12 @@ from starflow.domain.segments import facts_text
 from starflow.domain.stars import FAVORABLE_STARS
 from starflow.domain.time import now_utc
 from starflow.logging import get_logger
-from starflow.repositories.sql import AiRequestRepository, ProfileRepository, SubscriptionRepository
+from starflow.repositories.sql import (
+    AiRequestRepository,
+    ForecastHistoryRepository,
+    ProfileRepository,
+    SubscriptionRepository,
+)
 
 _LOG = get_logger("favorable")
 _REPAIR = (
@@ -56,6 +61,7 @@ class FavorableStore(Protocol):
     profiles: ProfileRepository
     ai_requests: AiRequestRepository
     subscriptions: SubscriptionRepository
+    forecast_history: ForecastHistoryRepository
 
     async def commit(self) -> None: ...
 
@@ -72,6 +78,14 @@ class FavorableWork(Protocol):
 
 
 @dataclass(frozen=True)
+class FavorableStatus:
+    chosen_event: str | None
+    chosen_custom: str | None
+    chosen_label: str | None
+    is_premium: bool
+
+
+@dataclass(frozen=True)
 class FavorableMonth:
     status: str
     event: str
@@ -81,6 +95,7 @@ class FavorableMonth:
     access: str
     price: int
     days: tuple[FavorableDay, ...]
+    free_chosen_label: str | None = None
 
 
 class FavorableService:
@@ -105,6 +120,32 @@ class FavorableService:
         self._stars = stars
         self._clock = clock or now_utc
 
+    async def status(self, user_id: UUID) -> FavorableStatus:
+        now = self._clock()
+        async with self._uow_factory() as uow:
+            profile = await uow.profiles.ensure(user_id)
+            premium = await uow.subscriptions.has_active(user_id, now)
+            zone = profile.timezone or self._zone_name
+            today = now.astimezone(ZoneInfo(zone)).date()
+            found = await uow.forecast_history.find(user_id, "favorable", today)
+        if found is None:
+            return FavorableStatus(
+                chosen_event=None,
+                chosen_custom=None,
+                chosen_label=None,
+                is_premium=premium,
+            )
+        _id, payload = found
+        event = cast(str | None, payload.get("event"))
+        custom = cast(str | None, payload.get("custom"))
+        label = cast(str | None, payload.get("label"))
+        return FavorableStatus(
+            chosen_event=event,
+            chosen_custom=custom,
+            chosen_label=label,
+            is_premium=premium,
+        )
+
     async def month(
         self,
         user_id: UUID,
@@ -121,6 +162,39 @@ class FavorableService:
             profile = await uow.profiles.ensure(user_id)
             premium = await uow.subscriptions.has_active(user_id, self._clock())
         zone = profile.timezone or self._zone_name
+        today = self._clock().astimezone(ZoneInfo(zone)).date()
+        today_iso = today.isoformat()
+
+        owned = False
+        is_free = not premium
+        if is_free and self._stars is not None:
+            subject = favorable_subject(month, event, custom)
+            owned = await self._stars.owns(user_id, "favorable", subject)
+            if owned:
+                is_free = False
+
+        if is_free:
+            async with self._uow_factory() as uow:
+                found_hist = await uow.forecast_history.find(user_id, "favorable", today)
+            if found_hist is not None:
+                _id, recorded = found_hist
+                rec_event = recorded.get("event")
+                rec_custom = recorded.get("custom", "")
+                rec_label = cast(str, recorded.get("label", ""))
+                matches = event == rec_event and (event != "custom" or custom == rec_custom)
+                if not matches:
+                    return FavorableMonth(
+                        status="ready",
+                        event=event,
+                        label=label,
+                        month=month,
+                        timezone=zone,
+                        access="locked",
+                        price=FAVORABLE_STARS,
+                        days=(),
+                        free_chosen_label=rec_label,
+                    )
+
         born = "unknown" if profile.birth_date is None else profile.birth_date.strftime("%d.%m.%Y")
         clock = (
             "unknown"
@@ -151,33 +225,41 @@ class FavorableService:
             key, "favorable", _midnight(self._clock(), zone), produce
         )
         view = _month(hit.payload, event, label, month, zone)
-        return await self._access(user_id, view, month, event, custom, zone, premium)
 
-    async def _access(
+        if is_free and view.status == "ready":
+            async with self._uow_factory() as uow:
+                existing = await uow.forecast_history.find(user_id, "favorable", today)
+                if existing is None:
+                    try:
+                        await uow.forecast_history.add(
+                            user_id,
+                            "favorable",
+                            today,
+                            {"event": event, "custom": custom, "label": label},
+                        )
+                        await uow.commit()
+                    except Conflict:
+                        pass
+
+        return self._access(view, today_iso, premium, owned)
+
+    def _access(
         self,
-        user_id: UUID,
         view: FavorableMonth,
-        month: str,
-        event: str,
-        custom: str,
-        zone: str,
+        today_iso: str,
         premium: bool,
+        owned: bool,
     ) -> FavorableMonth:
         if view.status != "ready" or len(view.days) <= 1:
             opened = view.status == "ready" and bool(view.days)
             return replace(view, access="full" if opened else "preview", price=0)
-        if premium:
+        if premium or owned:
             return replace(view, access="full", price=0)
-        subject = favorable_subject(month, event, custom)
-        owned = self._stars is not None and await self._stars.owns(user_id, "favorable", subject)
-        if owned:
-            return replace(view, access="full", price=0)
-        today = self._clock().astimezone(ZoneInfo(zone)).date().isoformat()
         return replace(
             view,
             access="preview",
             price=FAVORABLE_STARS,
-            days=nearest_favorable(view.days, today),
+            days=nearest_favorable(view.days, today_iso),
         )
 
     async def _ask(

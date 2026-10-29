@@ -1,7 +1,8 @@
 """Благоприятные дни: проверка ответа модели и один вызов на сутки."""
 
 import json
-from datetime import UTC, date, datetime, time
+from collections.abc import Callable
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 from uuid import UUID
 
@@ -83,20 +84,43 @@ class _Stars:
         return self.owned
 
 
+class _History:
+    def __init__(self) -> None:
+        self.rows: dict[tuple[UUID, str, date], dict[str, object]] = {}
+
+    async def find(
+        self, user_id: UUID, kind: str, period_date: date
+    ) -> tuple[UUID, dict[str, object]] | None:
+        key = (user_id, kind, period_date)
+        found = self.rows.get(key)
+        if found is None:
+            return None
+        return UUID(int=1), found
+
+    async def add(
+        self, user_id: UUID, kind: str, period_date: date, payload: dict[str, object]
+    ) -> UUID:
+        self.rows[(user_id, kind, period_date)] = payload
+        return UUID(int=1)
+
+
 class _Db:
-    def __init__(self, premium: bool) -> None:
+    def __init__(self, premium: bool, history: _History | None = None) -> None:
         self.profiles = _Profiles()
         self.ai_requests = _Requests()
         self.subscriptions = _Subscriptions(premium)
+        self.forecast_history = history or _History()
 
     async def commit(self) -> None:
         return None
 
 
-def _work(premium: bool) -> type:
+def _work(premium: bool, history: _History | None = None) -> type:
+    shared_history = history or _History()
+
     class _Work:
         async def __aenter__(self) -> _Db:
-            return _Db(premium)
+            return _Db(premium, shared_history)
 
         async def __aexit__(self, *_args: object) -> None:
             return None
@@ -156,9 +180,13 @@ def _service(
     *,
     premium: bool = False,
     stars: _Stars | None = None,
+    clock: Callable[[], datetime] | None = None,
+    history: _History | None = None,
 ) -> FavorableService:
-    work = _work(premium)
-    cache = TwoLevelCache(TtlCache(8), _Store(), clock=lambda: MOMENT)
+    shared_history = history or _History()
+    work = _work(premium, shared_history)
+    current_clock = clock or (lambda: MOMENT)
+    cache = TwoLevelCache(TtlCache(8), _Store(), clock=current_clock)
     return FavorableService(
         work,
         cache,
@@ -167,7 +195,7 @@ def _service(
         model_name="deepseek-flash",
         zone_name="Europe/Moscow",
         stars=stars,
-        clock=lambda: MOMENT,
+        clock=current_clock,
     )
 
 
@@ -178,6 +206,10 @@ def _json(text: str) -> object:
 async def test_one_model_call_serves_the_same_month_again() -> None:
     model = _Model([GOOD, GOOD])
     service = _service(model)
+    status_before = await service.status(USER)
+    assert status_before.chosen_event is None
+    assert status_before.is_premium is False
+
     first = await service.month(USER, "2026-10", "meeting", "")
     second = await service.month(USER, "2026-10", "meeting", "")
     assert first.status == "ready"
@@ -189,10 +221,37 @@ async def test_one_model_call_serves_the_same_month_again() -> None:
     assert "12.08.1995" in model.seen[0]
     assert "14:30" in model.seen[0]
     assert "Встреча" in model.seen[0]
+
+    status_after = await service.status(USER)
+    assert status_after.chosen_event == "meeting"
+    assert status_after.chosen_label == "Встреча"
+
     trip = await service.month(USER, "2026-10", "trip", "")
     assert trip.status == "ready"
-    assert model.calls == 2
-    assert "Поездка" in model.seen[1]
+    assert trip.access == "locked"
+    assert trip.price == 30
+    assert trip.days == ()
+    assert trip.free_chosen_label == "Встреча"
+    assert model.calls == 1
+
+
+async def test_next_day_allows_a_new_free_category() -> None:
+    time_state = {"now": MOMENT}
+    history = _History()
+    model = _Model([GOOD, GOOD])
+    service = _service(model, clock=lambda: time_state["now"], history=history)
+
+    first = await service.month(USER, "2026-10", "meeting", "")
+    assert first.access == "preview"
+    assert [item.date for item in first.days] == ["2026-10-15"]
+
+    time_state["now"] = MOMENT + timedelta(days=1)
+    status_next = await service.status(USER)
+    assert status_next.chosen_event is None
+
+    trip = await service.month(USER, "2026-10", "trip", "")
+    assert trip.access == "preview"
+    assert [item.date for item in trip.days] == ["2026-10-15"]
 
 
 async def test_premium_and_a_paid_month_show_every_day() -> None:

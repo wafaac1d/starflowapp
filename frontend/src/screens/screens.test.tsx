@@ -1240,6 +1240,8 @@ describe("screens", () => {
     await userEvent.click(screen.getByRole("button", { name: (value) => value.startsWith("Благоприятная дата") }));
     expect(await screen.findByRole("heading", { name: "Благоприятная дата" })).toBeInTheDocument();
     expect(screen.getByText("Для какого события ищем день?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Встреча" })).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(screen.getByRole("button", { name: "Встреча" }));
     expect(screen.getByRole("button", { name: "Встреча" })).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -1259,6 +1261,9 @@ describe("screens", () => {
           if (url.includes("/stars/spends")) {
             opened = true;
             return Response.json({ balance: 10, allowed: true, charged: true, price: 30 });
+          }
+          if (url.includes("/favorable/status")) {
+            return Response.json({ chosen_event: null, chosen_custom: null, chosen_label: null, is_premium: false });
           }
           if (!url.includes("/favorable")) {
             return Response.json({});
@@ -1284,6 +1289,7 @@ describe("screens", () => {
         }),
       );
       renderAt(<FavorableDateScreen />);
+      await userEvent.click(screen.getByRole("button", { name: "Встреча" }));
       expect(await screen.findByRole("heading", { name: "12 августа" })).toBeInTheDocument();
       expect(screen.getByText("Подходит для встречи")).toBeInTheDocument();
       expect(screen.getByText("Лучшее время · 11:00–14:00")).toBeInTheDocument();
@@ -1303,6 +1309,55 @@ describe("screens", () => {
       vi.restoreAllMocks();
       vi.unstubAllGlobals();
     }
+  });
+
+  it("limits free favorable view to one category per day", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/favorable/status")) {
+          return Response.json({ chosen_event: "meeting", chosen_custom: null, chosen_label: "Встреча", is_premium: false });
+        }
+        if (!url.includes("/favorable")) {
+          return Response.json({});
+        }
+        const event = new URL(url, "http://local").searchParams.get("event");
+        if (event === "meeting") {
+          return Response.json({
+            status: "ready",
+            event: "meeting",
+            label: "Встреча",
+            month: "2025-08",
+            timezone: "Europe/Moscow",
+            access: "preview",
+            price: 30,
+            days: [{ date: "2025-08-12", start: "11:00", end: "14:00", note: "Короткий разговор." }],
+          });
+        }
+        return Response.json({
+          status: "ready",
+          event,
+          label: "Поездка",
+          month: "2025-08",
+          timezone: "Europe/Moscow",
+          access: "locked",
+          price: 30,
+          days: [],
+          free_chosen_label: "Встреча",
+        });
+      }),
+    );
+    renderAt(<FavorableDateScreen />);
+    expect(await screen.findByRole("heading", { name: "12 августа" })).toBeInTheDocument();
+    expect(screen.getByText("Подходит для встречи")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Поездка" }));
+    expect(await screen.findByRole("heading", { name: "Категория недоступна бесплатно" })).toBeInTheDocument();
+    expect(screen.getByText(/Сегодня вы уже выбрали «Встреча»/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Встреча" }));
+    expect(await screen.findByRole("heading", { name: "12 августа" })).toBeInTheDocument();
   });
 
   it("opens the relative form from the profile list", () => {

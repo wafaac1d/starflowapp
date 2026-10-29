@@ -28,10 +28,29 @@ class FavorableMonthBody(BaseModel):
     access: str
     price: int
     days: list[FavorableDayBody]
+    free_chosen_label: str | None = None
+
+
+class FavorableStatusBody(BaseModel):
+    chosen_event: str | None = None
+    chosen_custom: str | None = None
+    chosen_label: str | None = None
+    is_premium: bool = False
 
 
 def register_favorable_routes(router: APIRouter, container: Container) -> None:
     unauthorized = container.catalog.text("errors.unauthorized")
+
+    @router.get("/favorable/status", response_model=FavorableStatusBody)
+    async def read_favorable_status(request: Request) -> FavorableStatusBody:
+        actor = await actor_from_cookie(request, container, unauthorized)
+        status = await container.favorable_service.status(actor.view.user_id)
+        return FavorableStatusBody(
+            chosen_event=status.chosen_event,
+            chosen_custom=status.chosen_custom,
+            chosen_label=status.chosen_label,
+            is_premium=status.is_premium,
+        )
 
     @router.get("/favorable", response_model=FavorableMonthBody)
     async def read_favorable(
@@ -61,6 +80,7 @@ def _body(view: FavorableMonth) -> FavorableMonthBody:
             FavorableDayBody(date=day.date, start=day.start, end=day.end, note=day.note)
             for day in view.days
         ],
+        free_chosen_label=view.free_chosen_label,
     )
 
 
