@@ -15,7 +15,8 @@ import { CompatibilityScreen } from "./CompatibilityScreen";
 import { ForecastScreen } from "./ForecastScreen";
 import { NatalScreen } from "./NatalScreen";
 import { FavoritesScreen, SavedFavoriteScreen } from "./FavoritesScreen";
-import { AffirmationsScreen, FavorableDateScreen } from "./PracticeScreens";
+import { FavorableDateScreen } from "./FavorableDateScreen";
+import { AffirmationsScreen } from "./PracticeScreens";
 import { PeopleScreen } from "./PeopleScreen";
 import { PremiumScreen } from "./PremiumScreen";
 import { ProfileScreen } from "./ProfileScreen";
@@ -1238,7 +1239,58 @@ describe("screens", () => {
     await userEvent.click(screen.getByRole("button", { name: "Назад" }));
     await userEvent.click(screen.getByRole("button", { name: (value) => value.startsWith("Благоприятная дата") }));
     expect(await screen.findByRole("heading", { name: "Благоприятная дата" })).toBeInTheDocument();
-    expect(screen.getByText("Подберите день для события")).toBeInTheDocument();
+    expect(screen.getByText("Для какого события ищем день?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Встреча" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("shows a favorable day from the model and saves it to the calendar", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2025-08-12T12:00:00"));
+    try {
+      const createObjectURL = vi.fn(() => "blob:favorable");
+      Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
+      Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: () => undefined });
+      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn<typeof fetch>(async (input: RequestInfo | URL) => {
+          const url = String(input);
+          if (!url.includes("/favorable")) {
+            return Response.json({});
+          }
+          const event = new URL(url, "http://local").searchParams.get("event");
+          const note = event === "trip" ? "Дорога без спешки." : "Для спокойного и открытого разговора.";
+          const suit = event === "trip" ? "Поездка" : "Встреча";
+          return Response.json({
+            status: "ready",
+            event,
+            label: suit,
+            month: "2025-08",
+            timezone: "Europe/Moscow",
+            days: [
+              { date: "2025-08-12", start: "11:00", end: "14:00", note: "Короткий разговор." },
+              { date: "2025-08-15", start: "10:00", end: "13:00", note },
+            ],
+          });
+        }),
+      );
+      renderAt(<FavorableDateScreen />);
+      expect(await screen.findByRole("heading", { name: "12 августа" })).toBeInTheDocument();
+      expect(screen.getByText("Подходит для встречи")).toBeInTheDocument();
+      expect(screen.getByText("Лучшее время · 11:00–14:00")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "15, благоприятный день" }));
+      expect(screen.getByRole("heading", { name: "15 августа" })).toBeInTheDocument();
+      expect(screen.getByText("Для спокойного и открытого разговора.")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Добавить в календарь" }));
+      expect(createObjectURL).toHaveBeenCalled();
+      await userEvent.click(screen.getByRole("button", { name: "Поездка" }));
+      expect(await screen.findByText("Дорога без спешки.")).toBeInTheDocument();
+      expect(screen.getByText("Подходит для поездки")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("opens the relative form from the profile list", () => {

@@ -14,6 +14,7 @@ from starflow.api.actor import (
 from starflow.api.assistant_http import register_assistant_routes
 from starflow.api.billing_http import register_billing_routes
 from starflow.api.chart_http import register_chart_routes
+from starflow.api.favorable_http import register_favorable_routes
 from starflow.api.forecast_http import register_forecast_routes
 from starflow.api.http import (
     ApiError,
@@ -158,6 +159,7 @@ def _api_router(container: Container) -> APIRouter:
     register_star_routes(router, container)
     register_assistant_routes(router, container)
     register_ops_routes(router, container)
+    register_favorable_routes(router, container)
     return router
 
 

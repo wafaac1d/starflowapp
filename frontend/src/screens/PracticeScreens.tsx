@@ -31,12 +31,3 @@ export function AffirmationsScreen() {
   );
 }
 
-export function FavorableDateScreen() {
-  return (
-    <PracticePage
-      title="Благоприятная дата"
-      lead="Подберите день для события"
-      image="/favorable_date/favorable_date_256.png"
-    />
-  );
-}

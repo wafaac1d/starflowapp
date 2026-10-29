@@ -31,6 +31,7 @@ from starflow.services.access import AccessService
 from starflow.services.assistant import AssistantService
 from starflow.services.billing import BillingService
 from starflow.services.chart import ChartService
+from starflow.services.favorable import FavorableService
 from starflow.services.forecast import ForecastService
 from starflow.services.health import HealthService
 from starflow.services.nominatim import NominatimLookup
@@ -205,6 +206,7 @@ class Container:
     quota_service: QuotaService
     chart_service: ChartService
     forecast_service: ForecastService
+    favorable_service: FavorableService
     assistant_service: AssistantService
     billing_service: BillingService
     stars_service: StarsWallet
@@ -288,6 +290,14 @@ def build_container(settings: Settings) -> Container:
         mini_app_url=settings.mini_app_url,
         chart=chart_service,
         stars=stars_service,
+    )
+    favorable_service = FavorableService(
+        uow_factory,
+        forecast_cache,
+        deepseek,
+        prompts,
+        model_name=settings.deepseek_model_fast,
+        zone_name=settings.default_timezone,
     )
     assistant_service = AssistantService(
         uow_factory,
@@ -382,6 +392,7 @@ def build_container(settings: Settings) -> Container:
         quota_service=quota_service,
         chart_service=chart_service,
         forecast_service=forecast_service,
+        favorable_service=favorable_service,
         assistant_service=assistant_service,
         billing_service=billing_service,
         stars_service=stars_service,

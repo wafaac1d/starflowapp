@@ -398,6 +398,39 @@ export async function getRetro(fetchImpl: typeof fetch = fetch): Promise<RetroPe
   return requestJson<RetroPeriod[]>("/api/v1/retro", { method: "GET" }, fetchImpl);
 }
 
+export type FavorableDay = {
+  date: string;
+  start: string;
+  end: string;
+  note: string;
+};
+
+export type FavorableMonth = {
+  status: string;
+  event: string;
+  label: string;
+  month: string;
+  timezone: string;
+  days: FavorableDay[];
+};
+
+export async function getFavorable(
+  month: string,
+  event: string,
+  custom = "",
+  fetchImpl: typeof fetch = fetch,
+): Promise<FavorableMonth> {
+  const params = new URLSearchParams({ month, event });
+  if (event === "custom" && custom !== "") {
+    params.set("custom", custom);
+  }
+  return requestJson<FavorableMonth>(
+    `/api/v1/favorable?${params.toString()}`,
+    { method: "GET" },
+    fetchImpl,
+  );
+}
+
 export type AdminOverview = {
   start: string;
   end: string;

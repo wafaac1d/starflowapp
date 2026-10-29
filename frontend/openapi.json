@@ -2007,6 +2007,64 @@
         }
       }
     },
+    "/api/v1/favorable": {
+      "get": {
+        "summary": "Read Favorable",
+        "operationId": "read_favorable_api_v1_favorable_get",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Month"
+            }
+          },
+          {
+            "name": "event",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Event"
+            }
+          },
+          {
+            "name": "custom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Custom"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavorableMonthBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/telegram/webhook": {
       "post": {
         "summary": "Telegram Webhook",
@@ -2976,6 +3034,75 @@
         },
         "type": "object",
         "title": "DraftBody"
+      },
+      "FavorableDayBody": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "start",
+          "end",
+          "note"
+        ],
+        "title": "FavorableDayBody"
+      },
+      "FavorableMonthBody": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "event": {
+            "type": "string",
+            "title": "Event"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/FavorableDayBody"
+            },
+            "type": "array",
+            "title": "Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "event",
+          "label",
+          "month",
+          "timezone",
+          "days"
+        ],
+        "title": "FavorableMonthBody"
       },
       "FavoriteBody": {
         "properties": {

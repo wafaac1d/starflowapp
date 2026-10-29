@@ -264,6 +264,36 @@ async function installApp(page: Page, step = "done", premium = false) {
       await route.fulfill({ json: { text: "https://example.test/share" } });
       return;
     }
+    if (url.includes("/favorable")) {
+      const params = new URL(url).searchParams;
+      const month = params.get("month") ?? "2025-08";
+      const event = params.get("event") ?? "meeting";
+      const custom = params.get("custom") ?? "";
+      const note =
+        event === "custom" ? `День для ${custom}.` : "Для спокойного и открытого разговора.";
+      await route.fulfill({
+        json: {
+          status: "ready",
+          event,
+          label: event === "custom" ? custom : "Встреча",
+          month,
+          timezone: "Europe/Moscow",
+          days:
+            month === "2025-08"
+              ? [
+                  { date: "2025-08-15", start: "10:00", end: "13:00", note },
+                  {
+                    date: "2025-08-19",
+                    start: "16:00",
+                    end: "18:00",
+                    note: "Вечер подходит для разговора.",
+                  },
+                ]
+              : [],
+        },
+      });
+      return;
+    }
     await route.fulfill({ json: [] });
   });
 }
@@ -272,6 +302,30 @@ async function openReady(page: Page, path: string, premium = false) {
   await installApp(page, "done", premium);
   await page.goto(path);
 }
+
+test("favorable date marks the model days", async ({ page }) => {
+  await openReady(page, "/favorable");
+  await expect(page.getByRole("heading", { name: "Благоприятная дата" })).toBeVisible();
+  await expect(page.getByText("Для какого события ищем день?")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Встреча" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("heading", { name: "15 августа" })).toBeVisible();
+  await expect(page.getByText("Подходит для встречи")).toBeVisible();
+  await expect(page.getByText("Лучшее время · 10:00–13:00")).toBeVisible();
+  await expect(page.getByText("Для спокойного и открытого разговора.")).toBeVisible();
+  await page.getByRole("button", { name: "Свой вариант" }).click();
+  await page.getByRole("textbox", { name: "Своё событие" }).fill("Свидание");
+  await expect(page.getByText("Подходит для Свидание")).toBeVisible();
+  await expect(page.getByText("День для Свидание.")).toBeVisible();
+  await page.getByRole("button", { name: "19, благоприятный день" }).click();
+  await expect(page.getByRole("heading", { name: "19 августа" })).toBeVisible();
+  await expect(page.getByText("Вечер подходит для разговора.")).toBeVisible();
+  await page.getByRole("button", { name: "16", exact: true }).click();
+  await expect(page.getByText("Этот день не отмечен.")).toBeVisible();
+  await page.getByRole("button", { name: "Предыдущий месяц" }).click();
+  await expect(page.getByRole("heading", { name: "Июль 2025" })).toBeVisible();
+  await page.getByRole("button", { name: "Следующий месяц" }).click();
+  await expect(page.getByRole("heading", { name: "Август 2025" })).toBeVisible();
+});
 
 test("today opens retrograde planets", async ({ page }) => {
   await openReady(page, "/");
@@ -648,6 +702,7 @@ const SHOTS: { name: string; path: string }[] = [
   { name: "birth", path: "/onboarding/birth" },
   { name: "today", path: "/" },
   { name: "retro", path: "/retro" },
+  { name: "favorable", path: "/favorable" },
   { name: "forecast", path: "/forecast" },
   { name: "calendar", path: "/calendar?day=2025-08-12" },
   { name: "natal", path: "/natal" },
@@ -670,6 +725,9 @@ for (const shot of SHOTS) {
     }
     if (shot.name === "retro") {
       await expect(page.getByRole("heading", { name: "Меркурий" })).toBeVisible();
+    }
+    if (shot.name === "favorable") {
+      await expect(page.getByRole("heading", { name: "15 августа" })).toBeVisible();
     }
     if (shot.name === "forecast") {
       await expect(page.getByText(/благоприятный день/)).toBeVisible();

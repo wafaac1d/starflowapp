@@ -861,6 +861,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/favorable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Favorable */
+        get: operations["read_favorable_api_v1_favorable_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/telegram/webhook": {
         parameters: {
             query?: never;
@@ -1199,6 +1216,32 @@ export interface components {
             birth_time_unknown: boolean;
             /** Timezone */
             timezone?: string | null;
+        };
+        /** FavorableDayBody */
+        FavorableDayBody: {
+            /** Date */
+            date: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Note */
+            note: string;
+        };
+        /** FavorableMonthBody */
+        FavorableMonthBody: {
+            /** Status */
+            status: string;
+            /** Event */
+            event: string;
+            /** Label */
+            label: string;
+            /** Month */
+            month: string;
+            /** Timezone */
+            timezone: string;
+            /** Days */
+            days: components["schemas"]["FavorableDayBody"][];
         };
         /** FavoriteBody */
         FavoriteBody: {
@@ -3228,6 +3271,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BroadcastCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_favorable_api_v1_favorable_get: {
+        parameters: {
+            query: {
+                month: string;
+                event: string;
+                custom?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FavorableMonthBody"];
                 };
             };
             /** @description Validation Error */

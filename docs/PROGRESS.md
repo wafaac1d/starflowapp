@@ -932,6 +932,24 @@ D-088. В фактах вопроса теперь дата `дд.мм.гггг`
 
 Живой DeepSeek не вызывался.
 
+## Благоприятная дата, 2026-10-29
+
+D-089. Экран «Благоприятная дата» собран по макету. Дни месяца для события называет модель, один раз на человека, событие и местные сутки. Повтор читается из общего кеша. Если ответ не подошёл, дни не выдумываются. «Добавить в календарь» скачивает файл события.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff format --check` по `favorable.py`, `favorable_http.py` и `test_favorable.py` | 0 |
+| `uv run ruff check` по тем же файлам | 0 |
+| `uv run mypy` по `domain/favorable.py`, `services/favorable.py`, `favorable_http.py`, `app.py`, `bootstrap.py` | 0 |
+| `uv run pytest tests/unit/test_favorable.py -q` | 0, 4 теста |
+| `uv run pytest tests/unit/test_contract.py::test_openapi_document_matches_the_committed_contract -q` | 0 |
+| `corepack pnpm exec openapi-typescript openapi.json --output src/api/schema.d.ts` | 0 |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t 'opens affirmations and a favorable date\|shows a favorable day'` | 0, 2 теста |
+| `PLAYWRIGHT_BROWSERS_PATH=…/playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g 'favorable date marks\|screenshot favorable'` | 0, 2 теста |
+
+Живой DeepSeek не вызывался.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.
