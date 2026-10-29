@@ -9,6 +9,7 @@ NATAL_STARS = 40
 COMPATIBILITY_STARS = 40
 QUESTION_STARS = 20
 FAVORABLE_STARS = 30
+AFFIRMATION_STARS = 20
 TOPUP_PRESETS = (10, 20, 50, 100)
 MIN_TOPUP = 1
 
@@ -17,6 +18,7 @@ PRICES = {
     "compatibility": COMPATIBILITY_STARS,
     "assistant": QUESTION_STARS,
     "favorable": FAVORABLE_STARS,
+    "affirmation": AFFIRMATION_STARS,
 }
 
 
@@ -42,6 +44,13 @@ def pair_subject(left: str, right: str) -> str:
     if parts[0] not in SIGNS or parts[1] not in SIGNS:
         raise ValueError("sign")
     return f"{parts[0]}:{parts[1]}"
+
+
+def affirmation_subject(category: str) -> str:
+    cleaned = category.strip().casefold()
+    if cleaned not in {"for_you", "confidence", "calm"}:
+        raise ValueError("category")
+    return cleaned
 
 
 def purchase_effect(kind: str) -> str:

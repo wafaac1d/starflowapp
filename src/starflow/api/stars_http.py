@@ -11,7 +11,7 @@ from starflow.api.http import ApiError
 from starflow.bootstrap import Container
 from starflow.domain.errors import FieldInvalid, PaymentUnavailable
 from starflow.domain.favorable import favorable_subject
-from starflow.domain.stars import pair_subject
+from starflow.domain.stars import affirmation_subject, pair_subject
 from starflow.services.billing import TopupView
 
 
@@ -37,6 +37,7 @@ class SpendRequest(BaseModel):
     month: str = ""
     event: str = ""
     custom: str = ""
+    category: str = ""
 
 
 class SpendBody(BaseModel):
@@ -150,6 +151,9 @@ def _subject(body: SpendRequest) -> str:
         return pair_subject(body.left_sign, body.right_sign)
     if body.feature == "favorable":
         return favorable_subject(body.month, body.event, body.custom)
+    if body.feature == "affirmation":
+        category_name = body.category or body.event or "for_you"
+        return affirmation_subject(category_name)
     raise FieldInvalid("feature", "errors.validation")
 
 

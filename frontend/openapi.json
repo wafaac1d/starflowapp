@@ -2083,6 +2083,64 @@
         }
       }
     },
+    "/api/v1/affirmations/status": {
+      "get": {
+        "summary": "Read Affirmations Status",
+        "operationId": "read_affirmations_status_api_v1_affirmations_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AffirmationsStatusBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/affirmations": {
+      "get": {
+        "summary": "Read Affirmations",
+        "operationId": "read_affirmations_api_v1_affirmations_get",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "for_you",
+              "title": "Category"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AffirmationsBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/support": {
       "post": {
         "summary": "Create Support Ticket",
@@ -2504,6 +2562,114 @@
           "page_size"
         ],
         "title": "AdminUsersBody"
+      },
+      "AffirmationCardBody": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "bg_image": {
+            "type": "string",
+            "title": "Bg Image"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "category",
+          "bg_image"
+        ],
+        "title": "AffirmationCardBody"
+      },
+      "AffirmationsBody": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "access": {
+            "type": "string",
+            "title": "Access"
+          },
+          "price": {
+            "type": "integer",
+            "title": "Price"
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/AffirmationCardBody"
+            },
+            "type": "array",
+            "title": "Cards"
+          },
+          "free_chosen_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Chosen Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "label",
+          "access",
+          "price",
+          "cards"
+        ],
+        "title": "AffirmationsBody"
+      },
+      "AffirmationsStatusBody": {
+        "properties": {
+          "chosen_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chosen Category"
+          },
+          "chosen_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chosen Label"
+          },
+          "is_premium": {
+            "type": "boolean",
+            "title": "Is Premium",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "AffirmationsStatusBody"
       },
       "AssistantBody": {
         "properties": {
@@ -4464,6 +4630,11 @@
           "custom": {
             "type": "string",
             "title": "Custom",
+            "default": ""
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
             "default": ""
           }
         },

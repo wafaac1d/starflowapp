@@ -17,5 +17,7 @@ export const queryKeys = {
   favorable: (month: string, event: string, custom: string) =>
     ["favorable", month, event, custom] as const,
   favorableStatus: ["favorable", "status"] as const,
+  affirmations: (category: string) => ["affirmations", category] as const,
+  affirmationsStatus: ["affirmations", "status"] as const,
   profileTrait: ["profile", "trait"] as const,
 };

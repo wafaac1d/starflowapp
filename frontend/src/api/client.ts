@@ -447,6 +447,49 @@ export async function getFavorable(
   );
 }
 
+export type AffirmationCard = {
+  id: string;
+  text: string;
+  category: string;
+  bg_image: string;
+};
+
+export type AffirmationsResponse = {
+  category: string;
+  label: string;
+  access: string;
+  price: number;
+  cards: AffirmationCard[];
+  free_chosen_label?: string | null;
+};
+
+export type AffirmationsStatus = {
+  chosen_category: string | null;
+  chosen_label: string | null;
+  is_premium: boolean;
+};
+
+export async function getAffirmations(
+  category = "for_you",
+  fetchImpl: typeof fetch = fetch,
+): Promise<AffirmationsResponse> {
+  return requestJson<AffirmationsResponse>(
+    `/api/v1/affirmations?category=${encodeURIComponent(category)}`,
+    { method: "GET" },
+    fetchImpl,
+  );
+}
+
+export async function getAffirmationsStatus(
+  fetchImpl: typeof fetch = fetch,
+): Promise<AffirmationsStatus> {
+  return requestJson<AffirmationsStatus>(
+    "/api/v1/affirmations/status",
+    { method: "GET" },
+    fetchImpl,
+  );
+}
+
 export type SupportTicket = {
   id: string;
   subject: string;
@@ -730,7 +773,8 @@ export async function spendStars(
   body:
     | { feature: "natal" }
     | { feature: "compatibility"; left_sign: string; right_sign: string }
-    | { feature: "favorable"; month: string; event: string; custom: string },
+    | { feature: "favorable"; month: string; event: string; custom: string }
+    | { feature: "affirmation"; category: string },
   fetchImpl: typeof fetch = fetch,
 ): Promise<SpendResponse> {
   return requestJson<SpendResponse>(

@@ -28,6 +28,7 @@ from starflow.logging import configure_logging, get_logger
 from starflow.repositories.uow import SqlUnitOfWork
 from starflow.scheduler.runtime import SchedulerRuntime
 from starflow.services.access import AccessService
+from starflow.services.affirmations import AffirmationsService
 from starflow.services.assistant import AssistantService
 from starflow.services.billing import BillingService
 from starflow.services.chart import ChartService
@@ -208,6 +209,7 @@ class Container:
     chart_service: ChartService
     forecast_service: ForecastService
     favorable_service: FavorableService
+    affirmations_service: AffirmationsService
     assistant_service: AssistantService
     billing_service: BillingService
     stars_service: StarsWallet
@@ -294,6 +296,15 @@ def build_container(settings: Settings) -> Container:
         stars=stars_service,
     )
     favorable_service = FavorableService(
+        uow_factory,
+        forecast_cache,
+        deepseek,
+        prompts,
+        model_name=settings.deepseek_model_fast,
+        zone_name=settings.default_timezone,
+        stars=stars_service,
+    )
+    affirmations_service = AffirmationsService(
         uow_factory,
         forecast_cache,
         deepseek,
@@ -397,6 +408,7 @@ def build_container(settings: Settings) -> Container:
         chart_service=chart_service,
         forecast_service=forecast_service,
         favorable_service=favorable_service,
+        affirmations_service=affirmations_service,
         assistant_service=assistant_service,
         billing_service=billing_service,
         stars_service=stars_service,

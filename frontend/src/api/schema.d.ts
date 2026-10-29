@@ -895,6 +895,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/affirmations/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Affirmations Status */
+        get: operations["read_affirmations_status_api_v1_affirmations_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/affirmations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Affirmations */
+        get: operations["read_affirmations_api_v1_affirmations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/support": {
         parameters: {
             query?: never;
@@ -1082,6 +1116,44 @@ export interface components {
             page: number;
             /** Page Size */
             page_size: number;
+        };
+        /** AffirmationCardBody */
+        AffirmationCardBody: {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** Category */
+            category: string;
+            /** Bg Image */
+            bg_image: string;
+        };
+        /** AffirmationsBody */
+        AffirmationsBody: {
+            /** Category */
+            category: string;
+            /** Label */
+            label: string;
+            /** Access */
+            access: string;
+            /** Price */
+            price: number;
+            /** Cards */
+            cards: components["schemas"]["AffirmationCardBody"][];
+            /** Free Chosen Label */
+            free_chosen_label?: string | null;
+        };
+        /** AffirmationsStatusBody */
+        AffirmationsStatusBody: {
+            /** Chosen Category */
+            chosen_category?: string | null;
+            /** Chosen Label */
+            chosen_label?: string | null;
+            /**
+             * Is Premium
+             * @default false
+             */
+            is_premium: boolean;
         };
         /** AssistantBody */
         AssistantBody: {
@@ -1777,6 +1849,11 @@ export interface components {
              * @default
              */
             custom: string;
+            /**
+             * Category
+             * @default
+             */
+            category: string;
         };
         /** SupportTicketBody */
         SupportTicketBody: {
@@ -3495,6 +3572,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FavorableMonthBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_affirmations_status_api_v1_affirmations_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffirmationsStatusBody"];
+                };
+            };
+        };
+    };
+    read_affirmations_api_v1_affirmations_get: {
+        parameters: {
+            query?: {
+                category?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffirmationsBody"];
                 };
             };
             /** @description Validation Error */

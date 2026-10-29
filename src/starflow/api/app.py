@@ -12,6 +12,7 @@ from starflow.api.actor import (
     clear_session_cookie,
     require_intent,
 )
+from starflow.api.affirmations_http import register_affirmations_routes
 from starflow.api.assistant_http import register_assistant_routes
 from starflow.api.billing_http import register_billing_routes
 from starflow.api.chart_http import register_chart_routes
@@ -163,6 +164,7 @@ def _api_router(container: Container) -> APIRouter:
     register_assistant_routes(router, container)
     register_ops_routes(router, container)
     register_favorable_routes(router, container)
+    register_affirmations_routes(router, container)
     register_support_routes(router, container)
     return router
 

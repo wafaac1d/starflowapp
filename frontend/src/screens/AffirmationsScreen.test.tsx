@@ -152,4 +152,74 @@ describe("AffirmationsScreen", () => {
     fireEvent.touchEnd(cardRegion, { changedTouches: [{ clientX: 200, clientY: 100 }] });
     expect(screen.getByText(/Я доверяю себе/)).toBeInTheDocument();
   });
+
+  it("shows locked card for second category and unlocks with stars", async () => {
+    let unlocked = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/stars/spends")) {
+          unlocked = true;
+          return Response.json({ balance: 80, allowed: true, charged: true, price: 20 });
+        }
+        if (url.includes("/affirmations/status")) {
+          return Response.json({ chosen_category: "for_you", chosen_label: "Для вас", is_premium: false });
+        }
+        if (url.includes("category=confidence")) {
+          if (unlocked) {
+            return Response.json({
+              category: "confidence",
+              label: "Уверенность",
+              access: "full",
+              price: 0,
+              cards: [
+                {
+                  id: "confidence_1",
+                  category: "confidence",
+                  text: "«Во мне есть всё необходимое.»",
+                  bg_image: "/affirmations/affirmation_backgrounds/affirmation_background_01.png",
+                },
+              ],
+            });
+          }
+          return Response.json({
+            category: "confidence",
+            label: "Уверенность",
+            access: "locked",
+            price: 20,
+            cards: [],
+            free_chosen_label: "Для вас",
+          });
+        }
+        return Response.json({
+          category: "for_you",
+          label: "Для вас",
+          access: "preview",
+          price: 20,
+          cards: [
+            {
+              id: "for_you_1",
+              category: "for_you",
+              text: "«Я доверяю себе и выбираю свой ритм.»",
+              bg_image: "/affirmations/affirmation_backgrounds/affirmation_background_01.png",
+            },
+          ],
+        });
+      }),
+    );
+
+    renderScreen();
+    expect(await screen.findByText(/Я доверяю себе/)).toBeInTheDocument();
+
+    // Click second category
+    await userEvent.click(screen.getByRole("button", { name: "Уверенность" }));
+    expect(await screen.findByRole("heading", { name: "Категория недоступна бесплатно" })).toBeInTheDocument();
+    expect(screen.getByText(/Сегодня вы уже выбрали «Для вас»/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Открыть за/ })).toBeInTheDocument();
+
+    // Unlock with stars
+    await userEvent.click(screen.getByRole("button", { name: /Открыть за/ }));
+    expect(await screen.findByText(/Во мне есть всё необходимое/)).toBeInTheDocument();
+  });
 });
