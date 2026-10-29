@@ -25,6 +25,7 @@ import { PremiumScreen } from "./screens/PremiumScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { RetroScreen } from "./screens/RetroScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { SupportScreen } from "./screens/SupportScreen";
 import { TodayScreen } from "./screens/TodayScreen";
 import { WelcomeScreen } from "./screens/WelcomeScreen";
 import { readWebApp } from "./telegram";
@@ -101,6 +102,7 @@ function AuthedApp({ initData }: { initData: string }) {
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/help" element={<HelpPage />} />
       <Route path="/paysupport" element={<PaySupportPage />} />
+      <Route path="/support" element={<SupportScreen />} />
       <Route path="/chart" element={<Navigate to="/natal" replace />} />
       <Route path="/assistant" element={<Navigate to="/chat" replace />} />
       <Route path="/related" element={<Navigate to="/people" replace />} />

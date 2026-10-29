@@ -447,6 +447,59 @@ export async function getFavorable(
   );
 }
 
+export type SupportTicket = {
+  id: string;
+  subject: string;
+  message: string;
+  status: string;
+  created_at: string;
+};
+
+export type AdminSupportTicket = {
+  id: string;
+  user_id: string;
+  telegram_id: number;
+  username: string | null;
+  display_name: string | null;
+  subject: string;
+  message: string;
+  status: string;
+  created_at: string;
+  closed_at: string | null;
+};
+
+export async function createSupportTicket(
+  subject: string,
+  message: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<SupportTicket> {
+  return requestJson<SupportTicket>(
+    "/api/v1/support",
+    {
+      method: "POST",
+      body: JSON.stringify({ subject, message }),
+    },
+    fetchImpl,
+  );
+}
+
+export async function getAdminSupportTickets(
+  fetchImpl: typeof fetch = fetch,
+): Promise<AdminSupportTicket[]> {
+  return requestJson<AdminSupportTicket[]>("/api/v1/admin/support", { method: "GET" }, fetchImpl);
+}
+
+export async function closeAdminSupportTicket(
+  ticketId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ id: string; status: string }> {
+  return requestJson<{ id: string; status: string }>(
+    `/api/v1/admin/support/${ticketId}/close`,
+    { method: "POST" },
+    fetchImpl,
+  );
+}
+
 export type AdminOverview = {
   start: string;
   end: string;

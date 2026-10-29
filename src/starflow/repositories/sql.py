@@ -29,6 +29,7 @@ from starflow.db.tables import (
     RelatedProfileRow,
     SubscriptionEventRow,
     SubscriptionRow,
+    SupportTicketRow,
     UsageCounterRow,
     UserRow,
 )
@@ -70,6 +71,7 @@ from starflow.domain.retention import (
     cutoff,
 )
 from starflow.domain.streak import next_streak
+from starflow.domain.support import SupportTicket
 from starflow.domain.time import now_utc
 
 
@@ -1578,6 +1580,108 @@ class OpsRepository:
             return []
         result = await self._session.execute(statement.order_by(UserRow.id).limit(limit))
         return list(result.scalars())
+
+
+class SupportRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        user_id: UUID,
+        subject: str,
+        message: str,
+        now: datetime,
+    ) -> UUID:
+        row = SupportTicketRow(
+            user_id=user_id,
+            subject=subject,
+            message=message,
+            status="open",
+            created_at=now,
+            updated_at=now,
+        )
+        await _save(self._session, row)
+        return row.id
+
+    async def list_all(self, limit: int = 100) -> list[SupportTicket]:
+        result = await self._session.execute(
+            select(
+                SupportTicketRow.id,
+                SupportTicketRow.user_id,
+                UserRow.telegram_id,
+                UserRow.username,
+                ProfileRow.display_name,
+                SupportTicketRow.subject,
+                SupportTicketRow.message,
+                SupportTicketRow.status,
+                SupportTicketRow.created_at,
+                SupportTicketRow.closed_at,
+            )
+            .join(UserRow, UserRow.id == SupportTicketRow.user_id)
+            .outerjoin(ProfileRow, ProfileRow.user_id == UserRow.id)
+            .order_by(SupportTicketRow.created_at.desc())
+            .limit(limit)
+        )
+        return [
+            SupportTicket(
+                id=item[0],
+                user_id=item[1],
+                telegram_id=int(item[2]),
+                username=item[3],
+                display_name=item[4],
+                subject=item[5],
+                message=item[6],
+                status=item[7],
+                created_at=item[8],
+                closed_at=item[9],
+            )
+            for item in result.all()
+        ]
+
+    async def close(self, ticket_id: UUID, now: datetime) -> bool:
+        row = await self._session.get(SupportTicketRow, ticket_id)
+        if row is None or row.status == "closed":
+            return False
+        row.status = "closed"
+        row.closed_at = now
+        row.updated_at = now
+        await self._session.flush()
+        return True
+
+    async def get(self, ticket_id: UUID) -> SupportTicket | None:
+        result = await self._session.execute(
+            select(
+                SupportTicketRow.id,
+                SupportTicketRow.user_id,
+                UserRow.telegram_id,
+                UserRow.username,
+                ProfileRow.display_name,
+                SupportTicketRow.subject,
+                SupportTicketRow.message,
+                SupportTicketRow.status,
+                SupportTicketRow.created_at,
+                SupportTicketRow.closed_at,
+            )
+            .join(UserRow, UserRow.id == SupportTicketRow.user_id)
+            .outerjoin(ProfileRow, ProfileRow.user_id == UserRow.id)
+            .where(SupportTicketRow.id == ticket_id)
+        )
+        item = result.first()
+        if item is None:
+            return None
+        return SupportTicket(
+            id=item[0],
+            user_id=item[1],
+            telegram_id=int(item[2]),
+            username=item[3],
+            display_name=item[4],
+            subject=item[5],
+            message=item[6],
+            status=item[7],
+            created_at=item[8],
+            closed_at=item[9],
+        )
 
 
 def _open_premium(now: datetime) -> Select[UUID]:

@@ -26,6 +26,7 @@ from starflow.repositories.sql import (
     SqlUserRepository,
     SubscriptionEventRepository,
     SubscriptionRepository,
+    SupportRepository,
     UsageCounterRepository,
 )
 
@@ -54,6 +55,7 @@ class SqlUnitOfWork:
     sessions: AuthSessionRepository
     outbox: OutboxRepository
     ops: OpsRepository
+    support: SupportRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
@@ -85,6 +87,7 @@ class SqlUnitOfWork:
         self.sessions = AuthSessionRepository(session)
         self.outbox = SqlOutboxRepository(session)
         self.ops = OpsRepository(session)
+        self.support = SupportRepository(session)
         return self
 
     async def __aexit__(

@@ -42,6 +42,7 @@ from starflow.services.profile import ProfileService
 from starflow.services.quota import QuotaService
 from starflow.services.session import SessionService
 from starflow.services.sky import SkyService
+from starflow.services.support import SupportService
 from starflow.services.telegram_auth import TelegramInitDataVerifier
 from starflow.services.timezones import FinderTimezone
 from starflow.services.wallet import StarsWallet
@@ -211,6 +212,7 @@ class Container:
     billing_service: BillingService
     stars_service: StarsWallet
     sky_service: SkyService
+    support_service: SupportService
     uow_factory: Callable[[], SqlUnitOfWork]
     health_service: HealthService
     outbox_service: OutboxService
@@ -323,6 +325,7 @@ def build_container(settings: Settings) -> Container:
         pro_model=settings.deepseek_model_pro,
     )
     health_service = HealthService(engine)
+    support_service = SupportService(uow_factory)
     verifier = TelegramInitDataVerifier(
         settings.bot_token, settings.auth_max_age_sec, settings.auth_future_skew_sec
     )
@@ -398,6 +401,7 @@ def build_container(settings: Settings) -> Container:
         billing_service=billing_service,
         stars_service=stars_service,
         sky_service=sky_service,
+        support_service=support_service,
         uow_factory=uow_factory,
         health_service=health_service,
         outbox_service=outbox_service,

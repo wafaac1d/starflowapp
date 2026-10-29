@@ -211,6 +211,12 @@ describe("notice settings, deletion and admin", () => {
           headers: { "Content-Type": "application/json" },
         });
       }
+      if (url.includes("/admin/support")) {
+        return new Response("[]", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
       sent.push({ url, body: JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown> });
       if (url.includes("/balance-codes")) {
         return new Response(JSON.stringify({ code: "Лето-1" }), {
@@ -239,5 +245,59 @@ describe("notice settings, deletion and admin", () => {
     expect(await screen.findByText(text("ui.admin.broadcast_done"))).toBeInTheDocument();
     expect(sent[0]?.body).toMatchObject({ code: "Лето-1", stars: 50, uses: 1, days: 30 });
     expect(sent[1]?.body).toEqual({ body: "Тихий вечер", audience: "inactive" });
+  });
+
+  it("lists support tickets in admin panel and closes an open ticket", async () => {
+    let closed = false;
+    const closedCalls: string[] = [];
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = requestUrl(input);
+      if (url.includes("/admin/users")) {
+        return new Response(JSON.stringify({ users: [], total: 0, page: 1, page_size: 10 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.includes("/close")) {
+        closed = true;
+        closedCalls.push(url);
+        return new Response(
+          JSON.stringify({ id: "ticket-1", status: "closed" }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      if (url.includes("/admin/support")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "ticket-1",
+              user_id: "00000000-0000-0000-0000-000000000001",
+              telegram_id: 123456,
+              username: "ivan",
+              display_name: "Иван",
+              subject: "Оплата",
+              message: "Не проходит платёж",
+              status: closed ? "closed" : "open",
+              created_at: "2026-10-29T12:00:00Z",
+              closed_at: closed ? "2026-10-29T12:05:00Z" : null,
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch;
+
+    renderPage(<AdminPage isAdmin fetchImpl={fetchImpl} />);
+    expect(await screen.findByRole("heading", { name: "Обращения в поддержку" })).toBeInTheDocument();
+    expect(await screen.findByRole("cell", { name: "Оплата" })).toBeInTheDocument();
+    expect(screen.getByText("Не проходит платёж")).toBeInTheDocument();
+    expect(screen.getByText("Открыто")).toBeInTheDocument();
+
+    const closeBtn = screen.getByRole("button", { name: "Закрыть" });
+    await userEvent.click(closeBtn);
+
+    expect(closedCalls).toHaveLength(1);
+    expect(closedCalls[0]).toContain("/api/v1/admin/support/ticket-1/close");
   });
 });

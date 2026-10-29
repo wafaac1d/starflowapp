@@ -2083,6 +2083,106 @@
         }
       }
     },
+    "/api/v1/support": {
+      "post": {
+        "summary": "Create Support Ticket",
+        "operationId": "create_support_ticket_api_v1_support_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportTicketCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportTicketBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/support": {
+      "get": {
+        "summary": "Admin List Support",
+        "operationId": "admin_list_support_api_v1_admin_support_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminSupportTicketBody"
+                  },
+                  "type": "array",
+                  "title": "Response Admin List Support Api V1 Admin Support Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/support/{ticket_id}/close": {
+      "post": {
+        "summary": "Admin Close Support",
+        "operationId": "admin_close_support_api_v1_admin_support__ticket_id__close_post",
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportTicketClosedBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/telegram/webhook": {
       "post": {
         "summary": "Telegram Webhook",
@@ -2242,6 +2342,89 @@
           "confirm"
         ],
         "title": "AdminGrantBody"
+      },
+      "AdminSupportTicketBody": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "telegram_id": {
+            "type": "integer",
+            "title": "Telegram Id"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "telegram_id",
+          "username",
+          "display_name",
+          "subject",
+          "message",
+          "status",
+          "created_at",
+          "closed_at"
+        ],
+        "title": "AdminSupportTicketBody"
       },
       "AdminUserBody": {
         "properties": {
@@ -4289,6 +4472,82 @@
           "feature"
         ],
         "title": "SpendRequest"
+      },
+      "SupportTicketBody": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "subject",
+          "message",
+          "status",
+          "created_at"
+        ],
+        "title": "SupportTicketBody"
+      },
+      "SupportTicketClosedBody": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "SupportTicketClosedBody"
+      },
+      "SupportTicketCreate": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 2,
+            "title": "Subject"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 5,
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "message"
+        ],
+        "title": "SupportTicketCreate"
       },
       "TopupBody": {
         "properties": {

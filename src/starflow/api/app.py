@@ -31,6 +31,7 @@ from starflow.api.middleware import RequestIdMiddleware
 from starflow.api.ops_http import register_ops_routes
 from starflow.api.profile_http import ProfileBody, profile_body, register_profile_routes
 from starflow.api.stars_http import register_star_routes
+from starflow.api.support_http import register_support_routes
 from starflow.bootstrap import Container
 from starflow.domain.errors import AuthFailure
 
@@ -162,6 +163,7 @@ def _api_router(container: Container) -> APIRouter:
     register_assistant_routes(router, container)
     register_ops_routes(router, container)
     register_favorable_routes(router, container)
+    register_support_routes(router, container)
     return router
 
 

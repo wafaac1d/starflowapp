@@ -2,10 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import {
+  closeAdminSupportTicket,
   createBalanceCode,
+  getAdminSupportTickets,
   getAdminUsers,
   grantAdminPeriod,
   queueBroadcast,
+  type AdminSupportTicket,
   type AdminUser,
 } from "../api/client";
 import { queryKeys } from "../api/keys";
@@ -74,6 +77,17 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
       setMessage("");
       setAudience("all");
       setBroadcastNotice(text("ui.admin.broadcast_done"));
+    },
+  });
+  const supportTickets = useQuery({
+    queryKey: queryKeys.adminSupport,
+    queryFn: () => getAdminSupportTickets(fetchImpl),
+    enabled: isAdmin,
+  });
+  const closeTicket = useMutation({
+    mutationFn: (ticketId: string) => closeAdminSupportTicket(ticketId, fetchImpl),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: queryKeys.adminSupport });
     },
   });
   if (!isAdmin) {
@@ -243,8 +257,88 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
         />
         {broadcastNotice !== "" ? <p role="status">{broadcastNotice}</p> : null}
       </div>
+      <h2>Обращения в поддержку</h2>
+      <p>Сообщения пользователей из формы обратной связи</p>
+      <SupportTable
+        tickets={supportTickets.data ?? []}
+        onClose={(id) => {
+          void closeTicket.mutateAsync(id);
+        }}
+        closingId={closeTicket.isPending ? (closeTicket.variables as string) : null}
+      />
       <BackHome />
     </main>
+  );
+}
+
+function SupportTable({
+  tickets,
+  onClose,
+  closingId,
+}: {
+  tickets: AdminSupportTicket[];
+  onClose: (id: string) => void;
+  closingId: string | null;
+}) {
+  const list = Array.isArray(tickets) ? tickets : [];
+  if (list.length === 0) {
+    return <p role="status">Обращений пока нет.</p>;
+  }
+  return (
+    <div className={styles.tableWrap}>
+      <table className={styles.table} aria-label="Обращения в поддержку">
+        <thead>
+          <tr>
+            <th scope="col">Дата</th>
+            <th scope="col">Пользователь</th>
+            <th scope="col">Тема</th>
+            <th scope="col">Сообщение</th>
+            <th scope="col">Статус</th>
+            <th scope="col">
+              <span className={styles.srOnly}>Действие</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((ticket) => {
+            const isOpen = ticket.status === "open";
+            const isClosing = closingId === ticket.id;
+            const dateStr = new Date(ticket.created_at).toLocaleDateString("ru-RU", {
+              day: "numeric",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const userLabel =
+              ticket.display_name ??
+              (ticket.username ? `@${ticket.username}` : `${ticket.telegram_id}`);
+            return (
+              <tr key={ticket.id}>
+                <td>{dateStr}</td>
+                <td>{userLabel}</td>
+                <td>{ticket.subject}</td>
+                <td className={styles.messageCell}>{ticket.message}</td>
+                <td>
+                  <span className={isOpen ? styles.statusOpen : styles.statusClosed}>
+                    {isOpen ? "Открыто" : "Закрыто"}
+                  </span>
+                </td>
+                <td>
+                  {isOpen ? (
+                    <Button
+                      tone="outline"
+                      label={isClosing ? "..." : "Закрыть"}
+                      disabled={isClosing}
+                      onClick={() => onClose(ticket.id)}
+                    />
+                  ) : null}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

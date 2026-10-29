@@ -914,6 +914,7 @@ describe("screens", () => {
     expect(screen.getByRole("link", { name: "Избранное" })).toHaveAttribute("href", "/favorites");
     expect(screen.queryByRole("link", { name: "История" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Моя подписка" })).toHaveAttribute("href", "/premium");
+    expect(screen.getByRole("link", { name: "Поддержка" })).toHaveAttribute("href", "/support");
     expect(screen.getByRole("button", { name: "Редактировать профиль" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Добавить близкого" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Удалить данные" })).toHaveAttribute("href", "/delete");
@@ -1235,7 +1236,7 @@ describe("screens", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: (value) => value.startsWith("Аффирмации") }));
     expect(await screen.findByRole("heading", { name: "Аффирмации" })).toBeInTheDocument();
-    expect(screen.getByText("Настройтесь на свой ритм")).toBeInTheDocument();
+    expect(screen.getByText("Мягкая настройка на день")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Назад" }));
     await userEvent.click(screen.getByRole("button", { name: (value) => value.startsWith("Благоприятная дата") }));
     expect(await screen.findByRole("heading", { name: "Благоприятная дата" })).toBeInTheDocument();
