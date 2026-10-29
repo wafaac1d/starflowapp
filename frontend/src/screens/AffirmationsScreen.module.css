@@ -1,0 +1,209 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-bottom: var(--space-6);
+}
+
+.subtitle {
+  margin: calc(-1 * var(--space-2)) 0 0 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+  text-align: left;
+}
+
+.categories {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.categoryBtn,
+.categoryBtnActive {
+  flex: 1;
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  font: var(--font-body);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.categoryBtn {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+.categoryBtnActive {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: 600;
+}
+
+.categoryBtn:focus-visible,
+.categoryBtnActive:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Карточка аффирмации */
+.cardWrapper {
+  position: relative;
+  width: 100%;
+  border-radius: 24px;
+  overflow: hidden;
+  user-select: none;
+  touch-action: pan-y;
+  background: linear-gradient(180deg, #151d3e 0%, #0c122c 100%);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 8px 32px rgba(7, 11, 30, 0.45);
+}
+
+.card {
+  position: relative;
+  min-height: 290px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6) var(--space-5);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.cardOrbit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.cardText {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  max-width: 290px;
+  text-align: center;
+  color: var(--color-text-primary);
+  font: var(--font-title-screen);
+  font-size: 24px;
+  line-height: 1.35;
+  font-weight: 600;
+  white-space: pre-line;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Индикатор страниц (Dots) */
+.dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: calc(-1 * var(--space-1));
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(142, 148, 234, 0.25);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: background-color 0.2s ease, width 0.2s ease;
+}
+
+.dotActive {
+  composes: dot;
+  width: 20px;
+  background: var(--color-accent);
+}
+
+/* Дополнительные действия: Сохранить и Поделиться */
+.actionRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.actionBtn,
+.actionBtnSaved {
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(142, 148, 234, 0.24);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: var(--font-body);
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.actionBtn:hover,
+.actionBtnSaved:hover {
+  background: rgba(142, 148, 234, 0.08);
+}
+
+.actionBtnSaved {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: rgba(142, 148, 234, 0.12);
+}
+
+.actionBtn:focus-visible,
+.actionBtnSaved:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Основная кнопка: Другая аффирмация */
+.primaryBtn {
+  width: 100%;
+  min-height: 54px;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-pill);
+  border: 0;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font: var(--font-body);
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(142, 148, 234, 0.25);
+  transition: background-color 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.primaryBtn:active {
+  background: var(--color-accent-pressed);
+  transform: scale(0.99);
+}
+
+.primaryBtn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Напоминания */
+.reminderCard {
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: var(--space-2) var(--space-4);
+}

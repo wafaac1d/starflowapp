@@ -1,0 +1,140 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-bottom: var(--space-6);
+}
+
+.subtitle {
+  margin: calc(-1 * var(--space-2)) 0 0 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.topicsGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.topicsLabel {
+  margin: 0;
+  font: var(--font-caption);
+  color: var(--color-text-secondary);
+}
+
+.topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.topicBtn,
+.topicBtnActive {
+  min-height: 40px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-pill);
+  font: var(--font-body);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.topicBtn {
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+}
+
+.topicBtnActive {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: 600;
+}
+
+.topicBtn:focus-visible,
+.topicBtnActive:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fieldLabel {
+  margin: 0;
+  font: var(--font-caption);
+  color: var(--color-text-secondary);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 140px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  color: var(--color-text-primary);
+  font: var(--font-body);
+  font-size: 15px;
+  line-height: 1.4;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.textarea:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.textarea::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.counter {
+  margin: 0;
+  font: var(--font-caption);
+  color: var(--color-text-tertiary);
+  text-align: right;
+}
+
+.error {
+  margin: 0;
+  color: var(--color-pink);
+  font: var(--font-caption);
+}
+
+.successCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  text-align: center;
+  align-items: center;
+}
+
+.successTitle {
+  margin: 0;
+  font: var(--font-title-card);
+  color: var(--color-text-primary);
+}
+
+.successText {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.successButtons {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
