@@ -434,11 +434,8 @@ class SubscriptionRepository:
         return access_end(grants, now) is not None
 
     async def premium_user_ids(self, now: datetime) -> set[UUID]:
-        result = await self._session.execute(select(SubscriptionRow))
-        grouped: dict[UUID, list[Grant]] = {}
-        for row in result.scalars():
-            grouped.setdefault(row.user_id, []).append(_grant(row))
-        return {user_id for user_id, grants in grouped.items() if access_end(tuple(grants), now)}
+        result = await self._session.execute(_open_premium(now).distinct())
+        return set(result.scalars())
 
 
 class SubscriptionEventRepository:

@@ -454,16 +454,19 @@ class ForecastService:
         if key in self._background_keys:
             return None
         self._background_keys.add(key)
-        prompt = self._prompts.get(kind)
-        model_name = self._models[prompt.tier]
-        user = prompt.user.replace("{facts}", facts_text(facts))
-        parsed = await self._ask(user_id, kind, model_name, prompt.system, user, prompt)
-        if parsed is None:
-            return None
-        title, body = parsed
-        payload = {"title": title, "body": body, "source": "model"}
-        await self._cache.remember(key, kind, payload, expires)
-        return payload
+        try:
+            prompt = self._prompts.get(kind)
+            model_name = self._models[prompt.tier]
+            user = prompt.user.replace("{facts}", facts_text(facts))
+            parsed = await self._ask(user_id, kind, model_name, prompt.system, user, prompt)
+            if parsed is None:
+                return None
+            title, body = parsed
+            payload: dict[str, object] = {"title": title, "body": body, "source": "model"}
+            await self._cache.remember(key, kind, payload, expires)
+            return payload
+        finally:
+            self._background_keys.discard(key)
 
     async def _prepare(
         self,

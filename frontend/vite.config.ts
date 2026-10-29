@@ -9,6 +9,17 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   publicDir: path.resolve(root, "../static"),
   plugins: [react()],
+  build: {
+    target: "es2022",
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router"],
+          "vendor-query": ["@tanstack/react-query"],
+        },
+      },
+    },
+  },
   server: {
     fs: { allow: [path.resolve(root, "..")] },
     proxy: {

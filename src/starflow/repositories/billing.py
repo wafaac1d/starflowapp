@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -493,7 +493,8 @@ class BillingRepository:
 
     async def subscription_charge_count(self, user_id: UUID) -> int:
         result = await self._session.execute(
-            select(PaymentChargeRow)
+            select(func.count())
+            .select_from(PaymentChargeRow)
             .join(OrderRow, OrderRow.id == PaymentChargeRow.order_id)
             .where(
                 PaymentChargeRow.user_id == user_id,
@@ -501,7 +502,7 @@ class BillingRepository:
                 PaymentChargeRow.refunded_at.is_(None),
             )
         )
-        return len(tuple(result.scalars()))
+        return int(result.scalar_one())
 
     async def other_charges(self, grant_id: UUID, charge_row_id: UUID) -> tuple[ChargeRecord, ...]:
         result = await self._session.execute(

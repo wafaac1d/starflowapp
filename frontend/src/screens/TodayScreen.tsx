@@ -90,7 +90,7 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
     queryFn: () => getRetro(),
   });
   const today = isoToday();
-  const currentPeriods = (retro.data ?? []).filter(
+  const currentPeriods = (Array.isArray(retro.data) ? retro.data : []).filter(
     (period) => period.start <= today && today <= period.end,
   ).length;
   const retroBadge = periodBadge(currentPeriods);

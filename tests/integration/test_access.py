@@ -452,7 +452,7 @@ async def test_http_idempotency_favorites_and_chart_paywall(database_url: str) -
     assert body["moon_sign"] is None
     assert body["houses"] is None
     assert "time_unknown" in body["limitations"]
-    assert body["natal_access"] == "premium_required"
+    assert body["natal_access"] == "stars_required"
     assert missing_key.status_code == 422
     assert short_key.status_code == 422
     assert saved.status_code == 200
@@ -670,7 +670,7 @@ async def test_shared_segment_collapses_generation_and_keeps_names_out(database_
     assert "мария" not in blob
     assert "анна" not in blob
     assert "1990" not in blob
-    assert shared[0].cache_key.endswith("|2")
+    assert shared[0].cache_key.endswith("|5")
     assert requests == 1
     await engine.dispose()
 

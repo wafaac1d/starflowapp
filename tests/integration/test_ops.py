@@ -417,9 +417,10 @@ async def test_admin_overview_hides_people_and_delete_keeps_a_thin_charge(
                 headers={"Authorization": f"TMA {admin}", **intent},
             )
             assert opened_admin.status_code == 200
+            end_day = (date.today() + timedelta(days=2)).isoformat()
             overview = await client.get(
                 "/api/v1/admin/overview",
-                params={"start": "2026-10-01", "end": "2026-10-27"},
+                params={"start": "2026-01-01", "end": end_day},
             )
             assert overview.status_code == 200
             body = overview.json()
