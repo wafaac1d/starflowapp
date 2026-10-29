@@ -1251,10 +1251,15 @@ describe("screens", () => {
       Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
       Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: () => undefined });
       vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+      let opened = false;
       vi.stubGlobal(
         "fetch",
         vi.fn<typeof fetch>(async (input: RequestInfo | URL) => {
           const url = String(input);
+          if (url.includes("/stars/spends")) {
+            opened = true;
+            return Response.json({ balance: 10, allowed: true, charged: true, price: 30 });
+          }
           if (!url.includes("/favorable")) {
             return Response.json({});
           }
@@ -1267,10 +1272,14 @@ describe("screens", () => {
             label: suit,
             month: "2025-08",
             timezone: "Europe/Moscow",
-            days: [
-              { date: "2025-08-12", start: "11:00", end: "14:00", note: "Короткий разговор." },
-              { date: "2025-08-15", start: "10:00", end: "13:00", note },
-            ],
+            access: opened ? "full" : "preview",
+            price: opened ? 0 : 30,
+            days: opened
+              ? [
+                  { date: "2025-08-12", start: "11:00", end: "14:00", note: "Короткий разговор." },
+                  { date: "2025-08-15", start: "10:00", end: "13:00", note },
+                ]
+              : [{ date: "2025-08-12", start: "11:00", end: "14:00", note: "Короткий разговор." }],
           });
         }),
       );
@@ -1278,6 +1287,9 @@ describe("screens", () => {
       expect(await screen.findByRole("heading", { name: "12 августа" })).toBeInTheDocument();
       expect(screen.getByText("Подходит для встречи")).toBeInTheDocument();
       expect(screen.getByText("Лучшее время · 11:00–14:00")).toBeInTheDocument();
+      expect(screen.getByText(/Ближайший день бесплатно/)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: /Открыть за/ }));
+      expect(await screen.findByRole("button", { name: "15, благоприятный день" })).toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: "15, благоприятный день" }));
       expect(screen.getByRole("heading", { name: "15 августа" })).toBeInTheDocument();
       expect(screen.getByText("Для спокойного и открытого разговора.")).toBeInTheDocument();

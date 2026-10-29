@@ -3085,6 +3085,14 @@
             "type": "string",
             "title": "Timezone"
           },
+          "access": {
+            "type": "string",
+            "title": "Access"
+          },
+          "price": {
+            "type": "integer",
+            "title": "Price"
+          },
           "days": {
             "items": {
               "$ref": "#/components/schemas/FavorableDayBody"
@@ -3100,6 +3108,8 @@
           "label",
           "month",
           "timezone",
+          "access",
+          "price",
           "days"
         ],
         "title": "FavorableMonthBody"
@@ -4183,6 +4193,21 @@
           "right_sign": {
             "type": "string",
             "title": "Right Sign",
+            "default": ""
+          },
+          "month": {
+            "type": "string",
+            "title": "Month",
+            "default": ""
+          },
+          "event": {
+            "type": "string",
+            "title": "Event",
+            "default": ""
+          },
+          "custom": {
+            "type": "string",
+            "title": "Custom",
             "default": ""
           }
         },

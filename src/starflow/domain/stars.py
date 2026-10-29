@@ -8,6 +8,7 @@ from starflow.domain.billing import MAX_STARS
 NATAL_STARS = 40
 COMPATIBILITY_STARS = 40
 QUESTION_STARS = 20
+FAVORABLE_STARS = 30
 TOPUP_PRESETS = (10, 20, 50, 100)
 MIN_TOPUP = 1
 
@@ -15,6 +16,7 @@ PRICES = {
     "natal": NATAL_STARS,
     "compatibility": COMPATIBILITY_STARS,
     "assistant": QUESTION_STARS,
+    "favorable": FAVORABLE_STARS,
 }
 
 

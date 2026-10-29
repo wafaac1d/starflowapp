@@ -10,6 +10,7 @@ from starflow.api.actor import actor_from_cookie, require_intent
 from starflow.api.http import ApiError
 from starflow.bootstrap import Container
 from starflow.domain.errors import FieldInvalid, PaymentUnavailable
+from starflow.domain.favorable import favorable_subject
 from starflow.domain.stars import pair_subject
 from starflow.services.billing import TopupView
 
@@ -33,6 +34,9 @@ class SpendRequest(BaseModel):
     feature: str
     left_sign: str = ""
     right_sign: str = ""
+    month: str = ""
+    event: str = ""
+    custom: str = ""
 
 
 class SpendBody(BaseModel):
@@ -144,6 +148,8 @@ def _subject(body: SpendRequest) -> str:
         return "self"
     if body.feature == "compatibility":
         return pair_subject(body.left_sign, body.right_sign)
+    if body.feature == "favorable":
+        return favorable_subject(body.month, body.event, body.custom)
     raise FieldInvalid("feature", "errors.validation")
 
 

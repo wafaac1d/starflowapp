@@ -411,6 +411,8 @@ export type FavorableMonth = {
   label: string;
   month: string;
   timezone: string;
+  access: string;
+  price: number;
   days: FavorableDay[];
 };
 
@@ -658,7 +660,10 @@ export async function queueBroadcast(
 }
 
 export async function spendStars(
-  body: { feature: "natal" } | { feature: "compatibility"; left_sign: string; right_sign: string },
+  body:
+    | { feature: "natal" }
+    | { feature: "compatibility"; left_sign: string; right_sign: string }
+    | { feature: "favorable"; month: string; event: string; custom: string },
   fetchImpl: typeof fetch = fetch,
 ): Promise<SpendResponse> {
   return requestJson<SpendResponse>(

@@ -2,7 +2,7 @@
 
 import json
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, time, timedelta
 from types import TracebackType
 from typing import Protocol, cast
@@ -11,16 +11,22 @@ from zoneinfo import ZoneInfo
 
 from starflow.ai.catalog import PromptCatalog
 from starflow.ai.client import CircuitOpen, ModelReply
-from starflow.ai.guard import plain_text
 from starflow.cache.two_level import TwoLevelCache
 from starflow.domain.calendar_reading import parse_month
 from starflow.domain.calendar_sign import calendar_sign
 from starflow.domain.errors import FieldInvalid
-from starflow.domain.favorable import CUSTOM, PRESETS, FavorableDay, accept_favorable
+from starflow.domain.favorable import (
+    FavorableDay,
+    accept_favorable,
+    event_label,
+    favorable_subject,
+    nearest_favorable,
+)
 from starflow.domain.segments import facts_text
+from starflow.domain.stars import FAVORABLE_STARS
 from starflow.domain.time import now_utc
 from starflow.logging import get_logger
-from starflow.repositories.sql import AiRequestRepository, ProfileRepository
+from starflow.repositories.sql import AiRequestRepository, ProfileRepository, SubscriptionRepository
 
 _LOG = get_logger("favorable")
 _REPAIR = (
@@ -42,9 +48,14 @@ class FavorableModel(Protocol):
     ) -> ModelReply: ...
 
 
+class FavorableStars(Protocol):
+    async def owns(self, user_id: UUID, feature: str, subject: str) -> bool: ...
+
+
 class FavorableStore(Protocol):
     profiles: ProfileRepository
     ai_requests: AiRequestRepository
+    subscriptions: SubscriptionRepository
 
     async def commit(self) -> None: ...
 
@@ -67,6 +78,8 @@ class FavorableMonth:
     label: str
     month: str
     timezone: str
+    access: str
+    price: int
     days: tuple[FavorableDay, ...]
 
 
@@ -80,6 +93,7 @@ class FavorableService:
         *,
         model_name: str,
         zone_name: str,
+        stars: FavorableStars | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._uow_factory = uow_factory
@@ -88,6 +102,7 @@ class FavorableService:
         self._prompts = prompts
         self._model_name = model_name
         self._zone_name = zone_name
+        self._stars = stars
         self._clock = clock or now_utc
 
     async def month(
@@ -101,9 +116,10 @@ class FavorableService:
             year, month_number = parse_month(month)
         except ValueError as error:
             raise FieldInvalid("month", "errors.validation") from error
-        label = _label(event, custom)
+        label = event_label(event, custom)
         async with self._uow_factory() as uow:
             profile = await uow.profiles.ensure(user_id)
+            premium = await uow.subscriptions.has_active(user_id, self._clock())
         zone = profile.timezone or self._zone_name
         born = "unknown" if profile.birth_date is None else profile.birth_date.strftime("%d.%m.%Y")
         clock = (
@@ -134,7 +150,35 @@ class FavorableService:
         hit = await self._cache.get_or_create(
             key, "favorable", _midnight(self._clock(), zone), produce
         )
-        return _month(hit.payload, event, label, month, zone)
+        view = _month(hit.payload, event, label, month, zone)
+        return await self._access(user_id, view, month, event, custom, zone, premium)
+
+    async def _access(
+        self,
+        user_id: UUID,
+        view: FavorableMonth,
+        month: str,
+        event: str,
+        custom: str,
+        zone: str,
+        premium: bool,
+    ) -> FavorableMonth:
+        if view.status != "ready" or len(view.days) <= 1:
+            opened = view.status == "ready" and bool(view.days)
+            return replace(view, access="full" if opened else "preview", price=0)
+        if premium:
+            return replace(view, access="full", price=0)
+        subject = favorable_subject(month, event, custom)
+        owned = self._stars is not None and await self._stars.owns(user_id, "favorable", subject)
+        if owned:
+            return replace(view, access="full", price=0)
+        today = self._clock().astimezone(ZoneInfo(zone)).date().isoformat()
+        return replace(
+            view,
+            access="preview",
+            price=FAVORABLE_STARS,
+            days=nearest_favorable(view.days, today),
+        )
 
     async def _ask(
         self,
@@ -214,18 +258,6 @@ class FavorableService:
             await uow.commit()
 
 
-def _label(event: str, custom: str) -> str:
-    if event == CUSTOM:
-        cleaned = plain_text(custom)
-        if len(cleaned) < 2 or len(cleaned) > 40:
-            raise FieldInvalid("custom", "errors.validation")
-        return cleaned
-    label = PRESETS.get(event)
-    if label is None:
-        raise FieldInvalid("event", "errors.validation")
-    return label
-
-
 def _ready(days: tuple[FavorableDay, ...], zone: str) -> dict[str, object]:
     payload: dict[str, object] = {"status": "ready", "source": "model", "timezone": zone}
     payload["days"] = [
@@ -265,6 +297,8 @@ def _month(
         label=label,
         month=month,
         timezone=zone,
+        access="preview",
+        price=0,
         days=tuple(days),
     )
 

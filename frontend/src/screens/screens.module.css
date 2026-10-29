@@ -876,3 +876,15 @@
   color: var(--color-text-secondary);
   font: var(--font-body);
 }
+
+.favorableOffer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.favorableOffer p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}

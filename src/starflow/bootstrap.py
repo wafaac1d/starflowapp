@@ -298,6 +298,7 @@ def build_container(settings: Settings) -> Container:
         prompts,
         model_name=settings.deepseek_model_fast,
         zone_name=settings.default_timezone,
+        stars=stars_service,
     )
     assistant_service = AssistantService(
         uow_factory,

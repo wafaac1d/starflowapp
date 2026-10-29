@@ -1,5 +1,6 @@
 from starflow.domain.stars import (
     COMPATIBILITY_STARS,
+    FAVORABLE_STARS,
     NATAL_STARS,
     QUESTION_STARS,
     pair_subject,
@@ -13,6 +14,7 @@ def test_prices_and_pair_subject() -> None:
     assert NATAL_STARS == 40
     assert COMPATIBILITY_STARS == 40
     assert QUESTION_STARS == 20
+    assert FAVORABLE_STARS == 30
     assert pair_subject("Лев", "телец") == pair_subject("телец", "лев")
     assert pair_subject("лев", "телец") == "лев:телец"
     try:

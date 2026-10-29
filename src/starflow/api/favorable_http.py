@@ -25,6 +25,8 @@ class FavorableMonthBody(BaseModel):
     label: str
     month: str
     timezone: str
+    access: str
+    price: int
     days: list[FavorableDayBody]
 
 
@@ -53,6 +55,8 @@ def _body(view: FavorableMonth) -> FavorableMonthBody:
         label=view.label,
         month=view.month,
         timezone=view.timezone,
+        access=view.access,
+        price=view.price,
         days=[
             FavorableDayBody(date=day.date, start=day.start, end=day.end, note=day.note)
             for day in view.days

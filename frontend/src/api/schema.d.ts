@@ -1240,6 +1240,10 @@ export interface components {
             month: string;
             /** Timezone */
             timezone: string;
+            /** Access */
+            access: string;
+            /** Price */
+            price: number;
             /** Days */
             days: components["schemas"]["FavorableDayBody"][];
         };
@@ -1642,6 +1646,21 @@ export interface components {
              * @default
              */
             right_sign: string;
+            /**
+             * Month
+             * @default
+             */
+            month: string;
+            /**
+             * Event
+             * @default
+             */
+            event: string;
+            /**
+             * Custom
+             * @default
+             */
+            custom: string;
         };
         /** TopupBody */
         TopupBody: {

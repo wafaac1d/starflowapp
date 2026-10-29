@@ -5,6 +5,9 @@ import re
 from dataclasses import dataclass
 
 from starflow.ai.guard import plain_text
+from starflow.domain.calendar_reading import parse_month
+from starflow.domain.errors import FieldInvalid
+from starflow.domain.stars import subject_ok
 from starflow.i18n.guard import contains_emoji
 
 PRESETS = {
@@ -23,6 +26,46 @@ class FavorableDay:
     start: str
     end: str
     note: str
+
+
+def event_label(event: str, custom: str) -> str:
+    if event == CUSTOM:
+        cleaned = plain_text(custom)
+        if len(cleaned) < 2 or len(cleaned) > 40:
+            raise FieldInvalid("custom", "errors.validation")
+        return cleaned
+    label = PRESETS.get(event)
+    if label is None:
+        raise FieldInvalid("event", "errors.validation")
+    return label
+
+
+def favorable_subject(month: str, event: str, custom: str) -> str:
+    try:
+        parse_month(month)
+    except ValueError as error:
+        raise FieldInvalid("month", "errors.validation") from error
+    label = event_label(event, custom)
+    slug = "-".join(
+        part
+        for part in (
+            "".join(character if character.isalnum() else "-" for character in label.casefold())
+        ).split("-")
+        if part
+    )
+    subject = f"{month}:{event}:{slug}"
+    if slug == "" or not subject_ok(subject):
+        raise FieldInvalid("event", "errors.validation")
+    return subject
+
+
+def nearest_favorable(days: tuple[FavorableDay, ...], today: str) -> tuple[FavorableDay, ...]:
+    if not days:
+        return ()
+    upcoming = tuple(day for day in days if day.date >= today)
+    if upcoming:
+        return (upcoming[0],)
+    return (days[-1],)
 
 
 def accept_favorable(year: int, month: int, payload: object) -> tuple[FavorableDay, ...] | None:

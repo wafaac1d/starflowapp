@@ -21,6 +21,7 @@ function profile(step: string) {
 
 async function installApp(page: Page, step = "done", premium = false) {
   let current = { ...profile(step), is_premium: premium };
+  let favorableOpen = false;
   await page.route("**/*telegram-web-app.js", (route) =>
     route.fulfill({ contentType: "application/javascript", body: "" }),
   );
@@ -59,6 +60,12 @@ async function installApp(page: Page, step = "done", premium = false) {
       return;
     }
     if (url.includes("/stars/spends") && method === "POST") {
+      const body = JSON.parse(route.request().postData() ?? "{}") as { feature?: string };
+      if (body.feature === "favorable") {
+        favorableOpen = true;
+        await route.fulfill({ json: { balance: 0, allowed: true, charged: true, price: 30 } });
+        return;
+      }
       await route.fulfill({
         json: { balance: current.star_balance, allowed: true, charged: false, price: 40 },
       });
@@ -278,8 +285,10 @@ async function installApp(page: Page, step = "done", premium = false) {
           label: event === "custom" ? custom : "Встреча",
           month,
           timezone: "Europe/Moscow",
+          access: favorableOpen ? "full" : "preview",
+          price: favorableOpen ? 0 : 30,
           days:
-            month === "2025-08"
+            month === "2025-08" && favorableOpen
               ? [
                   { date: "2025-08-15", start: "10:00", end: "13:00", note },
                   {
@@ -289,7 +298,9 @@ async function installApp(page: Page, step = "done", premium = false) {
                     note: "Вечер подходит для разговора.",
                   },
                 ]
-              : [],
+              : month === "2025-08"
+                ? [{ date: "2025-08-15", start: "10:00", end: "13:00", note }]
+                : [],
         },
       });
       return;
@@ -312,10 +323,12 @@ test("favorable date marks the model days", async ({ page }) => {
   await expect(page.getByText("Подходит для встречи")).toBeVisible();
   await expect(page.getByText("Лучшее время · 10:00–13:00")).toBeVisible();
   await expect(page.getByText("Для спокойного и открытого разговора.")).toBeVisible();
+  await expect(page.getByText("Ближайший день бесплатно. Полный календарь месяца для этого события стоит")).toBeVisible();
   await page.getByRole("button", { name: "Свой вариант" }).click();
   await page.getByRole("textbox", { name: "Своё событие" }).fill("Свидание");
   await expect(page.getByText("Подходит для Свидание")).toBeVisible();
   await expect(page.getByText("День для Свидание.")).toBeVisible();
+  await page.getByRole("button", { name: "Открыть за 30" }).click();
   await page.getByRole("button", { name: "19, благоприятный день" }).click();
   await expect(page.getByRole("heading", { name: "19 августа" })).toBeVisible();
   await expect(page.getByText("Вечер подходит для разговора.")).toBeVisible();

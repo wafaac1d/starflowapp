@@ -12,7 +12,7 @@ from starflow.ai.client import ModelReply
 from starflow.cache.ttl import CachedValue, TtlCache
 from starflow.cache.two_level import TwoLevelCache
 from starflow.domain.errors import FieldInvalid
-from starflow.domain.favorable import accept_favorable
+from starflow.domain.favorable import accept_favorable, favorable_subject, nearest_favorable
 from starflow.services.favorable import FavorableService
 
 USER = UUID(int=7)
@@ -42,6 +42,10 @@ def test_favorable_days_stay_inside_the_month_and_keep_a_real_window() -> None:
         is None
     )
     assert accept_favorable(2026, 10, {"title": "нет дней"}) is None
+    assert nearest_favorable(accepted, "2026-10-13")[0].date == "2026-10-15"
+    assert nearest_favorable(accepted, "2026-10-28")[0].date == "2026-10-15"
+    assert favorable_subject("2026-10", "meeting", "") == "2026-10:meeting:встреча"
+    assert favorable_subject("2026-10", "custom", "День рождения") == "2026-10:custom:день-рождения"
 
 
 class _Profile:
@@ -61,20 +65,43 @@ class _Requests:
         return UUID(int=2)
 
 
+class _Subscriptions:
+    def __init__(self, active: bool) -> None:
+        self.active = active
+
+    async def has_active(self, _user_id: UUID, _now: datetime) -> bool:
+        return self.active
+
+
+class _Stars:
+    def __init__(self, owned: bool) -> None:
+        self.owned = owned
+        self.seen: list[str] = []
+
+    async def owns(self, _user_id: UUID, feature: str, subject: str) -> bool:
+        self.seen.append(f"{feature}:{subject}")
+        return self.owned
+
+
 class _Db:
-    profiles = _Profiles()
-    ai_requests = _Requests()
+    def __init__(self, premium: bool) -> None:
+        self.profiles = _Profiles()
+        self.ai_requests = _Requests()
+        self.subscriptions = _Subscriptions(premium)
 
     async def commit(self) -> None:
         return None
 
 
-class _Work:
-    async def __aenter__(self) -> _Db:
-        return _Db()
+def _work(premium: bool) -> type:
+    class _Work:
+        async def __aenter__(self) -> _Db:
+            return _Db(premium)
 
-    async def __aexit__(self, *_args: object) -> None:
-        return None
+        async def __aexit__(self, *_args: object) -> None:
+            return None
+
+    return _Work
 
 
 class _Store:
@@ -124,15 +151,22 @@ class _Model:
         return ModelReply(content, "deepseek-flash", 1, 1, 1)
 
 
-def _service(model: _Model) -> FavorableService:
+def _service(
+    model: _Model,
+    *,
+    premium: bool = False,
+    stars: _Stars | None = None,
+) -> FavorableService:
+    work = _work(premium)
     cache = TwoLevelCache(TtlCache(8), _Store(), clock=lambda: MOMENT)
     return FavorableService(
-        lambda: _Work(),
+        work,
         cache,
         model,
         PROMPTS,
         model_name="deepseek-flash",
         zone_name="Europe/Moscow",
+        stars=stars,
         clock=lambda: MOMENT,
     )
 
@@ -147,7 +181,9 @@ async def test_one_model_call_serves_the_same_month_again() -> None:
     first = await service.month(USER, "2026-10", "meeting", "")
     second = await service.month(USER, "2026-10", "meeting", "")
     assert first.status == "ready"
-    assert [item.date for item in first.days] == ["2026-10-12", "2026-10-15"]
+    assert first.access == "preview"
+    assert first.price == 30
+    assert [item.date for item in first.days] == ["2026-10-15"]
     assert second.days == first.days
     assert model.calls == 1
     assert "12.08.1995" in model.seen[0]
@@ -157,6 +193,18 @@ async def test_one_model_call_serves_the_same_month_again() -> None:
     assert trip.status == "ready"
     assert model.calls == 2
     assert "Поездка" in model.seen[1]
+
+
+async def test_premium_and_a_paid_month_show_every_day() -> None:
+    opened = await _service(_Model([GOOD]), premium=True).month(USER, "2026-10", "meeting", "")
+    assert opened.access == "full"
+    assert opened.price == 0
+    assert [item.date for item in opened.days] == ["2026-10-12", "2026-10-15"]
+    stars = _Stars(True)
+    paid = await _service(_Model([GOOD]), stars=stars).month(USER, "2026-10", "meeting", "")
+    assert paid.access == "full"
+    assert [item.date for item in paid.days] == ["2026-10-12", "2026-10-15"]
+    assert stars.seen == ["favorable:2026-10:meeting:встреча"]
 
 
 async def test_a_broken_reply_is_repaired_once() -> None:

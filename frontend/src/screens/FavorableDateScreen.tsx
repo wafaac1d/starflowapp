@@ -1,8 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
-import { getFavorable, type FavorableDay } from "../api/client";
+import { ApiRequestError, getFavorable, spendStars, type FavorableDay } from "../api/client";
 import { queryKeys } from "../api/keys";
 import { Button } from "../shared/ui/Button/Button";
 import { Field } from "../shared/ui/Field/Field";
@@ -10,7 +10,11 @@ import { Icon } from "../shared/ui/Icon/Icon";
 import { MonthGrid } from "../shared/ui/MonthGrid/MonthGrid";
 import { Screen } from "../shared/ui/Screen/Screen";
 import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
+import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
+import { holdStarBalance, writeStarBalance } from "../starBalance";
+import { FAVORABLE_STARS } from "../stars";
+import { TopUpDialog } from "./TopUpDialog";
 import styles from "./screens.module.css";
 
 const PRESETS = [
@@ -23,6 +27,8 @@ type EventId = (typeof PRESETS)[number]["id"] | "custom";
 
 export function FavorableDateScreen() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [topUp, setTopUp] = useState(false);
   const today = new Date();
   const [event, setEvent] = useState<EventId>("meeting");
   const [draft, setDraft] = useState("");
@@ -63,6 +69,26 @@ export function FavorableDateScreen() {
   const marks = new Set(days.map((day) => day.date));
   const chosen = days.find((day) => day.date === selected);
   const failed = favorable.isError || favorable.data?.status === "unavailable";
+  const locked = favorable.data?.access === "preview" && (favorable.data.price ?? 0) > 0;
+  const price = favorable.data?.price ?? FAVORABLE_STARS;
+  const buy = useMutation({
+    mutationFn: () => spendStars({ feature: "favorable", month, event, custom }),
+    onMutate: () => holdStarBalance(queryClient, price),
+    onSuccess: async (ticket, _variables, restore) => {
+      if (ticket.charged) {
+        writeStarBalance(queryClient, ticket.balance);
+      } else {
+        restore?.();
+      }
+      await queryClient.invalidateQueries({ queryKey: queryKeys.favorable(month, event, custom) });
+    },
+    onError: (error, _variables, restore) => {
+      restore?.();
+      if (error instanceof ApiRequestError && error.status === 402) {
+        setTopUp(true);
+      }
+    },
+  });
   return (
     <Screen>
       <TopBar
@@ -152,6 +178,23 @@ export function FavorableDateScreen() {
         >
           Добавить в календарь
         </Button>
+        {locked ? (
+          <section className={styles.favorableOffer}>
+            <p>
+              Ближайший день бесплатно. Полный календарь месяца для этого события стоит{" "}
+              <StarPrice amount={price} /> звёзд. С Premium он без ограничений.
+            </p>
+            <Button
+              loading={buy.isPending}
+              onClick={() => {
+                buy.mutate();
+              }}
+            >
+              Открыть за <StarPrice amount={price} />
+            </Button>
+          </section>
+        ) : null}
+        {topUp ? <TopUpDialog balance={null} onClose={() => setTopUp(false)} /> : null}
       </div>
     </Screen>
   );
