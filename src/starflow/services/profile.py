@@ -100,29 +100,33 @@ class ProfileService:
             profile = await uow.profiles.ensure(user_id)
             if profile.onboarding_step != "done":
                 raise FieldInvalid("step", "errors.validation")
-            updated = profile
-            if incoming.display_name is not None:
-                name = parse_display_name(incoming.display_name)
-                updated = await uow.profiles.save_onboarding(
-                    user_id, step="done", display_name=name
-                )
-            if incoming.birth_date is not None:
-                parsed = parse_birth_date(incoming.birth_date, today=self._today())
-                updated = await uow.profiles.save_onboarding(
-                    user_id, step="done", birth_date=parsed
-                )
-            if incoming.birth_time_unknown or incoming.birth_time is not None:
-                clock = parse_birth_time(incoming.birth_time, incoming.birth_time_unknown)
-                updated = await uow.profiles.save_onboarding(
-                    user_id,
-                    step="done",
-                    birth_time=clock,
-                    birth_time_unknown=incoming.birth_time_unknown,
-                    clear_time=incoming.birth_time_unknown,
-                )
-            if incoming.timezone is not None:
-                zone = parse_timezone(incoming.timezone)
-                updated = await uow.profiles.save_onboarding(user_id, step="done", timezone=zone)
+            name = (
+                parse_display_name(incoming.display_name)
+                if incoming.display_name is not None
+                else None
+            )
+            parsed_date = (
+                parse_birth_date(incoming.birth_date, today=self._today())
+                if incoming.birth_date is not None
+                else None
+            )
+            has_time_input = incoming.birth_time_unknown or incoming.birth_time is not None
+            parsed_time = (
+                parse_birth_time(incoming.birth_time, incoming.birth_time_unknown)
+                if has_time_input
+                else None
+            )
+            zone = parse_timezone(incoming.timezone) if incoming.timezone is not None else None
+            updated = await uow.profiles.save_onboarding(
+                user_id,
+                step="done",
+                display_name=name,
+                birth_date=parsed_date,
+                birth_time=parsed_time,
+                birth_time_unknown=incoming.birth_time_unknown if has_time_input else None,
+                clear_time=incoming.birth_time_unknown,
+                timezone=zone,
+            )
             await uow.commit()
         return updated
 

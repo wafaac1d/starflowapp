@@ -247,8 +247,7 @@ def _limitations(profile: Profile) -> tuple[str, ...]:
         found.append("birth_date_missing")
     if profile.timezone is None:
         found.append("timezone_missing")
-        return tuple(found)
-    if profile.birth_date is None:
+    if profile.birth_date is None or profile.timezone is None:
         return tuple(found)
     if profile.birth_time_unknown or profile.birth_time is None:
         found.append("time_unknown")

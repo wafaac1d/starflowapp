@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from aiogram.types import Update
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import Response
+from starlette.middleware.gzip import GZipMiddleware
 
 from starflow.api.actor import (
     actor_from_cookie,
@@ -46,6 +47,7 @@ def build_fastapi(container: Container) -> FastAPI:
     app = FastAPI(title="StarFlow", version="0.1.0", lifespan=lifespan)
     app.state.container = container
     add_cors(app, container.settings.allowed_origins)
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
     app.add_middleware(RequestIdMiddleware)
     catalog = container.catalog
     register_error_handlers(

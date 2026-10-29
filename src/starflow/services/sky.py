@@ -33,17 +33,23 @@ class SkyService:
     def __init__(self, uow_factory: Callable[[], SkyWork], ephemeris: SwissEphemeris) -> None:
         self._uow_factory = uow_factory
         self._ephemeris = ephemeris
+        self._memory_cache: dict[date, dict[str, object]] = {}
 
     async def for_date(self, day: date) -> dict[str, object]:
+        cached = self._memory_cache.get(day)
+        if cached is not None:
+            return cached
         async with self._uow_factory() as uow:
             stored = await uow.daily_sky.get(day)
             if stored is not None:
+                self._store_cache(day, stored)
                 return stored
         payload = _payload(self._ephemeris, day)
         try:
             async with self._uow_factory() as uow:
                 stored = await uow.daily_sky.get(day)
                 if stored is not None:
+                    self._store_cache(day, stored)
                     return stored
                 await uow.daily_sky.put(day, payload, now_utc())
                 await uow.commit()
@@ -52,8 +58,15 @@ class SkyService:
                 stored = await uow.daily_sky.get(day)
             if stored is None:
                 raise
+            self._store_cache(day, stored)
             return stored
+        self._store_cache(day, payload)
         return payload
+
+    def _store_cache(self, day: date, payload: dict[str, object]) -> None:
+        if len(self._memory_cache) >= 256:
+            self._memory_cache.clear()
+        self._memory_cache[day] = payload
 
 
 def _payload(ephemeris: SwissEphemeris, day: date) -> dict[str, object]:

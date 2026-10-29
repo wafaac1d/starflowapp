@@ -105,8 +105,9 @@ class TwoLevelCache:
                 remembered = CachedValue(stored.payload, stored.expires_at)
                 self._memory.put(key, remembered)
                 return CacheHit(remembered.payload, remembered.expires_at, True)
-        except asyncio.CancelledError:
-            raise
+        finally:
+            if not lock.locked():
+                self._locks.pop(key, None)
 
     async def remember(
         self,

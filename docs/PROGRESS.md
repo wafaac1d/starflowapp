@@ -967,6 +967,30 @@ D-090. Без Premium виден один ближайший благоприя�
 
 Живой DeepSeek не вызывался.
 
+## Оптимизация проекта, 2026-10-29
+
+D-091. Комплексная оптимизация производительности, сети, памяти, запросов к базе данных и сборки.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check .` | 0 |
+| `uv run ruff format --check .` | 0 |
+| `uv run mypy` | 0, 102 файла |
+| `uv run pytest` | 0, 111 тестов |
+| `pnpm test` | 0, 15 файлов, 85 тестов Vitest |
+| `pnpm typecheck` | 0 |
+| `pnpm build` | 0, vendor-react 43.4 kB, vendor-query 44.2 kB, index 337.4 kB |
+| `pnpm openapi:check` | 0, diff пустой |
+
+1. `premium_user_ids` переведён на `_open_premium(now).distinct()` в SQL вместо сканирования всей таблицы `subscriptions` и группировки в памяти.
+2. `subscription_charge_count` переведён на `select(func.count()).select_from(...)`.
+3. `ProfileService.edit` выполняет один атомарный запрос `save_onboarding` вместо 4 последовательных UPDATE и 4 сбросов натального кэша.
+4. `SkyService` кэширует до 256 вычисленных дат в памяти, исключая повторные запросы в PostgreSQL.
+5. Устранены утечки памяти в `_background_keys` (`forecast.py`) и `_locks` (`two_level.py`).
+6. В FastAPI подключен `GZipMiddleware` (порог 1000 байт), сокращающий передачу данных клиенту на 70-80%.
+7. Во frontend шрифт переведён на `font-display: swap`, настроен `manualChunks` в Vite, добавлена защитная проверка массива в `TodayScreen`.
+8. В `Dockerfile` оптимизировано кэширование слоёв для pnpm и uv.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

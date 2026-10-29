@@ -1,12 +1,14 @@
 FROM node:22-bookworm-slim AS frontend
 WORKDIR /src
+RUN corepack enable && corepack prepare pnpm@10.18.0 --activate
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/
+WORKDIR /src/frontend
+RUN pnpm install --frozen-lockfile
+WORKDIR /src
 COPY frontend/ frontend/
 COPY resources/ resources/
 COPY static static
 WORKDIR /src/frontend
-RUN corepack enable && corepack prepare pnpm@10.18.0 --activate
-RUN pnpm install --frozen-lockfile
 RUN pnpm build
 
 FROM python:3.12-slim-bookworm AS python-deps
@@ -16,6 +18,7 @@ RUN apt-get update \
 COPY --from=ghcr.io/astral-sh/uv:0.9.5 /uv /uvx /bin/
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
 COPY src ./src
 RUN uv sync --frozen --no-dev --no-editable
 

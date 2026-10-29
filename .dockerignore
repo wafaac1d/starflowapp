@@ -9,3 +9,6 @@ frontend/dist
 .env
 tests
 agent-transcripts
+.idea
+.cursor
+frontend/test-results
