@@ -72,7 +72,7 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
   const save = useMutation({
     mutationFn: async () => {
       const clock = timeDraft(time);
-      let placeToConfirm = selectedPlace;
+      let placeToConfirm: PlaceHit | null | undefined = selectedPlace;
       if (
         !placeToConfirm &&
         placeQuery.trim().length >= 2 &&
@@ -80,7 +80,7 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
       ) {
         try {
           const found = await searchPlaces(placeQuery.trim());
-          if (found.length > 0) {
+          if (found.length > 0 && found[0]) {
             placeToConfirm = found[0];
           }
         } catch {
