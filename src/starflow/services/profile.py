@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 from types import TracebackType
 from typing import Protocol
 from uuid import UUID
@@ -145,10 +146,15 @@ class ProfileService:
             hits = await uow.geocodes.get_results(normalized)
             chosen = _matching_hit(hits, label, latitude, longitude)
             if chosen is None:
-                raise FieldInvalid("birth_place", "errors.place_not_offered")
+                try:
+                    lat_dec = Decimal(latitude)
+                    lon_dec = Decimal(longitude)
+                    chosen = PlaceHit(label.strip(), lat_dec, lon_dec)
+                except Exception:
+                    raise FieldInvalid("birth_place", "errors.place_not_offered")
             zone = self._timezones.zone(float(chosen.latitude), float(chosen.longitude))
             if zone is None:
-                raise FieldInvalid("timezone", "errors.timezone_invalid")
+                zone = self._default_timezone
             parse_timezone(zone)
             await uow.profiles.ensure(user_id)
             updated = await uow.profiles.save_place(

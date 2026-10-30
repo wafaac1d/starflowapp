@@ -120,12 +120,16 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
           ...(clearPlace ? { clear_place: true } : {}),
         });
         if (placeToConfirm) {
-          current = await confirmPlace({
-            query: placeQuery,
-            label: placeToConfirm.label,
-            latitude: placeToConfirm.latitude,
-            longitude: placeToConfirm.longitude,
-          });
+          try {
+            current = await confirmPlace({
+              query: placeQuery,
+              label: placeToConfirm.label,
+              latitude: placeToConfirm.latitude,
+              longitude: placeToConfirm.longitude,
+            });
+          } catch {
+            // ignore place confirm error if network fails
+          }
         }
         return current;
       }
@@ -151,12 +155,16 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
       }
 
       if (placeToConfirm) {
-        current = await confirmPlace({
-          query: placeQuery,
-          label: placeToConfirm.label,
-          latitude: placeToConfirm.latitude,
-          longitude: placeToConfirm.longitude,
-        });
+        try {
+          current = await confirmPlace({
+            query: placeQuery,
+            label: placeToConfirm.label,
+            latitude: placeToConfirm.latitude,
+            longitude: placeToConfirm.longitude,
+          });
+        } catch {
+          // ignore place confirm error if network fails
+        }
       }
 
       return current;
