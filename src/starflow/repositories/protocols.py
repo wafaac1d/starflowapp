@@ -30,6 +30,8 @@ class UserRepository(Protocol):
 
     async def mark_blocked(self, telegram_id: int) -> None: ...
 
+    async def mark_bot_welcomed(self, telegram_id: int) -> bool: ...
+
 
 class OutboxRepository(Protocol):
     async def enqueue(

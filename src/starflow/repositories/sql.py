@@ -124,6 +124,20 @@ class SqlUserRepository:
         await self._session.flush()
         return _user(stored)
 
+    async def mark_bot_welcomed(self, telegram_id: int) -> bool:
+        result = await self._session.execute(
+            select(UserRow).where(UserRow.telegram_id == telegram_id)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return True
+        first_time = not row.bot_welcomed
+        if first_time:
+            row.bot_welcomed = True
+            row.updated_at = now_utc()
+            await self._session.flush()
+        return first_time
+
     async def lock(self, user_id: UUID) -> None:
         result = await self._session.execute(
             select(UserRow.id).where(UserRow.id == user_id).with_for_update()
@@ -1743,6 +1757,7 @@ def _user(row: UserRow) -> User:
         language_code=row.language_code,
         referral_code=row.referral_code,
         referred_by=row.referred_by,
+        bot_welcomed=getattr(row, "bot_welcomed", False),
     )
 
 
