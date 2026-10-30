@@ -178,16 +178,28 @@ def _register_webhook(app: FastAPI, container: Container) -> None:
         if container.settings.bot_mode != "webhook":
             return error_response(404, "not_found", container.catalog.text("errors.not_found"))
         received = request.headers.get("x-telegram-bot-api-secret-token", "")
-        if not secrets_match(received, container.settings.webhook_secret):
+        if container.settings.webhook_secret and not secrets_match(received, container.settings.webhook_secret):
             return error_response(
                 401,
                 "unauthorized",
                 container.catalog.text("errors.webhook_rejected"),
             )
-        update = Update.model_validate(await request.json(), context={"bot": container.bot})
+        try:
+            body = await request.json()
+        except Exception:
+            return Response(status_code=400)
+        update = Update.model_validate(body, context={"bot": container.bot})
         structlog_update(update.update_id)
-        await container.dispatcher.feed_update(container.bot, update)
+        asyncio.create_task(_feed_update_safe(container, update))
         return Response(status_code=200)
+
+
+async def _feed_update_safe(container: Container, update: Update) -> None:
+    try:
+        await container.dispatcher.feed_update(container.bot, update)
+    except Exception as exc:
+        import structlog
+        structlog.get_logger("bot").warning("webhook_feed_failed", error_type=type(exc).__name__)
 
 
 def structlog_update(update_id: int) -> None:

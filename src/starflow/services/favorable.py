@@ -273,11 +273,13 @@ class FavorableService:
         facts: str,
         zone: str,
     ) -> dict[str, object]:
+        today_iso = self._clock().astimezone(ZoneInfo(zone)).date().isoformat()
         prompt = self._prompts.get("favorable")
         user = (
             prompt.user.replace("{facts}", facts)
             .replace("{event}", label)
             .replace("{month}", month)
+            .replace("{today}", today_iso)
         )
         repair = f"{user}\n{_REPAIR}"
         for text in (user, repair):

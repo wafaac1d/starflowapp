@@ -92,6 +92,10 @@ class BotRuntime:
             try:
                 await self._configure()
                 if self._settings.bot_mode == "polling":
+                    try:
+                        await self._bot.delete_webhook(drop_pending_updates=False)
+                    except Exception:
+                        pass
                     await self._dispatcher.start_polling(
                         self._bot,
                         handle_signals=False,

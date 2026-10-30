@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
@@ -333,22 +334,24 @@ async def _reply_welcome(
         return
     text = WELCOME_MESSAGE
     button_text = BUTTON_TEXT
-    inline_kb, reply_kb = _make_keyboards(mini_app_url, button_text)
-    if message.bot:
-        try:
-            await message.bot.set_chat_menu_button(
-                chat_id=message.chat.id,
-                menu_button=MenuButtonWebApp(
-                    text=button_text,
-                    web_app=WebAppInfo(url=mini_app_url),
-                ),
-            )
-        except Exception:
-            pass
+    inline_kb, _ = _make_keyboards(mini_app_url, button_text)
     await message.answer(
         text,
         reply_markup=inline_kb,
     )
+    if message.bot:
+        async def _set_menu() -> None:
+            try:
+                await message.bot.set_chat_menu_button(
+                    chat_id=message.chat.id,
+                    menu_button=MenuButtonWebApp(
+                        text=button_text,
+                        web_app=WebAppInfo(url=mini_app_url),
+                    ),
+                )
+            except Exception:
+                pass
+        asyncio.create_task(_set_menu())
 
 
 async def _reply_followup(
