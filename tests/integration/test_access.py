@@ -42,6 +42,8 @@ from starflow.db.tables import (
 from starflow.domain.plans import Plans, load_plans
 from starflow.domain.quota import Allowed, LimitReached
 from starflow.domain.records import PlaceHit, ProfileDraft
+from starflow.domain.stars import current_week_subject
+from starflow.domain.time import now_utc
 from starflow.i18n.catalog import load_catalog
 from starflow.repositories.uow import SqlUnitOfWork
 from starflow.services.assistant import AssistantService
@@ -669,6 +671,51 @@ async def test_birth_place_can_be_set_without_premium_and_computes_houses(databa
     assert len(chart_with_place.houses) == 12
     assert chart_with_place.ascendant_sign is not None
     assert "place_missing" not in chart_with_place.limitations
+
+    await container.engine.dispose()
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_week_and_month_forecast_require_stars_and_expire_next_period(database_url: str) -> None:
+    engine, factory = _factory(database_url)
+    settings = make_settings(database_url=database_url, singleton_lock=False)
+    container = build_container(settings)
+    user_id = await _user(factory)
+
+    async with SqlUnitOfWork(factory) as uow:
+        await uow.profiles.save_onboarding(
+            user_id,
+            step="done",
+            display_name="Тест",
+            birth_date=date(1990, 1, 15),
+            timezone="Europe/Moscow",
+        )
+        await uow.commit()
+
+    await container.stars_service.credit(user_id, 100)
+
+    # Прогноз на неделю без Premium требует звёзд, но отдает короткие описания тем бесплатно
+    week_before = await container.forecast_service._premium(user_id, "week", now_utc(), ReadingScope())
+    assert week_before.status == "stars"
+    assert "relations" in week_before.topics
+    assert "work" in week_before.topics
+    assert "state" in week_before.topics
+
+    # Оплачиваем неделю за 20 звёзд
+    bought = await container.stars_service.buy(user_id, "week", current_week_subject())
+    assert bought.allowed is True
+    assert bought.charged is True
+    assert bought.price == 20
+
+    # Теперь неделя и темы разблокированы
+    assert await container.forecast_service._unlocked(user_id, "week", ReadingScope()) is True
+    assert await container.forecast_service._unlocked(user_id, "topics", ReadingScope()) is True
+
+    # Но на следующей неделе старая оплата не действует и требуется новая
+    next_week = now_utc() + timedelta(days=7)
+    container.forecast_service._clock = lambda: next_week
+    assert await container.forecast_service._unlocked(user_id, "week", ReadingScope()) is False
 
     await container.engine.dispose()
     await engine.dispose()

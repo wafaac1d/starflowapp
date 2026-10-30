@@ -17,7 +17,7 @@ free:
   related_profiles_limit: 3
 features:
   day: {gate: open}
-  week: {gate: open}
+  week: {gate: premium}
   advice: {gate: open}
   moon: {gate: open}
   compatibility: {gate: metered, limit: 1, window: user_week}

@@ -1,15 +1,20 @@
 """Внутренний баланс звёзд. Клиентский статус счёта его не меняет."""
 
 from dataclasses import dataclass
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from starflow.astro.ecliptic import SIGNS
 from starflow.domain.billing import MAX_STARS
+from starflow.domain.time import now_utc
 
 NATAL_STARS = 40
 COMPATIBILITY_STARS = 40
 QUESTION_STARS = 20
 FAVORABLE_STARS = 30
 AFFIRMATION_STARS = 20
+WEEK_STARS = 20
+MONTH_STARS = 20
 TOPUP_PRESETS = (10, 20, 50, 100)
 MIN_TOPUP = 1
 
@@ -19,6 +24,11 @@ PRICES = {
     "assistant": QUESTION_STARS,
     "favorable": FAVORABLE_STARS,
     "affirmation": AFFIRMATION_STARS,
+    "week": WEEK_STARS,
+    "personal_week": WEEK_STARS,
+    "month": MONTH_STARS,
+    "personal_month": MONTH_STARS,
+    "topics": WEEK_STARS,
 }
 
 
@@ -51,6 +61,19 @@ def affirmation_subject(category: str) -> str:
     if cleaned not in {"for_you", "confidence", "calm"}:
         raise ValueError("category")
     return cleaned
+
+
+def current_week_subject(moment: datetime | None = None, zone_name: str = "Europe/Moscow") -> str:
+    now = moment or now_utc()
+    local = now.astimezone(ZoneInfo(zone_name))
+    year, week, _ = local.date().isocalendar()
+    return f"week:{year}-W{week:02d}"
+
+
+def current_month_subject(moment: datetime | None = None, zone_name: str = "Europe/Moscow") -> str:
+    now = moment or now_utc()
+    local = now.astimezone(ZoneInfo(zone_name))
+    return f"month:{local.year:04d}-{local.month:02d}"
 
 
 def purchase_effect(kind: str) -> str:

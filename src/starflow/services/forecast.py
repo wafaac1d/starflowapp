@@ -3,14 +3,14 @@
 import asyncio
 import json
 from collections.abc import Callable, Coroutine
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from types import TracebackType
 from typing import Protocol, cast
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from starflow.ai.catalog import PromptCatalog, PromptSpec
 from starflow.ai.client import CircuitOpen, ModelReply
@@ -61,9 +61,10 @@ from starflow.repositories.sql import (
 from starflow.services.chart import ChartView, NatalStars
 from starflow.services.quota import QuotaStore, ResultWriter, StoredResult
 
-_OPEN = frozenset({"day", "week", "advice", "moon", "compatibility"})
+_OPEN = frozenset({"day", "advice", "moon", "compatibility"})
 _PREMIUM = frozenset(
     {
+        "week",
         "today_detail",
         "tomorrow",
         "personal_day",
@@ -91,6 +92,7 @@ _REPAIR = (
 class DraftText(BaseModel):
     title: str
     body: str
+    topics: dict[str, str] = Field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -107,6 +109,7 @@ class ReadingView:
     reset_at: datetime | None = None
     days: tuple[DayMark, ...] = ()
     limitations: tuple[str, ...] = ()
+    topics: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -406,10 +409,12 @@ class ForecastService:
             return {
                 "title": self._catalog.text(f"ui.reading.{kind}"),
                 "body": self._catalog.text(f"ui.reading.fallback_{kind}"),
+                "topics": default_topics_preview(kind),
                 "source": "fallback",
             }
-        title, body = parsed
-        return {"title": title, "body": body, "source": "model"}
+        title, body, topics = parsed
+        merged_topics = {**default_topics_preview(kind), **topics}
+        return {"title": title, "body": body, "topics": merged_topics, "source": "model"}
 
     async def _ask(
         self,
@@ -419,7 +424,7 @@ class ForecastService:
         system: str,
         user: str,
         prompt: PromptSpec,
-    ) -> tuple[str, str] | None:
+    ) -> tuple[str, str, dict[str, str]] | None:
         temperature = prompt.temperature
         max_tokens = prompt.max_tokens
         try:
@@ -461,8 +466,9 @@ class ForecastService:
             parsed = await self._ask(user_id, kind, model_name, prompt.system, user, prompt)
             if parsed is None:
                 return None
-            title, body = parsed
-            payload: dict[str, object] = {"title": title, "body": body, "source": "model"}
+            title, body, topics = parsed
+            merged_topics = {**default_topics_preview(kind), **topics}
+            payload: dict[str, object] = {"title": title, "body": body, "topics": merged_topics, "source": "model"}
             await self._cache.remember(key, kind, payload, expires)
             return payload
         finally:
@@ -570,6 +576,8 @@ class ForecastService:
             return None
         history_id, payload = found
         sign = None if profile.birth_date is None else calendar_sign(profile.birth_date)
+        topics_val = payload.get("topics")
+        topics_dict = dict(topics_val) if isinstance(topics_val, dict) else default_topics_preview(kind)
         return ReadingView(
             status="ready" if payload.get("source") == "model" else "fallback",
             title=_as_text(payload.get("title")),
@@ -581,6 +589,7 @@ class ForecastService:
             replayed=True,
             days=_marks(payload.get("days")),
             limitations=_texts(payload.get("limitations")),
+            topics=topics_dict,
         )
 
     async def _blocked(self, user_id: UUID, kind: str) -> ReadingView | None:
@@ -607,6 +616,8 @@ class ForecastService:
         sign = getattr(profile, "birth_date", None)
         user_sign = None if sign is None else calendar_sign(sign)
         status = "ready" if payload.get("source") == "model" else "fallback"
+        topics_val = payload.get("topics")
+        topics_dict = dict(topics_val) if isinstance(topics_val, dict) else default_topics_preview(payload.get("kind") or "")
         return ReadingView(
             status=status,
             title=_as_text(payload.get("title")),
@@ -619,6 +630,7 @@ class ForecastService:
             replayed=replayed,
             days=_marks(payload.get("days")),
             limitations=limitations or _texts(payload.get("limitations")),
+            topics=topics_dict,
         )
 
     async def _log(
@@ -750,8 +762,24 @@ class ForecastService:
         if isinstance(decision, PremiumRequired):
             if await self._unlocked(user_id, kind, scope):
                 decision = Allowed()
-            elif kind in {"synastry", "natal"} and self._stars is not None:
-                return ReadingView(status="stars", body=self._catalog.text("errors.stars_required"))
+            elif (
+                kind
+                in {
+                    "synastry",
+                    "natal",
+                    "week",
+                    "personal_week",
+                    "month",
+                    "personal_month",
+                    "topics",
+                }
+                and self._stars is not None
+            ):
+                return ReadingView(
+                    status="stars",
+                    body=self._catalog.text("errors.stars_required"),
+                    topics=default_topics_preview(kind),
+                )
             else:
                 return ReadingView(status="premium", body=self._catalog.text("ui.paywall.lead"))
         if not isinstance(decision, Allowed):
@@ -786,6 +814,21 @@ class ForecastService:
             return False
         if kind == "natal":
             return await stars.owns(user_id, "natal", "self")
+        now = self._clock()
+        local = now.astimezone(ZoneInfo(self._zone_name)).date()
+        year, week_num, _ = local.isocalendar()
+        week_key = f"week:{year}-W{week_num:02d}"
+        month_key = f"month:{local.year:04d}-{local.month:02d}"
+        if kind in {"week", "personal_week"}:
+            return await stars.owns(user_id, "week", week_key)
+        if kind in {"personal_month", "month"}:
+            return await stars.owns(user_id, "month", month_key)
+        if kind == "topics":
+            return (
+                await stars.owns(user_id, "week", week_key)
+                or await stars.owns(user_id, "month", month_key)
+                or await stars.owns(user_id, "topics", week_key)
+            )
         if kind != "synastry":
             return False
         if scope.left_sign != "" and scope.right_sign != "":
@@ -850,6 +893,15 @@ class ForecastService:
                 status="blocked", body=self._catalog.text("ui.chart.birth_date_missing")
             )
         sign = calendar_sign(profile.birth_date)
+        if kind == "week":
+            segment = sun_segment(sign)
+            facts = {
+                **representative_facts(kind, segment),
+                "birth_date": birth_date,
+                "birth_time": birth_time,
+                "birth_place": birth_place,
+            }
+            return segment, facts, profile, (), storage, day, when
         moon, ascendant = await self._natal_signs(user_id)
         if kind == "natal":
             return await self._natal_prepared(user_id, profile, storage, day, when)
@@ -1115,12 +1167,37 @@ def _period_day(kind: str, moment: datetime, zone_name: str) -> date:
     return local
 
 
-def _parse_reply(content: str) -> tuple[str, str] | None:
+def default_topics_preview(kind: str) -> dict[str, str]:
+    if kind in {"synastry", "compatibility"}:
+        return {
+            "dialog": "Взаимопонимание, открытый диалог и лёгкость в общении",
+            "emotions": "Эмоциональная близость, теплота и взаимное доверие",
+            "values": "Согласие в общих жизненных целях и ориентирах",
+        }
+    return {
+        "relations": "Благоприятное время для душевного общения и внимания к близким",
+        "work": "Продуктивный период для уверенных шагов и решения задач",
+        "state": "Внутренняя стабильность, ровный эмоциональный фон и ясность",
+    }
+
+
+def _parse_reply(content: str) -> tuple[str, str, dict[str, str]] | None:
     try:
-        draft = DraftText.model_validate(json.loads(content))
+        raw = json.loads(content)
+        draft = DraftText.model_validate(raw)
     except (ValidationError, json.JSONDecodeError, TypeError, ValueError):
         return None
-    return guarded_copy(draft.title, draft.body)
+    guarded = guarded_copy(draft.title, draft.body)
+    if guarded is None:
+        return None
+    clean_topics: dict[str, str] = {}
+    if draft.topics and isinstance(draft.topics, dict):
+        for k, v in draft.topics.items():
+            if isinstance(k, str) and isinstance(v, str):
+                g = guarded_copy(k, v)
+                if g is not None:
+                    clean_topics[k] = g[1]
+    return guarded[0], guarded[1], clean_topics
 
 
 def _as_text(value: object) -> str | None:

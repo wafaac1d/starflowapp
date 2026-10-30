@@ -16,6 +16,7 @@ import { queryKeys } from "../api/keys";
 import { maskBirthDate } from "../birthDate";
 import { calendarSign, displayBirthDate } from "../calendarSign";
 import { titled } from "../case";
+import { STAR_SILENCE, useReading } from "../readingWait";
 import { Avatar } from "../shared/ui/Avatar/Avatar";
 import { Button } from "../shared/ui/Button/Button";
 import { ErrorState } from "../shared/ui/ErrorState/ErrorState";
@@ -93,9 +94,17 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
   const people = knownPeople(related.data, remembered, personId);
   const owner = resolveSlot(left, profile, people);
   const partner = resolveSlot(right, profile, people);
+  const leftSign = owner?.sign.toLocaleLowerCase("ru") ?? "";
+  const rightSign = partner?.sign.toLocaleLowerCase("ru") ?? "";
+  const compatReading = useReading(
+    "compatibility",
+    { leftSign, rightSign },
+    phase === "result" && leftSign !== "" && rightSign !== "",
+  );
+  const topicPreviews = compatReading.data?.topics ?? {};
   const topics = useTopicDetail(profile.is_premium, {
-    leftSign: owner?.sign.toLocaleLowerCase("ru") ?? "",
-    rightSign: partner?.sign.toLocaleLowerCase("ru") ?? "",
+    leftSign,
+    rightSign,
   });
   const remember = (person: KnownPerson) => {
     setRemembered((current) =>
@@ -213,17 +222,20 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
             alt=""
           />
           <div className={styles.stack}>
-            {(rows.data ?? compatRows).map((row) => (
-              <ListRow
-                key={row.id}
-                icon={row.icon}
-                title={row.title}
-                subtitle={row.subtitle}
-                onClick={() => {
-                  topics.open(row.id, row.title);
-                }}
-              />
-            ))}
+            {(rows.data ?? compatRows).map((row) => {
+              const preview = topicPreviews[row.id] || row.subtitle;
+              return (
+                <ListRow
+                  key={row.id}
+                  icon={row.icon}
+                  title={row.title}
+                  subtitle={preview}
+                  onClick={() => {
+                    topics.open(row.id, row.title);
+                  }}
+                />
+              );
+            })}
           </div>
         </>
       ) : null}

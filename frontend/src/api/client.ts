@@ -180,6 +180,7 @@ export type ReadingResponse = {
   reset_at: string | null;
   days?: CalendarDay[];
   limitations?: string[];
+  topics?: Record<string, string>;
 };
 
 export type CalendarDay = {
@@ -775,7 +776,10 @@ export async function spendStars(
     | { feature: "natal" }
     | { feature: "compatibility"; left_sign: string; right_sign: string }
     | { feature: "favorable"; month: string; event: string; custom: string }
-    | { feature: "affirmation"; category: string },
+    | { feature: "affirmation"; category: string }
+    | { feature: "week"; period?: string }
+    | { feature: "month"; month?: string }
+    | { feature: "topics"; period?: string },
   fetchImpl: typeof fetch = fetch,
 ): Promise<SpendResponse> {
   return requestJson<SpendResponse>(

@@ -5,7 +5,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Header, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from starflow.api.actor import actor_from_cookie, require_intent
 from starflow.api.http import ApiError
@@ -38,6 +38,7 @@ class ReadingBody(BaseModel):
     reset_at: datetime | None = None
     days: list[DayBody] = []
     limitations: list[str] = []
+    topics: dict[str, str] = Field(default_factory=dict)
 
 
 class HistoryItem(BaseModel):
@@ -312,6 +313,7 @@ def _reading(view: ReadingView) -> ReadingBody:
             DayBody(date=mark.day, scores=dict(mark.scores), note=mark.note) for mark in view.days
         ],
         limitations=list(view.limitations),
+        topics=dict(view.topics) if view.topics else {},
     )
 
 

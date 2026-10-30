@@ -29,13 +29,16 @@ export function useTopicDetail(premium: boolean, pair?: PairSigns) {
   const [topUp, setTopUp] = useState(false);
   const [title, setTitle] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
+
   const query =
     topic === null
       ? {}
       : pair === undefined
         ? { topic }
         : { topic, leftSign: pair.leftSign, rightSign: pair.rightSign };
+
   const reading = useReading(pair === undefined ? "topics" : "synastry", query, topic !== null);
+
   const open = (id: string, label: string) => {
     if (pair !== undefined) {
       if (!PAIR.has(id)) {
@@ -59,14 +62,17 @@ export function useTopicDetail(premium: boolean, pair?: PairSigns) {
     setTitle(label);
     setTopic(next);
   };
+
   const close = () => {
     setLocked(false);
     setTitle("");
     setTopic(null);
   };
+
   const premiumReply = reading.face.phase === "premium";
   const starsReply = reading.face.phase === "stars";
   const starsBody = reading.face.phase === "stars" ? reading.face.body : "";
+
   const dialog = locked ? (
     <AlertDialog
       title={LOCKED}
@@ -81,7 +87,11 @@ export function useTopicDetail(premium: boolean, pair?: PairSigns) {
     />
   ) : title !== "" ? (
     <AlertDialog
-      title={reading.face.phase === "ready" && reading.face.title !== "" ? reading.face.title : title}
+      title={
+        reading.face.phase === "ready" && reading.face.title !== ""
+          ? reading.face.title
+          : title
+      }
       body={
         reading.face.phase === "ready"
           ? reading.face.body
@@ -114,6 +124,7 @@ export function useTopicDetail(premium: boolean, pair?: PairSigns) {
           : {})}
     />
   ) : null;
+
   return {
     open,
     dialog: (

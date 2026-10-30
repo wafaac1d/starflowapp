@@ -4313,6 +4313,13 @@
             "type": "array",
             "title": "Limitations",
             "default": []
+          },
+          "topics": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Topics"
           }
         },
         "type": "object",
@@ -4620,6 +4627,11 @@
           "right_sign": {
             "type": "string",
             "title": "Right Sign",
+            "default": ""
+          },
+          "period": {
+            "type": "string",
+            "title": "Period",
             "default": ""
           },
           "month": {
