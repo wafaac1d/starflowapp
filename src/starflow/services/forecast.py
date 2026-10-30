@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
@@ -486,8 +487,8 @@ class ForecastService:
                 await uow.related_profiles.list_births(user_id) if kind == "compatibility" else ()
             )
         birth_date, birth_time, birth_place = _person_birth(profile)
+        day = local_date(moment, self._zone_name)
         if kind == "moon":
-            day = local_date(moment, self._zone_name)
             sky = await self._sky.for_date(day)
             moon = sky.get("moon_sign")
             phase = sky.get("phase_name")
@@ -514,6 +515,7 @@ class ForecastService:
             segment = pair_segment(sign, calendar_sign(related.birth_date))
             rel_date, rel_time, rel_place = _person_birth(related)
             facts = {
+                "date": day.isoformat(),
                 **representative_facts(kind, segment),
                 "birth_date": birth_date,
                 "birth_time": birth_time,
@@ -525,6 +527,7 @@ class ForecastService:
             return segment, facts, profile
         segment = sun_segment(sign)
         facts = {
+            "date": day.isoformat(),
             **representative_facts(kind, segment),
             "birth_date": birth_date,
             "birth_time": birth_time,
@@ -546,6 +549,8 @@ class ForecastService:
         zone = getattr(profile, "timezone", None) or self._zone_name
         version = self._prompt_version(kind)
         stored = dict(payload)
+        if "title" in stored and isinstance(stored["title"], str):
+            stored["title"] = _clean_forecast_title(stored["title"], getattr(profile, "birth_date", None))
         if version is not None:
             stored["prompt_version"] = version
         payload = stored
@@ -556,6 +561,7 @@ class ForecastService:
                     history_id = await uow.forecast_history.add(user_id, kind, day, payload)
                 else:
                     history_id = found[0]
+                    await uow.forecast_history.update_payload(history_id, payload)
                 streak = None
                 if kind == "day":
                     streak = await uow.profiles.touch_streak(user_id, local_date(moment, zone))
@@ -578,9 +584,11 @@ class ForecastService:
         sign = None if profile.birth_date is None else calendar_sign(profile.birth_date)
         topics_val = payload.get("topics")
         topics_dict = dict(topics_val) if isinstance(topics_val, dict) else default_topics_preview(kind)
+        raw_title = _as_text(payload.get("title"))
+        clean_title = _clean_forecast_title(raw_title, profile.birth_date)
         return ReadingView(
             status="ready" if payload.get("source") == "model" else "fallback",
-            title=_as_text(payload.get("title")),
+            title=clean_title,
             body=_as_text(payload.get("body")),
             greeting=profile.display_name,
             user_sign=sign,
@@ -618,9 +626,12 @@ class ForecastService:
         status = "ready" if payload.get("source") == "model" else "fallback"
         topics_val = payload.get("topics")
         topics_dict = dict(topics_val) if isinstance(topics_val, dict) else default_topics_preview(payload.get("kind") or "")
+        raw_title = _as_text(payload.get("title"))
+        birth_d = getattr(profile, "birth_date", None)
+        title = _clean_forecast_title(raw_title, birth_d)
         return ReadingView(
             status=status,
-            title=_as_text(payload.get("title")),
+            title=title,
             body=_as_text(payload.get("body")),
             greeting=getattr(profile, "display_name", None),
             user_sign=user_sign,
@@ -896,6 +907,7 @@ class ForecastService:
         if kind == "week":
             segment = sun_segment(sign)
             facts = {
+                "date": day.isoformat(),
                 **representative_facts(kind, segment),
                 "birth_date": birth_date,
                 "birth_time": birth_time,
@@ -955,6 +967,7 @@ class ForecastService:
             return segment, facts, profile, (), storage, day, when
         segment = personal_segment(sign, moon, ascendant)
         facts = {
+            "date": day.isoformat(),
             **representative_facts(kind, segment),
             "birth_date": birth_date,
             "birth_time": birth_time,
@@ -1167,28 +1180,51 @@ def _period_day(kind: str, moment: datetime, zone_name: str) -> date:
     return local
 
 
+_DATE_RE = re.compile(
+    r"(?:^|\s)\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}(?:\s*года|\s*г\.?)?|"
+    r"(?:\b|\s)\d{1,2}\.\d{1,2}\.\d{4}(?:\b|\s)|"
+    r"(?:\b|\s)\d{4}-\d{2}-\d{2}(?:\b|\s)",
+    re.IGNORECASE,
+)
+
+
+def _clean_forecast_title(title: str | None, birth_date: date | None = None) -> str | None:
+    if not isinstance(title, str) or title.strip() == "":
+        return None
+    clean = _DATE_RE.sub("", title)
+    if birth_date is not None:
+        year_re = re.compile(rf"\b{birth_date.year}(?:\s*года|\s*г\.?)?\b", re.IGNORECASE)
+        clean = year_re.sub("", clean)
+    clean = clean.strip(" :-—–\t\n")
+    if not clean:
+        return "Фон дня"
+    return clean
+
+
 def default_topics_preview(kind: str) -> dict[str, str]:
     if kind in {"synastry", "compatibility"}:
         return {
-            "dialog": "Лёгкое и открытое общение",
-            "emotions": "Теплота и взаимная забота",
-            "values": "Схожие цели и ценности",
+            "dialog": "Лёгкое и открытое общение...",
+            "emotions": "Теплота и взаимная забота...",
+            "values": "Схожие цели и ценности...",
         }
     return {
-        "relations": "Гармония и искренний диалог",
-        "love": "Гармония и искренний диалог",
-        "work": "Уверенный рост и фокус",
-        "state": "Спокойный эмоциональный баланс",
-        "health": "Спокойный эмоциональный баланс",
+        "relations": "Гармония и искренний диалог...",
+        "love": "Гармония и искренний диалог...",
+        "work": "Уверенный рост и фокус...",
+        "state": "Спокойный эмоциональный баланс...",
+        "health": "Спокойный эмоциональный баланс...",
     }
 
 
 def _shorten_topic(text: str, max_words: int = 4) -> str:
-    cleaned = text.strip().rstrip(".")
+    cleaned = text.strip().rstrip(".…")
+    if not cleaned:
+        return ""
     words = cleaned.split()
     if len(words) <= max_words:
-        return cleaned
-    return " ".join(words[:max_words])
+        return f"{cleaned}..."
+    return f"{' '.join(words[:max_words])}..."
 
 
 def _parse_reply(content: str) -> tuple[str, str, dict[str, str]] | None:
@@ -1200,6 +1236,7 @@ def _parse_reply(content: str) -> tuple[str, str, dict[str, str]] | None:
     guarded = guarded_copy(draft.title, draft.body)
     if guarded is None:
         return None
+    clean_title = _clean_forecast_title(guarded[0]) or guarded[0]
     clean_topics: dict[str, str] = {}
     if draft.topics and isinstance(draft.topics, dict):
         for k, v in draft.topics.items():
@@ -1207,7 +1244,7 @@ def _parse_reply(content: str) -> tuple[str, str, dict[str, str]] | None:
                 g = guarded_copy(k, v)
                 if g is not None:
                     clean_topics[k] = _shorten_topic(g[1])
-    return guarded[0], guarded[1], clean_topics
+    return clean_title, guarded[1], clean_topics
 
 
 def _as_text(value: object) -> str | None:

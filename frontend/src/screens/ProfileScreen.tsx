@@ -1,9 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 
 import type { ProfileResponse } from "../api/client";
-import { getProfileTrait } from "../api/fixtures";
-import { queryKeys } from "../api/keys";
 import { titled } from "../case";
 import { Avatar } from "../shared/ui/Avatar/Avatar";
 import { Icon } from "../shared/ui/Icon/Icon";
@@ -13,7 +10,6 @@ import styles from "./screens.module.css";
 
 export function ProfileScreen({ profile }: { profile: ProfileResponse }) {
   const navigate = useNavigate();
-  const trait = useQuery({ queryKey: queryKeys.profileTrait, queryFn: getProfileTrait });
   const sign = profile.calendar_sign === null ? "" : titled(profile.calendar_sign);
   const born = profile.birth_date ?? "";
   return (
@@ -50,12 +46,6 @@ export function ProfileScreen({ profile }: { profile: ProfileResponse }) {
           </p>
         </span>
       </div>
-      <article className={`${styles.decision} ${styles.trait}`}>
-        <span className={styles.decisionHead}>
-          <Icon name="profile_trait_sparkle" size={22} />
-          <span>{trait.data ?? ""}</span>
-        </span>
-      </article>
       <div>
         <ListRow plain title="Данные рождения" chevron to="/onboarding/birth" />
         <ListRow

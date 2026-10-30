@@ -73,11 +73,15 @@ const EMPTY_SLOT: SlotState = {
 };
 
 function shortenTopicText(text: string, maxWords: number = 4): string {
-  const words = text.trim().replace(/\.$/, "").split(/\s+/);
-  if (words.length <= maxWords) {
-    return text.trim();
+  const cleaned = text.trim().replace(/[.\s…]+$/, "");
+  if (!cleaned) {
+    return "";
   }
-  return words.slice(0, maxWords).join(" ");
+  const words = cleaned.split(/\s+/);
+  if (words.length <= maxWords) {
+    return `${cleaned}...`;
+  }
+  return `${words.slice(0, maxWords).join(" ")}...`;
 }
 
 export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {

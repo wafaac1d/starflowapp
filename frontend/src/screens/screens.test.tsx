@@ -393,7 +393,7 @@ describe("screens", () => {
   it("switches the forecast period", async () => {
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
     renderAt(<ForecastScreen premium={false} />);
-    expect(await screen.findByText("Гармония и искренний диалог")).toBeInTheDocument();
+    expect(await screen.findByText("Гармония и искренний диалог...")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: "Неделя" }));
     expect(screen.getByRole("tab", { name: "Неделя" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Поделиться" })).toBeInTheDocument();
@@ -587,7 +587,7 @@ describe("screens", () => {
       </QueryClientProvider>,
     );
     expect(screen.getByRole("radio", { name: "Михаил" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.queryByText("Теплота и взаимная забота")).not.toBeInTheDocument();
+    expect(screen.queryByText("Теплота и взаимная забота...")).not.toBeInTheDocument();
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: query.includes("reduce"),
       media: query,
@@ -595,7 +595,7 @@ describe("screens", () => {
       removeEventListener() {},
     }));
     await userEvent.click(screen.getByRole("button", { name: (value) => value.startsWith("Проверить") }));
-    expect(await screen.findByText("Теплота и взаимная забота")).toBeInTheDocument();
+    expect(await screen.findByText("Теплота и взаимная забота...")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Эмоции/ }));
     expect(await screen.findByRole("alertdialog")).toHaveTextContent(
       "Не удалось связаться со звёздами",
@@ -698,11 +698,11 @@ describe("screens", () => {
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1999);
       });
-      expect(screen.queryByText("Теплота и взаимная забота")).not.toBeInTheDocument();
+      expect(screen.queryByText("Теплота и взаимная забота...")).not.toBeInTheDocument();
       await act(async () => {
         await vi.advanceTimersByTimeAsync(1);
       });
-      expect(screen.getByText("Теплота и взаимная забота")).toBeInTheDocument();
+      expect(screen.getByText("Теплота и взаимная забота...")).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }

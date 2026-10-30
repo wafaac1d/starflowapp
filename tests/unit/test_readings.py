@@ -1,7 +1,7 @@
 """Сегменты, защита текста и повторы клиента без сети модели."""
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import httpx2 as httpx
@@ -373,3 +373,19 @@ def test_all_forecast_prompts_instruct_to_use_birth_date_and_time() -> None:
         assert "дата" in system_lower or "дата" in user_lower or "дат" in system_lower or "дат" in user_lower
         assert "время" in system_lower or "время" in user_lower
         assert "рождения" in system_lower or "рождения" in user_lower
+
+
+def test_forecast_title_cleans_birth_date_and_topic_adds_ellipsis() -> None:
+    from starflow.services.forecast import _clean_forecast_title, _shorten_topic
+
+    assert _clean_forecast_title("Фон дня 23 февраля 2002 года", date(2002, 2, 23)) == "Фон дня"
+    assert _clean_forecast_title("Фон дня: 23 февраля 2002 года", date(2002, 2, 23)) == "Фон дня"
+    assert _clean_forecast_title("23 февраля 2002 года", date(2002, 2, 23)) == "Фон дня"
+    assert _clean_forecast_title("Спокойный ритм дня", date(2002, 2, 23)) == "Спокойный ритм дня"
+
+    assert _shorten_topic("Гармония и искренний диалог") == "Гармония и искренний диалог..."
+    assert (
+        _shorten_topic("Сегодня в отношениях возможны приятные открытия и теплота")
+        == "Сегодня в отношениях возможны..."
+    )
+

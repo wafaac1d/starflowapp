@@ -843,7 +843,7 @@ async def test_shared_segment_collapses_generation_and_keeps_names_out(database_
     assert "мария" not in blob
     assert "анна" not in blob
     assert "1990" not in blob
-    assert shared[0].cache_key.endswith("|5")
+    assert shared[0].cache_key.endswith(f"|{service._prompt_version('day')}")
     assert requests == 1
     await engine.dispose()
 

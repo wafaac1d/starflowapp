@@ -789,6 +789,12 @@ class ForecastHistoryRepository:
         await _save(self._session, row)
         return row.id
 
+    async def update_payload(self, history_id: UUID, payload: dict[str, object]) -> None:
+        row = await self._session.get(ForecastHistoryRow, history_id)
+        if row is not None:
+            row.payload = payload
+            await self._session.flush()
+
     async def owned(self, user_id: UUID, history_id: UUID) -> bool:
         row = await self._session.get(ForecastHistoryRow, history_id)
         return row is not None and row.user_id == user_id

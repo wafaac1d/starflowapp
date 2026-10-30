@@ -14,6 +14,22 @@ export const STAR_SILENCE = "Не удалось связаться со звё�
 
 const POLL_MS = 700;
 
+const DATE_RE =
+  /(?:^|\s)\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}(?:\s*года|\s*г\.?)?|(?:\b|\s)\d{1,2}\.\d{1,2}\.\d{4}(?:\b|\s)|(?:\b|\s)\d{4}-\d{2}-\d{2}(?:\b|\s)/gi;
+
+export function cleanForecastTitle(title: string | null | undefined): string {
+  if (!title) {
+    return "Фон дня";
+  }
+  const clean = title
+    .replace(DATE_RE, "")
+    .replace(/\s+/g, " ")
+    .replace(/[:\-–—\s]+$/, "")
+    .replace(/^[:\-–—\s]+/, "")
+    .trim();
+  return clean.length > 0 ? clean : "Фон дня";
+}
+
 export type ReadingFace =
   | { phase: "loading" }
   | { phase: "ready"; title: string; body: string; historyId: string | null }
@@ -43,7 +59,8 @@ export function readingFace(
     return { phase: "blocked", body: data.body ?? STAR_SILENCE };
   }
   if (data.status === "ready" && data.body != null && data.body !== "") {
-    const title = data.title != null && data.title !== "" ? data.title : data.body;
+    const rawTitle = data.title != null && data.title !== "" ? data.title : data.body;
+    const title = cleanForecastTitle(rawTitle);
     return { phase: "ready", title, body: data.body, historyId: data.history_id };
   }
   return { phase: "miss" };
