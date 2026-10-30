@@ -223,16 +223,27 @@
 }
 
 .fieldNote {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
 
-.placeHits {
+.placeMenu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  z-index: 50;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  margin-top: calc(-1 * var(--space-1));
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-m);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  max-height: 220px;
+  overflow-y: auto;
 }
 
 .placeItem {
@@ -243,16 +254,26 @@
   padding: var(--space-3) var(--space-4);
   font: var(--font-body);
   color: var(--color-text-primary);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-m);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(142, 148, 234, 0.08);
   text-align: left;
   cursor: pointer;
   transition: background 0.15s ease;
 }
 
+.placeItem:last-child {
+  border-bottom: none;
+}
+
+.placeItem:hover,
+.placeItem:focus-visible {
+  background: rgba(142, 148, 234, 0.14);
+  outline: none;
+}
+
 .placeItem:active {
-  background: var(--color-surface-elevated);
+  background: rgba(142, 148, 234, 0.22);
 }
 
 .people {

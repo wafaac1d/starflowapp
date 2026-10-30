@@ -21,7 +21,7 @@ from starflow.domain.plans import load_plans
 from starflow.domain.quota import PremiumRequired
 from starflow.domain.records import PlaceHit, Profile
 from starflow.services.chart import ChartService
-from starflow.services.nominatim import NominatimLookup
+from starflow.services.nominatim import NominatimLookup, format_short_place
 from starflow.services.places import PlaceService, RequestPace
 from starflow.services.timezones import FinderTimezone
 
@@ -367,6 +367,28 @@ def test_nominatim_agent_and_timezone_lookup() -> None:
     lookup = NominatimLookup("https://nominatim.openstreetmap.org", "StarFlow/0.1")
     assert lookup._user_agent == "StarFlow/0.1"
     assert FinderTimezone().zone(55.75, 37.62) == "Europe/Moscow"
+
+
+def test_format_short_place() -> None:
+    assert (
+        format_short_place(
+            "Москва, Центральный административный округ, Москва, 101000, Россия",
+            {"address": {"country": "Россия", "city": "Москва"}},
+        )
+        == "Россия, Москва"
+    )
+    assert (
+        format_short_place(
+            "Москва, Центральный административный округ, Москва, 101000, Россия"
+        )
+        == "Россия, Москва"
+    )
+    assert (
+        format_short_place("Санкт-Петербург, Северо-Западный федеральный округ, Россия")
+        == "Россия, Санкт-Петербург"
+    )
+    assert format_short_place("Minsk, Belarus") == "Minsk, Belarus"
+    assert format_short_place("Париж") == "Париж"
 
 
 class _Lookup:

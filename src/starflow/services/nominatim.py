@@ -28,7 +28,13 @@ class NominatimLookup:
             timeout=10,
         )
         try:
-            found = geocoder.geocode(query, exactly_one=False, limit=5, language="ru")
+            found = geocoder.geocode(
+                query,
+                exactly_one=False,
+                limit=5,
+                language="ru",
+                addressdetails=True,
+            )
         except GeopyError:
             return []
         if found is None:
@@ -43,11 +49,53 @@ class NominatimLookup:
                 continue
             if not isinstance(label, str) or not label.strip():
                 continue
+            raw = getattr(item, "raw", None)
+            short_label = format_short_place(label.strip(), raw if isinstance(raw, dict) else None)
             hits.append(
                 PlaceHit(
-                    label.strip(),
+                    short_label,
                     Decimal(f"{latitude:.6f}"),
                     Decimal(f"{longitude:.6f}"),
                 )
             )
         return hits
+
+
+def format_short_place(address_text: str, raw: dict[str, object] | None = None) -> str:
+    if raw and isinstance(raw, dict):
+        addr = raw.get("address")
+        if isinstance(addr, dict):
+            country = addr.get("country")
+            city = (
+                addr.get("city")
+                or addr.get("town")
+                or addr.get("village")
+                or addr.get("municipality")
+                or addr.get("state")
+                or raw.get("name")
+            )
+            if country and city and isinstance(country, str) and isinstance(city, str):
+                country_clean = country.strip()
+                city_clean = city.strip()
+                if country_clean.lower() == city_clean.lower():
+                    return city_clean
+                return f"{country_clean}, {city_clean}"
+
+    parts = [p.strip() for p in address_text.split(",") if p.strip()]
+    if not parts:
+        return address_text.strip()
+    if len(parts) == 1:
+        return parts[0]
+    if len(parts) == 2:
+        return f"{parts[0]}, {parts[1]}"
+
+    city = parts[0]
+    country = parts[-1]
+    if country.isdigit() and len(parts) >= 3:
+        country = parts[-2]
+    elif country.isdigit():
+        return city
+
+    if country.lower() == city.lower():
+        return city
+    return f"{country}, {city}"

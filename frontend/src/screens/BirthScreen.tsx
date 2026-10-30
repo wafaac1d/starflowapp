@@ -36,12 +36,36 @@ function timeDraft(value: string): DraftPayload {
   return { birth_time_unknown: false, birth_time: clock };
 }
 
+export function formatPlaceLabel(label: string): string {
+  const parts = label
+    .split(",")
+    .map((p) => p.trim())
+    .filter((p): p is string => Boolean(p));
+  if (parts.length <= 1) {
+    return label.trim();
+  }
+  const city = parts[0] ?? "";
+  if (parts.length === 2) {
+    return `${parts[0]}, ${parts[1]}`;
+  }
+  let country = parts[parts.length - 1] ?? "";
+  if (/^\d+$/.test(country) && parts.length >= 3) {
+    country = parts[parts.length - 2] ?? "";
+  }
+  if (!country || country.toLowerCase() === city.toLowerCase()) {
+    return city;
+  }
+  return `${country}, ${city}`;
+}
+
 export function BirthScreen({ profile, displayName }: BirthScreenProps) {
   const navigate = useNavigate();
   const client = useQueryClient();
   const [date, setDate] = useState(profile.birth_date ?? "");
   const [time, setTime] = useState(profile.birth_time ?? "");
-  const [placeQuery, setPlaceQuery] = useState(profile.birth_place ?? "");
+  const [placeQuery, setPlaceQuery] = useState(
+    profile.birth_place ? formatPlaceLabel(profile.birth_place) : ""
+  );
   const [selectedPlace, setSelectedPlace] = useState<PlaceHit | null>(null);
   const [hits, setHits] = useState<PlaceHit[]>([]);
   const stablePlace = useDebouncedValue(placeQuery);
@@ -184,21 +208,24 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
             />
             <p className={styles.meta}>Можно оставить пустым, если не хотите указывать город</p>
             {hits.length > 0 ? (
-              <div className={styles.placeHits} role="listbox" aria-label="Города">
-                {hits.map((hit) => (
-                  <button
-                    key={`${hit.label}:${hit.latitude}`}
-                    type="button"
-                    className={styles.placeItem}
-                    onClick={() => {
-                      setPlaceQuery(hit.label);
-                      setSelectedPlace(hit);
-                      setHits([]);
-                    }}
-                  >
-                    {hit.label}
-                  </button>
-                ))}
+              <div className={styles.placeMenu} role="listbox" aria-label="Города">
+                {hits.map((hit) => {
+                  const label = formatPlaceLabel(hit.label);
+                  return (
+                    <button
+                      key={`${hit.label}:${hit.latitude}`}
+                      type="button"
+                      className={styles.placeItem}
+                      onClick={() => {
+                        setPlaceQuery(label);
+                        setSelectedPlace({ ...hit, label });
+                        setHits([]);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             ) : null}
           </div>
