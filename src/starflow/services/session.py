@@ -56,6 +56,7 @@ class SessionService:
         self._uow_factory = uow_factory
         self._admin_ids = admin_ids
         self._ttl_sec = ttl_sec
+        self._welcomed_telegram_ids: set[int] = set()
 
     async def accept_telegram_user(
         self,
@@ -71,10 +72,10 @@ class SessionService:
         return _view(user, telegram_id in self._admin_ids)
 
     async def mark_bot_welcomed(self, telegram_id: int) -> bool:
-        async with self._uow_factory() as uow:
-            is_first = await uow.users.mark_bot_welcomed(telegram_id)
-            await uow.commit()
-            return is_first
+        if telegram_id not in self._welcomed_telegram_ids:
+            self._welcomed_telegram_ids.add(telegram_id)
+            return True
+        return False
 
     async def issue(self, view: SessionView) -> IssuedSession:
         token = secrets.token_urlsafe(32)

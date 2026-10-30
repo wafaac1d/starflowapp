@@ -12,7 +12,6 @@ class User:
     language_code: str | None
     referral_code: str | None = None
     referred_by: UUID | None = None
-    bot_welcomed: bool = False
 
 
 @dataclass(frozen=True)

@@ -51,9 +51,6 @@ class UserRow(Base):
     star_balance: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0, server_default=text("0")
     )
-    bot_welcomed: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=text("false")
-    )
 
 
 class StarSpendRow(Base):
