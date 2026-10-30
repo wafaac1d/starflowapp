@@ -1,11 +1,20 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
-import { editProfile, saveDraft, type DraftPayload, type ProfileResponse } from "../api/client";
+import {
+  confirmPlace,
+  editProfile,
+  saveDraft,
+  searchPlaces,
+  type DraftPayload,
+  type PlaceHit,
+  type ProfileResponse,
+} from "../api/client";
 import { maskBirthDate, maskBirthTime } from "../birthDate";
 import { queryKeys } from "../api/keys";
 import { deviceTimezone } from "../deviceZone";
+import { useDebouncedValue } from "../placeQuery";
 import { Button } from "../shared/ui/Button/Button";
 import { ErrorState } from "../shared/ui/ErrorState/ErrorState";
 import { Field } from "../shared/ui/Field/Field";
@@ -32,12 +41,71 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
   const client = useQueryClient();
   const [date, setDate] = useState(profile.birth_date ?? "");
   const [time, setTime] = useState(profile.birth_time ?? "");
+  const [placeQuery, setPlaceQuery] = useState(profile.birth_place ?? "");
+  const [selectedPlace, setSelectedPlace] = useState<PlaceHit | null>(null);
+  const [hits, setHits] = useState<PlaceHit[]>([]);
+  const stablePlace = useDebouncedValue(placeQuery);
+
+  useEffect(() => {
+    const q = stablePlace.trim();
+    if (q.length < 2 || selectedPlace !== null || q === (profile.birth_place ?? "").trim()) {
+      setHits([]);
+      return;
+    }
+    let active = true;
+    void searchPlaces(q)
+      .then((found) => {
+        if (active) {
+          setHits(found);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setHits([]);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [stablePlace, selectedPlace, profile.birth_place]);
+
   const save = useMutation({
     mutationFn: async () => {
       const clock = timeDraft(time);
-      if (profile.step === "done") {
-        return editProfile({ birth_date: date, ...clock });
+      let placeToConfirm = selectedPlace;
+      if (
+        !placeToConfirm &&
+        placeQuery.trim().length >= 2 &&
+        placeQuery.trim() !== (profile.birth_place ?? "").trim()
+      ) {
+        try {
+          const found = await searchPlaces(placeQuery.trim());
+          if (found.length > 0) {
+            placeToConfirm = found[0];
+          }
+        } catch {
+          // ignore geocode search failure
+        }
       }
+
+      if (profile.step === "done") {
+        const clearPlace = placeQuery.trim() === "" && !!profile.birth_place;
+        let current = await editProfile({
+          birth_date: date,
+          ...clock,
+          ...(clearPlace ? { clear_place: true } : {}),
+        });
+        if (placeToConfirm) {
+          current = await confirmPlace({
+            query: placeQuery,
+            label: placeToConfirm.label,
+            latitude: placeToConfirm.latitude,
+            longitude: placeToConfirm.longitude,
+          });
+        }
+        return current;
+      }
+
       let current = profile;
       const name = current.display_name ?? displayName;
       for (let hop = 0; hop < 6; hop += 1) {
@@ -57,10 +125,21 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
           break;
         }
       }
+
+      if (placeToConfirm) {
+        current = await confirmPlace({
+          query: placeQuery,
+          label: placeToConfirm.label,
+          latitude: placeToConfirm.latitude,
+          longitude: placeToConfirm.longitude,
+        });
+      }
+
       return current;
     },
     onSuccess: (next) => {
       client.setQueryData(queryKeys.session, next);
+      void client.invalidateQueries({ queryKey: queryKeys.chart });
       if (next.step === "done") {
         void navigate("/");
       }
@@ -72,7 +151,7 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
         <TopBar back />
         <Stepper label="1 из 3" />
         <h1 className={styles.welcomeTitle}>Когда вы родились?</h1>
-        <p className={styles.lead}>Укажите дату и время рождения, чтобы получить точный прогноз.</p>
+        <p className={styles.lead}>Укажите дату, время и город рождения, чтобы получить точный прогноз.</p>
         <div className={styles.stack}>
           <Field
             label="Дата рождения"
@@ -92,6 +171,36 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
               }}
             />
             <p className={styles.meta}>Можно оставить пустым, если не знаете время рождения</p>
+          </div>
+          <div className={styles.fieldNote}>
+            <Field
+              label="Город рождения"
+              value={placeQuery}
+              chevron={false}
+              onChange={(value) => {
+                setPlaceQuery(value);
+                setSelectedPlace(null);
+              }}
+            />
+            <p className={styles.meta}>Можно оставить пустым, если не хотите указывать город</p>
+            {hits.length > 0 ? (
+              <div className={styles.placeHits} role="listbox" aria-label="Города">
+                {hits.map((hit) => (
+                  <button
+                    key={`${hit.label}:${hit.latitude}`}
+                    type="button"
+                    className={styles.placeItem}
+                    onClick={() => {
+                      setPlaceQuery(hit.label);
+                      setSelectedPlace(hit);
+                      setHits([]);
+                    }}
+                  >
+                    {hit.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
         {save.isError ? <ErrorState message="Не удалось сохранить данные рождения" /> : null}

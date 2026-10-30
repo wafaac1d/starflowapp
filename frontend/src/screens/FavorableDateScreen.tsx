@@ -311,7 +311,7 @@ function addToCalendar(title: string, day: FavorableDay): void {
   const stamp = day.date.replaceAll("-", "");
   const start = `${stamp}T${day.start.replace(":", "")}00`;
   const end = `${stamp}T${day.end.replace(":", "")}00`;
-  const description = `${day.note} Развлекательный набросок, не обещание события.`;
+  const description = `${day.note} Не обещание события.`;
   const body = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",

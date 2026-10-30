@@ -7,6 +7,7 @@ import subprocess
 import sys
 import time as unix_clock
 from datetime import UTC, date, datetime, time, timedelta
+from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -35,15 +36,17 @@ from starflow.db.tables import (
     ForecastCacheRow,
     ForecastHistoryRow,
     IdempotencyKeyRow,
+    StarSpendRow,
     UsageCounterRow,
 )
 from starflow.domain.plans import Plans, load_plans
 from starflow.domain.quota import Allowed, LimitReached
-from starflow.domain.records import ProfileDraft
+from starflow.domain.records import PlaceHit, ProfileDraft
 from starflow.i18n.catalog import load_catalog
 from starflow.repositories.uow import SqlUnitOfWork
 from starflow.services.assistant import AssistantService
 from starflow.services.forecast import ForecastService, ReadingScope
+from starflow.services.profile import DraftInput
 from starflow.services.quota import QuotaService, StoredResult
 from tests.support import make_settings
 from tests.unit.test_skeleton import _init_data
@@ -548,6 +551,129 @@ async def test_daily_sky_is_computed_once_and_birth_edits_drop_the_chart(
     await engine.dispose()
 
 
+@pytest.mark.asyncio
+async def test_changing_birth_date_resets_natal_star_spend(database_url: str) -> None:
+    engine, factory = _factory(database_url)
+    settings = make_settings(database_url=database_url, singleton_lock=False)
+    container = build_container(settings)
+    user_id = await _user(factory)
+
+    async with SqlUnitOfWork(factory) as uow:
+        await uow.profiles.save_onboarding(
+            user_id,
+            step="done",
+            display_name="Тест",
+            birth_date=date(1990, 1, 15),
+            timezone="Europe/Moscow",
+        )
+        await uow.commit()
+
+    await container.stars_service.credit(user_id, 100)
+
+    # До оплаты натальная карта требует звёзд
+    chart_before = await container.chart_service.read(user_id)
+    assert chart_before.natal_access == "stars_required"
+
+    # Оплачиваем натальную карту
+    bought = await container.stars_service.buy(user_id, "natal", "self")
+    assert bought.allowed is True
+    assert bought.charged is True
+
+    chart_paid = await container.chart_service.read(user_id)
+    assert chart_paid.natal_access == "allowed"
+
+    # Изменение только имени не сбрасывает оплату карты
+    await container.profile_service.edit(
+        user_id,
+        DraftInput(display_name="Новое Имя", birth_date=None, birth_time=None, birth_time_unknown=False, timezone=None),
+    )
+    chart_same_date = await container.chart_service.read(user_id)
+    assert chart_same_date.natal_access == "allowed"
+
+    # Сохранение той же даты рождения не сбрасывает оплату карты
+    await container.profile_service.edit(
+        user_id,
+        DraftInput(display_name=None, birth_date="15.01.1990", birth_time=None, birth_time_unknown=False, timezone=None),
+    )
+    chart_identical_date = await container.chart_service.read(user_id)
+    assert chart_identical_date.natal_access == "allowed"
+
+    # Изменение даты рождения сбрасывает оплату натальной карты
+    await container.profile_service.edit(
+        user_id,
+        DraftInput(display_name=None, birth_date="20.05.1995", birth_time=None, birth_time_unknown=False, timezone=None),
+    )
+    assert not await container.stars_service.owns(user_id, "natal", "self")
+    chart_new_date = await container.chart_service.read(user_id)
+    assert chart_new_date.natal_access == "stars_required"
+
+    # Пользователю снова предлагается оплатить натальную карту, и после оплаты она открывается
+    bought_again = await container.stars_service.buy(user_id, "natal", "self")
+    assert bought_again.allowed is True
+    assert bought_again.charged is True
+    chart_reopened = await container.chart_service.read(user_id)
+    assert chart_reopened.natal_access == "allowed"
+
+    await container.engine.dispose()
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_birth_place_can_be_set_without_premium_and_computes_houses(database_url: str) -> None:
+    engine, factory = _factory(database_url)
+    settings = make_settings(database_url=database_url, singleton_lock=False)
+    container = build_container(settings)
+    user_id = await _user(factory)
+
+    # Завершаем онбординг с датой и временем, но без города
+    async with SqlUnitOfWork(factory) as uow:
+        await uow.profiles.save_onboarding(
+            user_id,
+            step="done",
+            display_name="Тест",
+            birth_date=date(1990, 1, 15),
+            birth_time=time(14, 30),
+            birth_time_unknown=False,
+            timezone="Europe/Moscow",
+        )
+        await uow.commit()
+
+    # Даем доступ к натальной карте
+    await container.stars_service.credit(user_id, 100)
+    await container.stars_service.buy(user_id, "natal", "self")
+
+    # Без города дома и асцендент не рассчитаны (place_missing)
+    chart_no_place = await container.chart_service.read(user_id)
+    assert chart_no_place.natal_access == "allowed"
+    assert chart_no_place.houses is None
+    assert "place_missing" in chart_no_place.limitations
+
+    # Сохраняем геокод в кэш и подтверждаем город (без премиума!)
+    async with SqlUnitOfWork(factory) as uow:
+        await uow.geocodes.store_results(
+            "москва",
+            [PlaceHit("Москва, Россия", Decimal("55.7558"), Decimal("37.6173"))],
+        )
+        await uow.commit()
+
+    updated = await container.profile_service.confirm_place(
+        user_id, "москва", "Москва, Россия", "55.7558", "37.6173"
+    )
+    assert updated.birth_place == "Москва, Россия"
+    assert updated.latitude == Decimal("55.7558")
+    assert updated.longitude == Decimal("37.6173")
+
+    # Теперь натальная карта строит дома и асцендент по координатам города!
+    chart_with_place = await container.chart_service.read(user_id)
+    assert chart_with_place.houses is not None
+    assert len(chart_with_place.houses) == 12
+    assert chart_with_place.ascendant_sign is not None
+    assert "place_missing" not in chart_with_place.limitations
+
+    await container.engine.dispose()
+    await engine.dispose()
+
+
 class _ScriptedModel:
     def __init__(
         self,
@@ -869,7 +995,8 @@ async def test_premium_text_uses_unknown_angles_and_replays_without_a_second_cal
     sent = model.kwargs[0]["user"]
     assert isinstance(sent, str)
     assert "unknown" in sent
-    assert "1990" not in sent
+    assert "02.01.1990" in sent
+    assert "birth_time" in sent
     replay = await service.start(user_id, "personal_day", "personalday2")
     assert replay.replayed or replay.status == "ready"
     assert model.calls == 1

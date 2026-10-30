@@ -202,7 +202,8 @@ class FavorableService:
             else profile.birth_time.strftime("%H:%M")
         )
         sun = "unknown" if profile.birth_date is None else calendar_sign(profile.birth_date)
-        facts = facts_text({"sun": sun, "birth_date": born, "birth_time": clock, "timezone": zone})
+        place = getattr(profile, "birth_place", None) or "unknown"
+        facts = facts_text({"sun": sun, "birth_date": born, "birth_time": clock, "birth_place": place, "timezone": zone})
         prompt = self._prompts.get("favorable")
         key = "|".join(
             (

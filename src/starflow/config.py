@@ -3,7 +3,7 @@ from typing import Annotated, Literal, Self
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BeforeValidator, Field, field_validator, model_validator
+from pydantic import AliasChoices, BeforeValidator, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from starflow.domain.plans import Plans, load_plans
@@ -56,7 +56,16 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     webhook_url: str = ""
     webhook_secret: str = ""
-    mini_app_url: str = ""
+    mini_app_url: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "mini_app_url",
+            "MINI_APP_URL",
+            "STARFLOW_MINI_APP_URL",
+            "BOT_MINI_APP_URL",
+            "APP_URL",
+        ),
+    )
     public_base_url: str = ""
     payment_hmac_secret: str
     auth_session_secret: str

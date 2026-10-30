@@ -35,6 +35,7 @@ class DraftBody(BaseModel):
     birth_time: str | None = None
     birth_time_unknown: bool = False
     timezone: str | None = None
+    clear_place: bool = False
 
 
 class PlaceSearchBody(BaseModel):
@@ -157,6 +158,7 @@ def _draft(body: DraftBody) -> DraftInput:
         birth_time=body.birth_time,
         birth_time_unknown=body.birth_time_unknown,
         timezone=body.timezone,
+        clear_place=body.clear_place,
     )
 
 

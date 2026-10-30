@@ -103,6 +103,7 @@ class _Profiles:
         birth_time_unknown: bool | None = None,
         timezone: str | None = None,
         clear_time: bool = False,
+        clear_place: bool = False,
     ) -> Profile:
         updated = replace(self.profile, onboarding_step=step)
         if display_name is not None:

@@ -90,7 +90,7 @@ export function ChatScreen({ premium, balance = 0 }: { premium: boolean; balance
               {premium ? " " : " Один вопрос стоит "}
               {premium ? null : <StarPrice amount={QUESTION_STARS} />}
               {premium ? null : " звёзд. "}
-              Ответ развлекательный и не обещает точное событие.
+              Ответ не обещает точное событие.
             </p>
           ) : null}
           {messages.map((message) => (

@@ -30,6 +30,9 @@ class PromptCatalog:
             raise KeyError(name)
         return found
 
+    def values(self) -> tuple[PromptSpec, ...]:
+        return tuple(self._prompts.values())
+
 
 def load_prompts(path: Path) -> PromptCatalog:
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))

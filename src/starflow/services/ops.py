@@ -505,6 +505,8 @@ class OpsService:
     async def _generate(self, kind: str, segment: str) -> dict[str, object]:
         prompt = self._prompts.get(kind)
         facts = representative_facts(kind, segment)
+        if "birth_date" not in facts:
+            facts = {**facts, "birth_date": "unknown", "birth_time": "unknown", "birth_place": "unknown"}
         user = prompt.user.replace("{facts}", facts_text(facts))
         last = "invalid"
         for _attempt in range(2):

@@ -126,6 +126,7 @@ def _api_router(container: Container) -> APIRouter:
             identity.language_code,
             identity.start_param,
         )
+        structlog_user(view.telegram_id, str(view.user_id))
         issued = await container.session_service.issue(view)
         attach_session_cookie(response, container.settings, issued.token)
         return await profile_body(container, view.user_id, view.is_admin)
@@ -193,6 +194,16 @@ def structlog_update(update_id: int) -> None:
     import structlog
 
     structlog.contextvars.bind_contextvars(update_id=update_id)
+
+
+def structlog_user(telegram_id: int, user_id: str) -> None:
+    import structlog
+
+    structlog.contextvars.bind_contextvars(
+        telegram_id=telegram_id,
+        telegramId=telegram_id,
+        user_id=user_id,
+    )
 
 
 def _register_spa(app: FastAPI, container: Container) -> None:

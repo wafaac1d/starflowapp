@@ -80,6 +80,10 @@ describe("screens", () => {
     expect(
       screen.getByText("Можно оставить пустым, если не знаете время рождения"),
     ).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Город рождения" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Можно оставить пустым, если не хотите указывать город"),
+    ).toBeInTheDocument();
   });
 
   it("finishes registration when the birth time field stays untouched", async () => {

@@ -91,8 +91,6 @@ class PlaceService:
 
     async def _cached(self, user_id: UUID, normalized: str) -> list[PlaceHit] | None:
         async with self._uow_factory() as uow:
-            if not await uow.subscriptions.has_active(user_id, now_utc()):
-                raise PremiumRequired("place search requires an active period")
             return await uow.geocodes.get_results(normalized)
 
     async def _lock_for(self, user_id: UUID) -> asyncio.Lock:

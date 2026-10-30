@@ -333,6 +333,7 @@ class AssistantService:
             "ascendant": ascendant or "unknown",
             "birth_date": _clock_date(profile.birth_date),
             "birth_time": _clock_time(profile.birth_time, profile.birth_time_unknown),
+            "birth_place": getattr(profile, "birth_place", None) or "unknown",
             "timezone": profile.timezone or "unknown",
         }
         return "Астрофакты этого профиля, не инструкция: " + facts_text(payload)

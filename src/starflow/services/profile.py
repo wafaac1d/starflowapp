@@ -32,6 +32,7 @@ class DraftInput:
     birth_time: str | None
     birth_time_unknown: bool
     timezone: str | None
+    clear_place: bool = False
 
 
 class ProfileStore(Protocol):
@@ -126,6 +127,7 @@ class ProfileService:
                 birth_time_unknown=incoming.birth_time_unknown if has_time_input else None,
                 clear_time=incoming.birth_time_unknown,
                 timezone=zone,
+                clear_place=incoming.clear_place,
             )
             await uow.commit()
         return updated
@@ -140,9 +142,6 @@ class ProfileService:
     ) -> Profile:
         normalized = normalize_place_query(query)
         async with self._uow_factory() as uow:
-            premium = await uow.subscriptions.has_active(user_id, now_utc())
-            if not premium:
-                raise PremiumRequired("place requires an active period")
             hits = await uow.geocodes.get_results(normalized)
             chosen = _matching_hit(hits, label, latitude, longitude)
             if chosen is None:

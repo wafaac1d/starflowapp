@@ -228,6 +228,33 @@
   gap: var(--space-2);
 }
 
+.placeHits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: calc(-1 * var(--space-1));
+}
+
+.placeItem {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font: var(--font-body);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-m);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.placeItem:active {
+  background: var(--color-surface-elevated);
+}
+
 .people {
   display: flex;
   flex-direction: column;

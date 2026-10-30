@@ -43,6 +43,7 @@ export type DraftPayload = {
   birth_time?: string;
   birth_time_unknown?: boolean;
   timezone?: string;
+  clear_place?: boolean;
 };
 
 export async function getMeta(fetchImpl: typeof fetch = fetch): Promise<MetaResponse> {

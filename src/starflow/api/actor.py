@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+import structlog
 from fastapi import Request
 from starlette.responses import Response
 
@@ -48,4 +49,9 @@ async def actor_from_cookie(request: Request, container: Container, message: str
     view = await container.session_service.resume(token)
     if view is None:
         raise ApiError(401, "unauthorized", message)
+    structlog.contextvars.bind_contextvars(
+        telegram_id=view.telegram_id,
+        telegramId=view.telegram_id,
+        user_id=str(view.user_id),
+    )
     return Actor(view)

@@ -72,6 +72,7 @@ export function ProfilePage({ profile }: ProfilePageProps) {
     mutationFn: (body) => editProfile(body),
     onSuccess: (next) => {
       client.setQueryData(["session"], next);
+      void client.invalidateQueries({ queryKey: ["chart"] });
       setFields({});
       void navigate("/profile", { replace: true });
     },

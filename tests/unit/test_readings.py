@@ -361,3 +361,15 @@ def test_guard_json_is_not_imported_as_html() -> None:
     cleaned = plain_text('{"title":"сегодня","body":"<script>alert(1)</script>"}')
     assert "<" not in cleaned
     assert json.loads('{"ok": true}')["ok"] is True
+
+
+def test_all_forecast_prompts_instruct_to_use_birth_date_and_time() -> None:
+    prompts = load_prompts(
+        Path(__file__).resolve().parents[2] / "resources" / "prompts" / "forecasts.yaml"
+    )
+    for spec in prompts.values():
+        system_lower = spec.system.lower()
+        user_lower = spec.user.lower()
+        assert "дата" in system_lower or "дата" in user_lower or "дат" in system_lower or "дат" in user_lower
+        assert "время" in system_lower or "время" in user_lower
+        assert "рождения" in system_lower or "рождения" in user_lower

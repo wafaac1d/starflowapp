@@ -479,6 +479,7 @@ class ForecastService:
             births = (
                 await uow.related_profiles.list_births(user_id) if kind == "compatibility" else ()
             )
+        birth_date, birth_time, birth_place = _person_birth(profile)
         if kind == "moon":
             day = local_date(moment, self._zone_name)
             sky = await self._sky.for_date(day)
@@ -488,6 +489,9 @@ class ForecastService:
                 "date": day.isoformat(),
                 "moon": moon if isinstance(moon, str) else "unknown",
                 "phase": phase if isinstance(phase, str) else "unknown",
+                "birth_date": birth_date,
+                "birth_time": birth_time,
+                "birth_place": birth_place,
             }
             return moon_segment(day), facts, profile
         if profile.birth_date is None:
@@ -502,9 +506,25 @@ class ForecastService:
                     status="blocked", body=self._catalog.text("errors.related_required")
                 )
             segment = pair_segment(sign, calendar_sign(related.birth_date))
-            return segment, representative_facts(kind, segment), profile
+            rel_date, rel_time, rel_place = _person_birth(related)
+            facts = {
+                **representative_facts(kind, segment),
+                "birth_date": birth_date,
+                "birth_time": birth_time,
+                "birth_place": birth_place,
+                "partner_birth_date": rel_date,
+                "partner_birth_time": rel_time,
+                "partner_birth_place": rel_place,
+            }
+            return segment, facts, profile
         segment = sun_segment(sign)
-        return segment, representative_facts(kind, segment), profile
+        facts = {
+            **representative_facts(kind, segment),
+            "birth_date": birth_date,
+            "birth_time": birth_time,
+            "birth_place": birth_place,
+        }
+        return segment, facts, profile
 
     async def _remember(
         self,
@@ -792,10 +812,17 @@ class ForecastService:
             related = None
             if scope.related_id is not None:
                 related = await uow.related_profiles.get_owned(user_id, scope.related_id)
+        birth_date, birth_time, birth_place = _person_birth(profile)
         if kind in {"today_detail", "tomorrow"}:
             sky_day = when.astimezone(ZoneInfo(self._zone_name)).date()
             sky = await self._sky.for_date(sky_day)
-            segment, facts = _sky_facts(kind, sky, sky_day)
+            segment, sky_f = _sky_facts(kind, sky, sky_day)
+            facts = {
+                **sky_f,
+                "birth_date": birth_date,
+                "birth_time": birth_time,
+                "birth_place": birth_place,
+            }
             return segment, facts, profile, (), storage, day, when
         if kind == "synastry" and scope.left_sign != "" and scope.right_sign != "":
             left_sign, right_sign = checked_signs(scope.left_sign, scope.right_sign)
@@ -803,9 +830,15 @@ class ForecastService:
                 {"sun": left_sign, "moon": None, "asc": None},
                 {"sun": right_sign, "moon": None, "asc": None},
             )
+            facts = {
+                **pair_facts(segment, scope.topic),
+                "birth_date": birth_date,
+                "birth_time": birth_time,
+                "birth_place": birth_place,
+            }
             return (
                 segment,
-                pair_facts(segment, scope.topic),
+                facts,
                 profile,
                 (),
                 storage,
@@ -837,9 +870,19 @@ class ForecastService:
             }
             segment = synastry_segment(left, right)
             limitations = _synastry_limits(profile, related)
+            rel_date, rel_time, rel_place = _person_birth(related)
+            facts = {
+                **pair_facts(segment, scope.topic),
+                "birth_date": birth_date,
+                "birth_time": birth_time,
+                "birth_place": birth_place,
+                "partner_birth_date": rel_date,
+                "partner_birth_time": rel_time,
+                "partner_birth_place": rel_place,
+            }
             return (
                 segment,
-                pair_facts(segment, scope.topic),
+                facts,
                 profile,
                 limitations,
                 storage,
@@ -851,10 +894,20 @@ class ForecastService:
             sky_moon = sky.get("moon_sign")
             moon_sign = sky_moon if isinstance(sky_moon, str) else (moon or "unknown")
             segment = calendar_segment(sign, moon_sign, ascendant, scope.month)
-            facts = representative_facts(kind, segment)
+            facts = {
+                **representative_facts(kind, segment),
+                "birth_date": birth_date,
+                "birth_time": birth_time,
+                "birth_place": birth_place,
+            }
             return segment, facts, profile, (), storage, day, when
         segment = personal_segment(sign, moon, ascendant)
-        facts = representative_facts(kind, segment)
+        facts = {
+            **representative_facts(kind, segment),
+            "birth_date": birth_date,
+            "birth_time": birth_time,
+            "birth_place": birth_place,
+        }
         if kind == "topics":
             facts = {**facts, "topic": scope.topic}
         return segment, facts, profile, (), storage, day, when
@@ -878,7 +931,14 @@ class ForecastService:
             list(houses),
             list(chart.aspects),
         )
-        return segment, natal_facts(chart), profile, (), storage, day, when
+        birth_date, birth_time, birth_place = _person_birth(profile)
+        facts = {
+            **natal_facts(chart),
+            "birth_date": birth_date,
+            "birth_time": birth_time,
+            "birth_place": birth_place,
+        }
+        return segment, facts, profile, (), storage, day, when
 
     async def _calendar_text(
         self,
@@ -1204,3 +1264,17 @@ def _texts(value: object) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
     return tuple(item for item in value if isinstance(item, str))
+
+
+def _person_birth(profile: object) -> tuple[str, str, str]:
+    born = getattr(profile, "birth_date", None)
+    birth_date_str = born.strftime("%d.%m.%Y") if isinstance(born, date) else "unknown"
+    clock = getattr(profile, "birth_time", None)
+    unknown = getattr(profile, "birth_time_unknown", False)
+    if unknown or clock is None or not isinstance(clock, time):
+        birth_time_str = "unknown"
+    else:
+        birth_time_str = clock.strftime("%H:%M")
+    place = getattr(profile, "birth_place", None)
+    place_str = place.strip() if place and isinstance(place, str) and place.strip() else "unknown"
+    return birth_date_str, birth_time_str, place_str

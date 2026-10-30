@@ -70,6 +70,12 @@ class SessionService:
             await uow.commit()
         return _view(user, telegram_id in self._admin_ids)
 
+    async def mark_bot_welcomed(self, telegram_id: int) -> bool:
+        async with self._uow_factory() as uow:
+            is_first = await uow.users.mark_bot_welcomed(telegram_id)
+            await uow.commit()
+            return is_first
+
     async def issue(self, view: SessionView) -> IssuedSession:
         token = secrets.token_urlsafe(32)
         expires_at = now_utc() + timedelta(seconds=self._ttl_sec)

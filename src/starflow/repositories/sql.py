@@ -27,6 +27,7 @@ from starflow.db.tables import (
     PaymentChargeRow,
     ProfileRow,
     RelatedProfileRow,
+    StarSpendRow,
     SubscriptionEventRow,
     SubscriptionRow,
     SupportTicketRow,
@@ -122,6 +123,20 @@ class SqlUserRepository:
         stored.updated_at = now_utc()
         await self._session.flush()
         return _user(stored)
+
+    async def mark_bot_welcomed(self, telegram_id: int) -> bool:
+        result = await self._session.execute(
+            select(UserRow).where(UserRow.telegram_id == telegram_id)
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return True
+        first_time = not row.bot_welcomed
+        if first_time:
+            row.bot_welcomed = True
+            row.updated_at = now_utc()
+            await self._session.flush()
+        return first_time
 
     async def lock(self, user_id: UUID) -> None:
         result = await self._session.execute(
@@ -252,11 +267,13 @@ class ProfileRepository:
         birth_time_unknown: bool | None = None,
         timezone: str | None = None,
         clear_time: bool = False,
+        clear_place: bool = False,
     ) -> Profile:
         row = await self._row(user_id)
         row.onboarding_step = step
         if display_name is not None:
             row.display_name = display_name
+        date_changed = birth_date is not None and row.birth_date != birth_date
         if birth_date is not None:
             row.birth_date = birth_date
         if birth_time_unknown is not None:
@@ -267,6 +284,10 @@ class ProfileRepository:
             row.birth_time = birth_time
         if timezone is not None:
             row.timezone = timezone
+        if clear_place:
+            row.birth_place = None
+            row.latitude = None
+            row.longitude = None
         row.updated_at = now_utc()
         await self._session.flush()
         if (
@@ -275,8 +296,11 @@ class ProfileRepository:
             or birth_time_unknown is not None
             or timezone is not None
             or clear_time
+            or clear_place
         ):
             await _drop_natal_cache(self._session, user_id)
+        if date_changed:
+            await _drop_natal_spend(self._session, user_id)
         return _profile(row)
 
     async def save_place(
@@ -1733,6 +1757,7 @@ def _user(row: UserRow) -> User:
         language_code=row.language_code,
         referral_code=row.referral_code,
         referred_by=row.referred_by,
+        bot_welcomed=getattr(row, "bot_welcomed", False),
     )
 
 
@@ -1834,5 +1859,14 @@ async def _drop_natal_cache(session: AsyncSession, user_id: UUID) -> None:
         delete(ForecastCacheRow).where(
             ForecastCacheRow.user_id == user_id,
             ForecastCacheRow.kind == "natal",
+        )
+    )
+
+
+async def _drop_natal_spend(session: AsyncSession, user_id: UUID) -> None:
+    await session.execute(
+        delete(StarSpendRow).where(
+            StarSpendRow.user_id == user_id,
+            StarSpendRow.feature == "natal",
         )
     )

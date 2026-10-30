@@ -10,8 +10,11 @@ from aiogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    KeyboardButton,
+    MenuButtonWebApp,
     Message,
     PreCheckoutQuery,
+    ReplyKeyboardMarkup,
     TelegramObject,
     WebAppInfo,
 )
@@ -20,9 +23,25 @@ from starflow.bot.screens import SCREENS, screen_url
 from starflow.domain.errors import FieldInvalid
 from starflow.domain.time import now_utc
 from starflow.i18n.catalog import Catalog
+from starflow.i18n.guard import redact
 from starflow.services.billing import BillingService
 from starflow.services.ops import OpsService
 from starflow.services.session import SessionService
+
+_LOG = structlog.get_logger("bot")
+
+WELCOME_MESSAGE = (
+    "Добро пожаловать в обсерваторию **StarFlow**! 🔭\n\n"
+    "Открой приложение, чтобы продолжить — нажми на кнопку под сообщением 👇 "
+    "и кнопку снизу на открытие приложения."
+)
+
+FOLLOWUP_MESSAGE = (
+    "Я не отвечаю команды, а всё самое интересное — в обсерватории **StarFlow** 🔭\n\n"
+    "Нажми на кнопку ниже, чтобы открыть приложение 👇"
+)
+
+BUTTON_TEXT = "Открыть StarFlow"
 
 
 class UpdateContextMiddleware(BaseMiddleware):
@@ -34,12 +53,67 @@ class UpdateContextMiddleware(BaseMiddleware):
     ) -> Any:
         update = data.get("event_update")
         update_id = getattr(update, "update_id", None)
+        user = data.get("event_from_user") or getattr(event, "from_user", None)
+        telegram_id = getattr(user, "id", None) if user is not None else None
+
+        request_type = "bot.unknown"
+        params: dict[str, Any] = {}
+        if isinstance(event, Message):
+            if event.successful_payment is not None:
+                pay = event.successful_payment
+                request_type = "bot.successful_payment"
+                params = {
+                    "currency": pay.currency,
+                    "total_amount": pay.total_amount,
+                    "invoice_payload": pay.invoice_payload,
+                }
+            elif event.text and event.text.startswith("/"):
+                parts = event.text.split(maxsplit=1)
+                cmd = parts[0]
+                args = parts[1] if len(parts) > 1 else ""
+                request_type = f"bot.command_{cmd.lstrip('/')}"
+                params = {"command": cmd, "args": args}
+            else:
+                request_type = "bot.message"
+                params = {"text": event.text or ""}
+        elif isinstance(event, CallbackQuery):
+            request_type = "bot.callback_query"
+            params = {"data": event.data or ""}
+        elif isinstance(event, PreCheckoutQuery):
+            request_type = "bot.pre_checkout_query"
+            params = {
+                "currency": event.currency,
+                "total_amount": event.total_amount,
+                "invoice_payload": event.invoice_payload,
+            }
+        else:
+            request_type = f"bot.{type(event).__name__.lower()}"
+
+        bound: dict[str, Any] = {
+            "request_type": request_type,
+            "params": redact(params),
+        }
         if isinstance(update_id, int):
-            structlog.contextvars.bind_contextvars(update_id=update_id)
+            bound["update_id"] = update_id
+        if isinstance(telegram_id, int):
+            bound["telegram_id"] = telegram_id
+            bound["telegramId"] = telegram_id
+            bound["user_id"] = telegram_id
+        structlog.contextvars.bind_contextvars(**bound)
+
+        _LOG.info(
+            "bot_request",
+            telegramId=telegram_id,
+            telegram_id=telegram_id,
+            request_type=request_type,
+            params=redact(params),
+        )
         try:
             return await handler(event, data)
         finally:
-            structlog.contextvars.unbind_contextvars("update_id", "user_id")
+            structlog.contextvars.unbind_contextvars(
+                "update_id", "user_id", "telegram_id", "telegramId", "request_type", "params"
+            )
 
 
 def register_handlers(
@@ -69,7 +143,9 @@ def register_handlers(
         user = message.from_user
         if payment is None or user is None:
             return
-        structlog.contextvars.bind_contextvars(user_id=user.id)
+        structlog.contextvars.bind_contextvars(
+            telegram_id=user.id, telegramId=user.id, user_id=user.id
+        )
         await billing.apply_payment(
             telegram_user_id=user.id,
             currency=payment.currency,
@@ -88,23 +164,31 @@ def register_handlers(
         if user is None:
             await message.answer(catalog.text("bot.start_missing_user"))
             return
-        structlog.contextvars.bind_contextvars(user_id=user.id)
+        structlog.contextvars.bind_contextvars(
+            telegram_id=user.id, telegramId=user.id, user_id=user.id
+        )
         await session_service.accept_telegram_user(
             user.id,
             user.username,
             user.language_code,
             command.args,
         )
-        await _open(message, catalog, mini_app_url, "", "bot.start", "bot.start_without_app")
+        is_first = await session_service.mark_bot_welcomed(user.id)
+        if is_first:
+            await _reply_welcome(message, catalog, mini_app_url)
+        else:
+            await _reply_followup(message, catalog, mini_app_url)
 
     for screen in SCREENS:
-        _register_screen(router, catalog, mini_app_url, screen)
+        _register_screen(router, session_service, catalog, mini_app_url, screen)
 
     @router.message(Command("delete_me"))
     async def on_delete(message: Message) -> None:
         user = message.from_user
         if user is not None:
-            structlog.contextvars.bind_contextvars(user_id=user.id)
+            structlog.contextvars.bind_contextvars(
+                telegram_id=user.id, telegramId=user.id, user_id=user.id
+            )
         button = InlineKeyboardButton(
             text=catalog.text("bot.delete_confirm"),
             callback_data="delete_me",
@@ -175,13 +259,27 @@ def register_handlers(
         if user is None:
             await message.answer(catalog.text("bot.start_missing_user"))
             return
-        structlog.contextvars.bind_contextvars(user_id=user.id)
-        await _open(message, catalog, mini_app_url, "", "bot.start", "bot.start_without_app")
+        structlog.contextvars.bind_contextvars(
+            telegram_id=user.id, telegramId=user.id, user_id=user.id
+        )
+        await session_service.accept_telegram_user(
+            user.id,
+            user.username,
+            user.language_code,
+            None,
+        )
+        is_first = await session_service.mark_bot_welcomed(user.id)
+        if is_first:
+            await _reply_welcome(message, catalog, mini_app_url)
+        else:
+            await _reply_followup(message, catalog, mini_app_url)
 
     @router.callback_query(F.data == "delete_me")
     async def on_delete_confirmed(query: CallbackQuery) -> None:
         user = query.from_user
-        structlog.contextvars.bind_contextvars(user_id=user.id)
+        structlog.contextvars.bind_contextvars(
+            telegram_id=user.id, telegramId=user.id, user_id=user.id
+        )
         removed = await session_service.delete_telegram_account(user.id)
         text = catalog.text("bot.delete_done" if removed else "bot.delete_missing")
         await query.answer()
@@ -189,20 +287,104 @@ def register_handlers(
             await query.message.answer(text)
 
 
-def _register_screen(router: Router, catalog: Catalog, mini_app_url: str, screen: str) -> None:
+def _register_screen(
+    router: Router,
+    session_service: SessionService,
+    catalog: Catalog,
+    mini_app_url: str,
+    screen: str,
+) -> None:
     @router.message(Command(screen))
     async def on_screen(message: Message) -> None:
         user = message.from_user
         if user is not None:
-            structlog.contextvars.bind_contextvars(user_id=user.id)
-        await _open(
-            message,
-            catalog,
-            mini_app_url,
-            screen,
-            f"bot.{screen}",
-            "bot.start_without_app",
-        )
+            structlog.contextvars.bind_contextvars(
+                telegram_id=user.id, telegramId=user.id, user_id=user.id
+            )
+            is_first = await session_service.mark_bot_welcomed(user.id)
+            if is_first:
+                await _reply_welcome(message, catalog, mini_app_url)
+                return
+        await _reply_followup(message, catalog, mini_app_url)
+
+
+def _make_keyboards(
+    mini_app_url: str, button_text: str = "Открыть StarFlow"
+) -> tuple[InlineKeyboardMarkup | None, ReplyKeyboardMarkup | None]:
+    if not mini_app_url:
+        return None, None
+    inline_kb = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=button_text, web_app=WebAppInfo(url=mini_app_url))]]
+    )
+    reply_kb = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=button_text, web_app=WebAppInfo(url=mini_app_url))]],
+        resize_keyboard=True,
+    )
+    return inline_kb, reply_kb
+
+
+async def _reply_welcome(
+    message: Message,
+    catalog: Catalog,
+    mini_app_url: str,
+) -> None:
+    if not mini_app_url:
+        await message.answer(catalog.text("bot.start_without_app"))
+        return
+    text = WELCOME_MESSAGE
+    button_text = BUTTON_TEXT
+    inline_kb, reply_kb = _make_keyboards(mini_app_url, button_text)
+    if message.bot:
+        try:
+            await message.bot.set_chat_menu_button(
+                chat_id=message.chat.id,
+                menu_button=MenuButtonWebApp(
+                    text=button_text,
+                    web_app=WebAppInfo(url=mini_app_url),
+                ),
+            )
+        except Exception:
+            pass
+    await message.answer(
+        text,
+        reply_markup=inline_kb,
+    )
+
+
+async def _reply_followup(
+    message: Message,
+    catalog: Catalog,
+    mini_app_url: str,
+) -> None:
+    if not mini_app_url:
+        await message.answer(catalog.text("bot.start_without_app"))
+        return
+    text = FOLLOWUP_MESSAGE
+    button_text = BUTTON_TEXT
+    inline_kb, _ = _make_keyboards(mini_app_url, button_text)
+    await message.answer(
+        text,
+        reply_markup=inline_kb,
+    )
+
+
+async def _open(
+    message: Message,
+    catalog: Catalog,
+    mini_app_url: str,
+    screen: str,
+    text_key: str,
+    missing_key: str,
+) -> None:
+    if not mini_app_url:
+        await message.answer(catalog.text(missing_key))
+        return
+    url = mini_app_url if not screen else screen_url(mini_app_url, screen)
+    button = InlineKeyboardButton(text=catalog.text("bot.open"), web_app=WebAppInfo(url=url))
+    await message.answer(
+        catalog.text(text_key),
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[button]]),
+    )
 
 
 async def _stats(
@@ -237,23 +419,4 @@ async def _stats(
             payments=snap.payments,
             errors=errors,
         )
-    )
-
-
-async def _open(
-    message: Message,
-    catalog: Catalog,
-    mini_app_url: str,
-    screen: str,
-    text_key: str,
-    missing_key: str,
-) -> None:
-    if not mini_app_url:
-        await message.answer(catalog.text(missing_key))
-        return
-    url = mini_app_url if not screen else screen_url(mini_app_url, screen)
-    button = InlineKeyboardButton(text=catalog.text("bot.open"), web_app=WebAppInfo(url=url))
-    await message.answer(
-        catalog.text(text_key),
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[button]]),
     )
