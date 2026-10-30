@@ -1,16 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { cleanForecastTitle, readingFace } from "./readingWait";
+import { GENERAL_DAILY_TITLES, cleanForecastTitle, readingFace } from "./readingWait";
 
 describe("readingWait", () => {
-  it("cleans birth dates from daily forecast title", () => {
-    expect(cleanForecastTitle("Фон дня 23 февраля 2002 года")).toBe("Фон дня");
-    expect(cleanForecastTitle("Фон дня: 23 февраля 2002 года")).toBe("Фон дня");
-    expect(cleanForecastTitle("23 февраля 2002 года")).toBe("Фон дня");
+  it("cleans birth dates from daily forecast title and replaces generic titles with a 3-4 word phrase", () => {
+    const fallback = cleanForecastTitle("Фон дня 23 февраля 2002 года");
+    expect(GENERAL_DAILY_TITLES).toContain(fallback);
+    expect(fallback.split(/\s+/).length).toBeGreaterThanOrEqual(3);
+    expect(fallback.split(/\s+/).length).toBeLessThanOrEqual(4);
+
+    expect(cleanForecastTitle("Фон дня: 23 февраля 2002 года")).toBe(fallback);
+    expect(cleanForecastTitle("23 февраля 2002 года")).toBe(fallback);
+    expect(cleanForecastTitle("Фон дня")).toBe(fallback);
+
     expect(cleanForecastTitle("Спокойный ритм дня")).toBe("Спокойный ритм дня");
-    expect(cleanForecastTitle("Фон дня: фокус и ясность")).toBe("Фон дня: фокус и ясность");
+    expect(cleanForecastTitle("Фон дня: фокус и ясность")).toBe("Фокус и ясность");
+    expect(cleanForecastTitle("День для ясных решений")).toBe("День для ясных решений");
   });
 
-  it("produces clean ready face without birth date in title", () => {
+  it("produces clean ready face with a 3-4 word phrase instead of birth date in title", () => {
     const face = readingFace(
       {
         status: "ready",
@@ -29,7 +36,7 @@ describe("readingWait", () => {
     );
     expect(face.phase).toBe("ready");
     if (face.phase === "ready") {
-      expect(face.title).toBe("Фон дня");
+      expect(GENERAL_DAILY_TITLES).toContain(face.title);
       expect(face.body).toBe("Хороший день для дел");
     }
   });

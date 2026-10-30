@@ -550,7 +550,9 @@ class ForecastService:
         version = self._prompt_version(kind)
         stored = dict(payload)
         if "title" in stored and isinstance(stored["title"], str):
-            stored["title"] = _clean_forecast_title(stored["title"], getattr(profile, "birth_date", None))
+            stored["title"] = _clean_forecast_title(
+                stored["title"], getattr(profile, "birth_date", None), day=day
+            )
         if version is not None:
             stored["prompt_version"] = version
         payload = stored
@@ -1187,18 +1189,45 @@ _DATE_RE = re.compile(
     re.IGNORECASE,
 )
 
+_GENERIC_PREFIX_RE = re.compile(
+    r"^(?:фон дня|прогноз дня|прогноз на день|прогноз|сегодня|фон)\s*[:\-–—]?\s*",
+    re.IGNORECASE,
+)
 
-def _clean_forecast_title(title: str | None, birth_date: date | None = None) -> str | None:
+GENERAL_DAILY_TITLES: tuple[str, ...] = (
+    "День для ясных решений",
+    "Спокойный ритм и фокус",
+    "Время гармонии и баланса",
+    "Уверенный импульс для дел",
+    "Внутренний баланс и ясность",
+    "Благоприятный день для планов",
+    "Гармоничный ритм и вдохновение",
+)
+
+
+def default_daily_title(day: date | None = None) -> str:
+    index = (date.today() if day is None else day).day
+    return GENERAL_DAILY_TITLES[index % len(GENERAL_DAILY_TITLES)]
+
+
+def _clean_forecast_title(
+    title: str | None,
+    birth_date: date | None = None,
+    day: date | None = None,
+) -> str:
     if not isinstance(title, str) or title.strip() == "":
-        return None
+        return default_daily_title(day)
     clean = _DATE_RE.sub("", title)
     if birth_date is not None:
         year_re = re.compile(rf"\b{birth_date.year}(?:\s*года|\s*г\.?)?\b", re.IGNORECASE)
         clean = year_re.sub("", clean)
+    clean = " ".join(clean.split())
+    clean = _GENERIC_PREFIX_RE.sub("", clean)
     clean = clean.strip(" :-—–\t\n")
-    if not clean:
-        return "Фон дня"
-    return clean
+    words = clean.split()
+    if len(words) < 2 or len(words) > 7:
+        return default_daily_title(day)
+    return clean[:1].upper() + clean[1:]
 
 
 def default_topics_preview(kind: str) -> dict[str, str]:

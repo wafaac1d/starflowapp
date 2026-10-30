@@ -17,17 +17,52 @@ const POLL_MS = 700;
 const DATE_RE =
   /(?:^|\s)\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+\d{4}(?:\s*года|\s*г\.?)?|(?:\b|\s)\d{1,2}\.\d{1,2}\.\d{4}(?:\b|\s)|(?:\b|\s)\d{4}-\d{2}-\d{2}(?:\b|\s)/gi;
 
-export function cleanForecastTitle(title: string | null | undefined): string {
-  if (!title) {
-    return "Фон дня";
+const GENERIC_PREFIX_RE =
+  /^(?:фон дня|прогноз дня|прогноз на день|прогноз|сегодня|фон)\s*[:\-–—]?\s*/i;
+
+export const GENERAL_DAILY_TITLES = [
+  "День для ясных решений",
+  "Спокойный ритм и фокус",
+  "Время гармонии и баланса",
+  "Уверенный импульс для дел",
+  "Внутренний баланс и ясность",
+  "Благоприятный день для планов",
+  "Гармоничный ритм и вдохновение",
+] as const;
+
+export function defaultDailyTitle(day?: Date | string | null): string {
+  let index = 0;
+  if (day instanceof Date) {
+    index = day.getDate();
+  } else if (typeof day === "string" && day.length >= 10) {
+    const num = Number.parseInt(day.slice(8, 10), 10);
+    if (!Number.isNaN(num)) {
+      index = num;
+    }
+  } else {
+    index = new Date().getDate();
   }
-  const clean = title
+  return GENERAL_DAILY_TITLES[index % GENERAL_DAILY_TITLES.length] ?? GENERAL_DAILY_TITLES[0];
+}
+
+export function cleanForecastTitle(
+  title: string | null | undefined,
+  day?: Date | string | null,
+): string {
+  if (!title) {
+    return defaultDailyTitle(day);
+  }
+  let clean = title
     .replace(DATE_RE, "")
     .replace(/\s+/g, " ")
-    .replace(/[:\-–—\s]+$/, "")
-    .replace(/^[:\-–—\s]+/, "")
     .trim();
-  return clean.length > 0 ? clean : "Фон дня";
+  clean = clean.replace(GENERIC_PREFIX_RE, "").trim();
+  clean = clean.replace(/[:\-–—\s]+$/, "").replace(/^[:\-–—\s]+/, "").trim();
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 7) {
+    return defaultDailyTitle(day);
+  }
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
 }
 
 export type ReadingFace =

@@ -376,12 +376,22 @@ def test_all_forecast_prompts_instruct_to_use_birth_date_and_time() -> None:
 
 
 def test_forecast_title_cleans_birth_date_and_topic_adds_ellipsis() -> None:
-    from starflow.services.forecast import _clean_forecast_title, _shorten_topic
+    from starflow.services.forecast import (
+        GENERAL_DAILY_TITLES,
+        _clean_forecast_title,
+        _shorten_topic,
+    )
 
-    assert _clean_forecast_title("Фон дня 23 февраля 2002 года", date(2002, 2, 23)) == "Фон дня"
-    assert _clean_forecast_title("Фон дня: 23 февраля 2002 года", date(2002, 2, 23)) == "Фон дня"
-    assert _clean_forecast_title("23 февраля 2002 года", date(2002, 2, 23)) == "Фон дня"
+    clean = _clean_forecast_title("Фон дня 23 февраля 2002 года", date(2002, 2, 23))
+    assert clean in GENERAL_DAILY_TITLES
+    assert 3 <= len(clean.split()) <= 4
+
+    assert _clean_forecast_title("Фон дня: 23 февраля 2002 года", date(2002, 2, 23)) == clean
+    assert _clean_forecast_title("23 февраля 2002 года", date(2002, 2, 23)) == clean
+    assert _clean_forecast_title("Фон дня", date(2002, 2, 23)) == clean
+    assert _clean_forecast_title("Фон дня: фокус и ясность", date(2002, 2, 23)) == "Фокус и ясность"
     assert _clean_forecast_title("Спокойный ритм дня", date(2002, 2, 23)) == "Спокойный ритм дня"
+    assert _clean_forecast_title("День для ясных решений", date(2002, 2, 23)) == "День для ясных решений"
 
     assert _shorten_topic("Гармония и искренний диалог") == "Гармония и искренний диалог..."
     assert (
