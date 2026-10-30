@@ -29,9 +29,9 @@ export type ChatLine = {
 
 // TODO(api): ReadingResponse has one body, not these three rows.
 export const forecastTopics: ForecastTopic[] = [
-  { id: "relations", title: "Отношения", subtitle: "Гармония и откровенность", icon: "forecast_relationships" },
-  { id: "work", title: "Работа", subtitle: "Возможности и рост", icon: "forecast_work" },
-  { id: "state", title: "Состояние", subtitle: "Больше энергии, чем обычно", icon: "forecast_state" },
+  { id: "relations", title: "Отношения", subtitle: "Гармония и искренний диалог", icon: "forecast_relationships" },
+  { id: "work", title: "Работа", subtitle: "Уверенный рост и фокус", icon: "forecast_work" },
+  { id: "state", title: "Состояние", subtitle: "Спокойный эмоциональный баланс", icon: "forecast_state" },
 ];
 
 export const forecastBody =
@@ -64,9 +64,9 @@ export const partnerFixture: PersonCard = {
 
 // TODO(api): synastry response is one text, not three titled rows.
 export const compatRows: CompatRow[] = [
-  { id: "dialog", title: "Диалог", subtitle: "Взаимопонимание и уважение", icon: "compat_dialog" },
-  { id: "emotions", title: "Эмоции", subtitle: "Глубокая связь", icon: "compat_emotions" },
-  { id: "values", title: "Общие ориентиры", subtitle: "Схожие ценности", icon: "compat_values" },
+  { id: "dialog", title: "Диалог", subtitle: "Лёгкое и открытое общение", icon: "compat_dialog" },
+  { id: "emotions", title: "Эмоции", subtitle: "Теплота и взаимная забота", icon: "compat_emotions" },
+  { id: "values", title: "Общие ориентиры", subtitle: "Схожие цели и ценности", icon: "compat_values" },
 ];
 
 export const chatFixture: ChatLine[] = [

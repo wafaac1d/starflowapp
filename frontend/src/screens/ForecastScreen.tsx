@@ -40,6 +40,14 @@ const KIND: Record<Period, string> = {
   month: "personal_month",
 };
 
+function shortenTopicText(text: string, maxWords: number = 4): string {
+  const words = text.trim().replace(/\.$/, "").split(/\s+/);
+  if (words.length <= maxWords) {
+    return text.trim();
+  }
+  return words.slice(0, maxWords).join(" ");
+}
+
 export function ForecastScreen({ premium }: { premium: boolean }) {
   const [period, setPeriod] = useState<Period>("day");
   const [topUp, setTopUp] = useState(false);
@@ -128,7 +136,7 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
       )}
       <div className={styles.stack}>
         {rows.map((row) => {
-          const preview = topicPreviews[row.id] || row.subtitle;
+          const preview = shortenTopicText(topicPreviews[row.id] || row.subtitle);
           return (
             <ListRow
               key={row.id}

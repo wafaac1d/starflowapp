@@ -72,6 +72,14 @@ const EMPTY_SLOT: SlotState = {
   save: false,
 };
 
+function shortenTopicText(text: string, maxWords: number = 4): string {
+  const words = text.trim().replace(/\.$/, "").split(/\s+/);
+  if (words.length <= maxWords) {
+    return text.trim();
+  }
+  return words.slice(0, maxWords).join(" ");
+}
+
 export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
   const params = useParams();
   const personId = params.personId;
@@ -223,7 +231,7 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
           />
           <div className={styles.stack}>
             {(rows.data ?? compatRows).map((row) => {
-              const preview = topicPreviews[row.id] || row.subtitle;
+              const preview = shortenTopicText(topicPreviews[row.id] || row.subtitle);
               return (
                 <ListRow
                   key={row.id}

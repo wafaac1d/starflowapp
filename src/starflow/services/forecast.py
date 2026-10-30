@@ -1170,15 +1170,25 @@ def _period_day(kind: str, moment: datetime, zone_name: str) -> date:
 def default_topics_preview(kind: str) -> dict[str, str]:
     if kind in {"synastry", "compatibility"}:
         return {
-            "dialog": "Взаимопонимание, открытый диалог и лёгкость в общении",
-            "emotions": "Эмоциональная близость, теплота и взаимное доверие",
-            "values": "Согласие в общих жизненных целях и ориентирах",
+            "dialog": "Лёгкое и открытое общение",
+            "emotions": "Теплота и взаимная забота",
+            "values": "Схожие цели и ценности",
         }
     return {
-        "relations": "Благоприятное время для душевного общения и внимания к близким",
-        "work": "Продуктивный период для уверенных шагов и решения задач",
-        "state": "Внутренняя стабильность, ровный эмоциональный фон и ясность",
+        "relations": "Гармония и искренний диалог",
+        "love": "Гармония и искренний диалог",
+        "work": "Уверенный рост и фокус",
+        "state": "Спокойный эмоциональный баланс",
+        "health": "Спокойный эмоциональный баланс",
     }
+
+
+def _shorten_topic(text: str, max_words: int = 4) -> str:
+    cleaned = text.strip().rstrip(".")
+    words = cleaned.split()
+    if len(words) <= max_words:
+        return cleaned
+    return " ".join(words[:max_words])
 
 
 def _parse_reply(content: str) -> tuple[str, str, dict[str, str]] | None:
@@ -1196,7 +1206,7 @@ def _parse_reply(content: str) -> tuple[str, str, dict[str, str]] | None:
             if isinstance(k, str) and isinstance(v, str):
                 g = guarded_copy(k, v)
                 if g is not None:
-                    clean_topics[k] = g[1]
+                    clean_topics[k] = _shorten_topic(g[1])
     return guarded[0], guarded[1], clean_topics
 
 
