@@ -114,6 +114,7 @@ class OutboxJob:
     page: str = ""
     planet: str = ""
     body: str = ""
+    button_key: str = ""
 
 
 @dataclass(frozen=True)

@@ -170,6 +170,12 @@ class SqlUserRepository:
         await self._session.flush()
         return row.referral_code
 
+    async def referral_count(self, user_id: UUID) -> int:
+        result = await self._session.execute(
+            select(func.count()).select_from(UserRow).where(UserRow.referred_by == user_id)
+        )
+        return int(result.scalar() or 0)
+
     async def bind_referrer(self, user_id: UUID, start_param: str | None) -> bool:
         if start_param is None or not start_param.startswith("ref_"):
             return False
@@ -182,7 +188,11 @@ class SqlUserRepository:
         if referrer is None or referrer.id == user_id:
             return False
         owner.referred_by = referrer.id
+        owner.pending_start_param = None
+        owner.star_balance += 20
+        referrer.star_balance += 20
         owner.updated_at = now_utc()
+        referrer.updated_at = now_utc()
         await self._session.flush()
         return True
 
@@ -1260,12 +1270,19 @@ class SqlOutboxRepository:
         page: str = "",
         planet: str = "",
         body: str = "",
+        button_key: str = "",
     ) -> UUID:
         row = NotificationOutboxRow(
             user_id=user_id,
             kind=kind,
             event_key=event_key or local_date.isoformat(),
-            payload={"text_key": text_key, "page": page, "planet": planet, "body": body},
+            payload={
+                "text_key": text_key,
+                "page": page,
+                "planet": planet,
+                "body": body,
+                "button_key": button_key,
+            },
             local_date=local_date,
             status="pending",
             attempts=0,
@@ -1324,6 +1341,7 @@ class SqlOutboxRepository:
             page = payload.get("page")
             planet = payload.get("planet")
             body = payload.get("body")
+            button_key = payload.get("button_key")
             if not isinstance(text_key, str) or text_key == "":
                 continue
             jobs.append(
@@ -1334,6 +1352,7 @@ class SqlOutboxRepository:
                     page=page if isinstance(page, str) else "",
                     planet=planet if isinstance(planet, str) else "",
                     body=body if isinstance(body, str) else "",
+                    button_key=button_key if isinstance(button_key, str) else "",
                 )
             )
         await self._session.flush()

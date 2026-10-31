@@ -34,6 +34,7 @@ from starflow.domain.segments import (
     pair_segment,
     period_key,
     representative_facts,
+    sun_segment,
 )
 from starflow.domain.stations import Station, find_retro_periods, find_stations
 from starflow.domain.time import now_utc
@@ -46,6 +47,8 @@ from starflow.repositories.sql import (
     ProfileRepository,
     SubscriptionRepository,
 )
+
+BEDTIME_LOCAL_TIME = time(21, 0)
 
 
 class OpsStore(Protocol):
@@ -164,32 +167,43 @@ class OpsService:
             premium = await uow.subscriptions.premium_user_ids(now)
             created = 0
             for row in await uow.notification_settings.enabled():
-                if not is_due(now, row.timezone, row.digest_local_time):
-                    continue
                 day = local_date(now, row.timezone).date()
-                birth = await _birth(uow, row.user_id)
-                if row.day_enabled:
+                if is_due(now, row.timezone, row.digest_local_time):
+                    birth = await _birth(uow, row.user_id)
+                    if row.day_enabled:
+                        created += await self._notice(
+                            uow,
+                            row.user_id,
+                            "day",
+                            day,
+                            now,
+                            "reading/day",
+                            await self._day_ready(uow, birth, now),
+                        )
+                    if row.moon_enabled:
+                        created += await self._notice(
+                            uow,
+                            row.user_id,
+                            "moon",
+                            day,
+                            now,
+                            "reading/moon",
+                            await self._moon_ready(uow, now),
+                        )
+                    if row.retro_enabled and row.user_id in premium:
+                        created += await self._retro(uow, row.user_id, day, now, stations)
+                if row.day_enabled and is_due(now, row.timezone, BEDTIME_LOCAL_TIME):
+                    birth = await _birth(uow, row.user_id)
                     created += await self._notice(
                         uow,
                         row.user_id,
-                        "day",
+                        "tomorrow",
                         day,
                         now,
-                        "reading/day",
-                        await self._day_ready(uow, birth, now),
+                        "forecast?period=tomorrow",
+                        await self._tomorrow_ready(uow, birth, now, row.timezone),
+                        button_key="bot.tomorrow_button",
                     )
-                if row.moon_enabled:
-                    created += await self._notice(
-                        uow,
-                        row.user_id,
-                        "moon",
-                        day,
-                        now,
-                        "reading/moon",
-                        await self._moon_ready(uow, now),
-                    )
-                if row.retro_enabled and row.user_id in premium:
-                    created += await self._retro(uow, row.user_id, day, now, stations)
             await uow.commit()
         return created
 
@@ -400,6 +414,26 @@ class OpsService:
         )
         return await uow.forecast_cache.peek(key, moment)
 
+    async def _tomorrow_ready(
+        self,
+        uow: OpsStore,
+        birth: date | None,
+        moment: datetime,
+        timezone: str,
+    ) -> bool:
+        if birth is None:
+            return False
+        sign = calendar_sign(birth)
+        key = forecast_cache_key(
+            "tomorrow",
+            period_key("tomorrow", moment + timedelta(days=1), timezone),
+            sun_segment(sign),
+            "",
+            self._locale,
+            self._prompts.get("tomorrow").version,
+        )
+        return await uow.forecast_cache.peek(key, moment)
+
     async def _notice(
         self,
         uow: OpsStore,
@@ -409,6 +443,7 @@ class OpsService:
         moment: datetime,
         page: str,
         ready: bool,
+        button_key: str = "",
     ) -> int:
         text_key = f"bot.{kind}_ready" if ready else f"bot.{kind}_fallback"
         try:
@@ -420,6 +455,7 @@ class OpsService:
                 moment,
                 event_key=day.isoformat(),
                 page=page,
+                button_key=button_key,
             )
         except Conflict:
             return 0
@@ -506,7 +542,12 @@ class OpsService:
         prompt = self._prompts.get(kind)
         facts = representative_facts(kind, segment)
         if "birth_date" not in facts:
-            facts = {**facts, "birth_date": "unknown", "birth_time": "unknown", "birth_place": "unknown"}
+            facts = {
+                **facts,
+                "birth_date": "unknown",
+                "birth_time": "unknown",
+                "birth_place": "unknown",
+            }
         user = prompt.user.replace("{facts}", facts_text(facts))
         last = "invalid"
         for _attempt in range(2):

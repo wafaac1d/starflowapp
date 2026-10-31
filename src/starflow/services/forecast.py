@@ -469,7 +469,12 @@ class ForecastService:
                 return None
             title, body, topics = parsed
             merged_topics = {**default_topics_preview(kind), **topics}
-            payload: dict[str, object] = {"title": title, "body": body, "topics": merged_topics, "source": "model"}
+            payload: dict[str, object] = {
+                "title": title,
+                "body": body,
+                "topics": merged_topics,
+                "source": "model",
+            }
             await self._cache.remember(key, kind, payload, expires)
             return payload
         finally:
@@ -585,7 +590,9 @@ class ForecastService:
         history_id, payload = found
         sign = None if profile.birth_date is None else calendar_sign(profile.birth_date)
         topics_val = payload.get("topics")
-        topics_dict = dict(topics_val) if isinstance(topics_val, dict) else default_topics_preview(kind)
+        topics_dict = (
+            dict(topics_val) if isinstance(topics_val, dict) else default_topics_preview(kind)
+        )
         raw_title = _as_text(payload.get("title"))
         clean_title = _clean_forecast_title(raw_title, profile.birth_date)
         return ReadingView(
@@ -627,7 +634,11 @@ class ForecastService:
         user_sign = None if sign is None else calendar_sign(sign)
         status = "ready" if payload.get("source") == "model" else "fallback"
         topics_val = payload.get("topics")
-        topics_dict = dict(topics_val) if isinstance(topics_val, dict) else default_topics_preview(payload.get("kind") or "")
+        topics_dict = (
+            dict(topics_val)
+            if isinstance(topics_val, dict)
+            else default_topics_preview(str(payload.get("kind") or ""))
+        )
         raw_title = _as_text(payload.get("title"))
         birth_d = getattr(profile, "birth_date", None)
         title = _clean_forecast_title(raw_title, birth_d)
@@ -751,17 +762,20 @@ class ForecastService:
                 await uow.commit()
             return deleted
 
-    async def referral(self, user_id: UUID) -> tuple[str, str]:
+    async def referral(self, user_id: UUID) -> tuple[str, str, int, int]:
+        await self.accept_referral(user_id)
         async with self._uow_factory() as uow:
             code = await uow.users.ensure_referral_code(user_id)
+            count = await uow.users.referral_count(user_id)
             await uow.commit()
-        return code, referral_link(self._mini_app_url, code)
+        return code, referral_link(self._mini_app_url, code), count, count * 20
 
     async def accept_referral(self, user_id: UUID) -> None:
         async with self._uow_factory() as uow:
             await uow.users.ensure_referral_code(user_id)
             param = await uow.users.start_param(user_id)
-            await uow.users.bind_referrer(user_id, param)
+            if param:
+                await uow.users.bind_referrer(user_id, param)
             await uow.commit()
 
     async def _premium(
@@ -784,6 +798,7 @@ class ForecastService:
                     "personal_week",
                     "month",
                     "personal_month",
+                    "tomorrow",
                     "topics",
                 }
                 and self._stars is not None
@@ -836,6 +851,10 @@ class ForecastService:
             return await stars.owns(user_id, "week", week_key)
         if kind in {"personal_month", "month"}:
             return await stars.owns(user_id, "month", month_key)
+        tomorrow_day = local + timedelta(days=1)
+        tomorrow_key = f"tomorrow:{tomorrow_day.isoformat()}"
+        if kind == "tomorrow":
+            return await stars.owns(user_id, "tomorrow", tomorrow_key)
         if kind == "topics":
             return (
                 await stars.owns(user_id, "week", week_key)

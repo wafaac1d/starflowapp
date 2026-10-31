@@ -20,4 +20,5 @@ export const queryKeys = {
   affirmations: (category: string) => ["affirmations", category] as const,
   affirmationsStatus: ["affirmations", "status"] as const,
   profileTrait: ["profile", "trait"] as const,
+  referral: ["referral"] as const,
 };

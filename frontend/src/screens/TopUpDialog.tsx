@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 import { ApiRequestError, createTopup, postInvoiceStatus, redeemBalanceCode } from "../api/client";
 import { queryKeys } from "../api/keys";
@@ -19,6 +19,7 @@ type TopUpDialogProps = {
 
 export function TopUpDialog({ balance, onClose }: TopUpDialogProps) {
   const titleId = useId();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [preset, setPreset] = useState<(typeof PRESETS)[number]>(10);
   const [custom, setCustom] = useState("");
@@ -144,6 +145,15 @@ export function TopUpDialog({ balance, onClose }: TopUpDialogProps) {
           Активировать
         </Button>
         {notice !== "" ? <p className={styles.notice}>{notice}</p> : null}
+        <Button
+          variant="secondary"
+          onClick={() => {
+            onClose();
+            void navigate("/referral");
+          }}
+        >
+          Пригласить друга и получить 20 звёзд
+        </Button>
         <p className={styles.body}>
           Можно подключить <Link to="/premium">Premium</Link>. Тогда карта, совместимость и вопросы
           входят в период.

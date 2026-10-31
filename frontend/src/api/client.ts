@@ -227,6 +227,8 @@ export type RelatedEntry = {
 export type ReferralResponse = {
   code: string;
   link: string;
+  count: number;
+  stars_earned: number;
 };
 
 export async function startReading(
@@ -779,7 +781,8 @@ export async function spendStars(
     | { feature: "affirmation"; category: string }
     | { feature: "week"; period?: string }
     | { feature: "month"; month?: string }
-    | { feature: "topics"; period?: string },
+    | { feature: "topics"; period?: string }
+    | { feature: "tomorrow"; day?: string; period?: string },
   fetchImpl: typeof fetch = fetch,
 ): Promise<SpendResponse> {
   return requestJson<SpendResponse>(

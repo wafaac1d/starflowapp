@@ -38,7 +38,13 @@ class OutboxWork(Protocol):
 
 
 class TextSender(Protocol):
-    async def send_notice(self, telegram_id: int, text: str, page: str) -> None: ...
+    async def send_notice(
+        self,
+        telegram_id: int,
+        text: str,
+        page: str,
+        button_text: str = "",
+    ) -> None: ...
 
 
 class OutboxService:
@@ -67,8 +73,17 @@ class OutboxService:
                 text = self._catalog.text(job.text_key)
                 if job.planet:
                     text = self._catalog.format(job.text_key, planet=job.planet)
+            button_label = self._catalog.text(job.button_key) if job.button_key else ""
             try:
-                await sender.send_notice(job.telegram_id, text, job.page)
+                if button_label != "":
+                    await sender.send_notice(
+                        job.telegram_id,
+                        text,
+                        job.page,
+                        button_text=button_label,
+                    )
+                else:
+                    await sender.send_notice(job.telegram_id, text, job.page)
             except DeliveryBlocked as error:
                 await self._fail(job.telegram_id, job.id, type(error).__name__, None, blocked=True)
                 continue

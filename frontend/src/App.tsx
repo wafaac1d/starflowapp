@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router";
 
 import { openSession } from "./api/client";
 import { queryKeys } from "./api/keys";
@@ -23,6 +23,7 @@ import { AffirmationsScreen } from "./screens/PracticeScreens";
 import { PeopleScreen } from "./screens/PeopleScreen";
 import { PremiumScreen } from "./screens/PremiumScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
+import { ReferralScreen } from "./screens/ReferralScreen";
 import { RetroScreen } from "./screens/RetroScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { SupportScreen } from "./screens/SupportScreen";
@@ -93,7 +94,7 @@ function AuthedApp({ initData }: { initData: string }) {
       <Route path="/history" element={<HistoryPage />} />
       <Route path="/favorites" element={<FavoritesScreen />} />
       <Route path="/favorites/:historyId" element={<SavedFavoriteScreen />} />
-      <Route path="/referral" element={<ReferralPage />} />
+      <Route path="/referral" element={<ReferralScreen />} />
       <Route path="/delete" element={<DeletePage />} />
       <Route path="/retro" element={<RetroScreen />} />
       <Route path="/affirmations" element={<AffirmationsScreen />} />
@@ -106,10 +107,18 @@ function AuthedApp({ initData }: { initData: string }) {
       <Route path="/chart" element={<Navigate to="/natal" replace />} />
       <Route path="/assistant" element={<Navigate to="/chat" replace />} />
       <Route path="/related" element={<Navigate to="/people" replace />} />
-      <Route path="/reading/:kind" element={<Navigate to="/forecast" replace />} />
+      <Route path="/reading/:kind" element={<ReadingRedirect />} />
       <Route path="*" element={<OpenAppPage />} />
     </Routes>
   );
+}
+
+function ReadingRedirect() {
+  const { kind } = useParams<{ kind?: string }>();
+  if (kind === "tomorrow") {
+    return <Navigate to="/forecast?period=tomorrow" replace />;
+  }
+  return <Navigate to="/forecast" replace />;
 }
 
 function nameFromInitData(initData: string): string {

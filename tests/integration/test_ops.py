@@ -123,14 +123,20 @@ class _Ephemeris:
 
 class _Sender:
     def __init__(self) -> None:
-        self.sent: list[tuple[int, str, str]] = []
+        self.sent: list[tuple[int, str, str, str]] = []
 
-    async def send_notice(self, telegram_id: int, text: str, page: str) -> None:
+    async def send_notice(
+        self,
+        telegram_id: int,
+        text: str,
+        page: str,
+        button_text: str = "",
+    ) -> None:
         if telegram_id == 8802:
             raise DeliveryBlocked()
         if telegram_id == 8803:
             raise DeliveryRetry(4)
-        self.sent.append((telegram_id, text, page))
+        self.sent.append((telegram_id, text, page, button_text))
 
 
 def _ops(
@@ -314,6 +320,40 @@ async def test_planner_reads_cache_and_retro_without_the_model(database_url: str
 
 
 @pytest.mark.asyncio
+async def test_bedtime_tomorrow_notification_enqueued_and_sent(database_url: str) -> None:
+    engine, factory = _factory(database_url)
+    user = await _person(factory, 8810, day=True)
+    evening = datetime(2026, 6, 15, 18, 5, tzinfo=UTC)  # 21:05 MSK
+    ops = _ops(factory)
+    ops._clock = lambda: evening
+    created = await ops.plan()
+    assert created >= 1
+    async with factory() as session:
+        row = await session.scalar(
+            select(NotificationOutboxRow).where(
+                NotificationOutboxRow.user_id == user.id,
+                NotificationOutboxRow.kind == "tomorrow",
+            )
+        )
+        assert row is not None
+        assert row.payload["text_key"] == "bot.tomorrow_fallback"
+        assert row.payload["page"] == "forecast?period=tomorrow"
+        assert row.payload["button_key"] == "bot.tomorrow_button"
+
+    sender = _Sender()
+    catalog = load_catalog(ROOT / "resources", "ru", MemoryCache(8))
+    service = OutboxService(lambda: SqlUnitOfWork(factory), catalog, SendPace(10_000))
+    sent = await service.dispatch_due(sender)
+    assert sent >= 1
+    user_sends = [item for item in sender.sent if item[0] == 8810]
+    assert len(user_sends) == 1
+    assert "Узнайте, что вас ждёт завтра" in user_sends[0][1]
+    assert user_sends[0][2] == "forecast?period=tomorrow"
+    assert user_sends[0][3] == "Узнать, что ждёт завтра"
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_referral_rejects_self_and_a_second_attribution(database_url: str) -> None:
     engine, factory = _factory(database_url)
     async with SqlUnitOfWork(factory) as uow:
@@ -324,6 +364,10 @@ async def test_referral_rejects_self_and_a_second_attribution(database_url: str)
         assert await uow.users.bind_referrer(friend.id, "plain") is False
         assert await uow.users.bind_referrer(friend.id, f"ref_{code}") is True
         assert await uow.users.bind_referrer(friend.id, f"ref_{code}") is False
+        assert await uow.billing.star_balance(owner.id) == 20
+        assert await uow.billing.star_balance(friend.id) == 20
+        assert await uow.users.referral_count(owner.id) == 1
+        assert await uow.users.referral_count(friend.id) == 0
         await uow.profiles.upsert(friend.id, _draft())
         assert await uow.profiles.touch_streak(friend.id, date(2026, 6, 1)) == 1
         assert await uow.profiles.touch_streak(friend.id, date(2026, 6, 1)) == 1

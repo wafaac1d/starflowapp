@@ -14,6 +14,7 @@ from starflow.domain.favorable import favorable_subject
 from starflow.domain.stars import (
     affirmation_subject,
     current_month_subject,
+    current_tomorrow_subject,
     current_week_subject,
     pair_subject,
 )
@@ -159,6 +160,8 @@ def _subject(body: SpendRequest) -> str:
         return body.period or current_week_subject()
     if body.feature in {"month", "personal_month"}:
         return body.month or current_month_subject()
+    if body.feature == "tomorrow":
+        return body.period or current_tomorrow_subject()
     if body.feature == "topics":
         return body.period or current_week_subject()
     if body.feature == "favorable":

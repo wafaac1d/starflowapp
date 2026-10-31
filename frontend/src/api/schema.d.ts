@@ -1715,6 +1715,16 @@ export interface components {
             code: string;
             /** Link */
             link: string;
+            /**
+             * Count
+             * @default 0
+             */
+            count?: number;
+            /**
+             * Stars Earned
+             * @default 0
+             */
+            stars_earned?: number;
         };
         /** RefundBody */
         RefundBody: {

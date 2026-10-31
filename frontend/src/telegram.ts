@@ -25,6 +25,7 @@ type RawWebApp = {
   viewportStableHeight?: number;
   contentSafeAreaInset?: Insets;
   safeAreaInset?: Insets;
+  openTelegramLink?: (url: string) => void;
 };
 
 declare global {

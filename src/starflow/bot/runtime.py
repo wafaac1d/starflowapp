@@ -40,12 +40,19 @@ class BotRuntime:
     async def send_text(self, telegram_id: int, text: str) -> None:
         await self.send_notice(telegram_id, text, "")
 
-    async def send_notice(self, telegram_id: int, text: str, page: str) -> None:
+    async def send_notice(
+        self,
+        telegram_id: int,
+        text: str,
+        page: str,
+        button_text: str = "",
+    ) -> None:
         markup = None
         if page and self._settings.mini_app_url:
             url = screen_url(self._settings.mini_app_url, page)
+            button_label = button_text or self._catalog.text("bot.open")
             button = InlineKeyboardButton(
-                text=self._catalog.text("bot.open"),
+                text=button_label,
                 web_app=WebAppInfo(url=url),
             )
             markup = InlineKeyboardMarkup(inline_keyboard=[[button]])

@@ -20,9 +20,11 @@ import { AffirmationsScreen } from "./PracticeScreens";
 import { PeopleScreen } from "./PeopleScreen";
 import { PremiumScreen } from "./PremiumScreen";
 import { ProfileScreen } from "./ProfileScreen";
+import { ReferralScreen } from "./ReferralScreen";
 import { RetroScreen } from "./RetroScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { TodayScreen } from "./TodayScreen";
+import { TopUpDialog } from "./TopUpDialog";
 import styles from "./screens.module.css";
 import { WelcomeScreen } from "./WelcomeScreen";
 
@@ -390,13 +392,55 @@ describe("screens", () => {
     );
   });
 
-  it("switches the forecast period", async () => {
+  it("switches the forecast period and supports tomorrow", async () => {
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
     renderAt(<ForecastScreen premium={false} />);
     expect(await screen.findByText("Гармония и искренний диалог...")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Сегодня" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Завтра" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Неделя" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Месяц" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("tab", { name: "Завтра" }));
+    expect(screen.getByRole("tab", { name: "Завтра" })).toHaveAttribute("aria-selected", "true");
+
     await userEvent.click(screen.getByRole("tab", { name: "Неделя" }));
     expect(screen.getByRole("tab", { name: "Неделя" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("button", { name: "Поделиться" })).toBeInTheDocument();
+  });
+
+  it("opens tomorrow tab directly when period=tomorrow in URL and shows 20 stars requirement", async () => {
+    let spent = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input, init) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+        if (url.includes("/stars/spends") && method === "POST") {
+          spent = true;
+          return Response.json({ balance: 80, allowed: true, charged: true, price: 20 });
+        }
+        if (url.includes("/readings/tomorrow")) {
+          if (!spent) {
+            return Response.json({ status: "stars", body: "Нужны звёзды" });
+          }
+          return Response.json({
+            status: "ready",
+            title: "Завтра",
+            body: "Текст завтрашнего прогноза.",
+            history_id: "22222222-2222-2222-2222-222222222222",
+          });
+        }
+        return Response.json([]);
+      }),
+    );
+    renderAt(<ForecastScreen premium={false} />, "/forecast?period=tomorrow");
+    expect(screen.getByRole("tab", { name: "Завтра" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByText("Прогноз на завтра")).toBeInTheDocument();
+    expect(screen.getByText(/звёзд\. С Premium он входит в период/)).toBeInTheDocument();
+    const openBtn = screen.getByRole("button", { name: /Открыть за/ });
+    await userEvent.click(openBtn);
+    expect(spent).toBe(true);
   });
 
   it("shows the lunar day card", async () => {
@@ -1376,5 +1420,42 @@ describe("screens", () => {
     );
     expect(screen.getByRole("heading", { name: "Близкие" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Имя" })).toBeInTheDocument();
+  });
+
+  it("shows referral program in profile", () => {
+    renderAt(<ProfileScreen profile={profile()} />);
+    expect(screen.getByRole("link", { name: "Реферальная программа" })).toHaveAttribute("href", "/referral");
+  });
+
+  it("navigates to referral screen from top up dialog", async () => {
+    const onClose = vi.fn();
+    renderAt(<TopUpDialog balance={10} onClose={onClose} />);
+    const inviteBtn = screen.getByRole("button", { name: "Пригласить друга и получить 20 звёзд" });
+    expect(inviteBtn).toBeInTheDocument();
+    await userEvent.click(inviteBtn);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("renders referral screen with link, count and stars earned", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        Response.json({
+          code: "testcode123",
+          link: "https://t.me/starflow_bot/app?startapp=ref_testcode123",
+          count: 3,
+          stars_earned: 60,
+        }),
+      ),
+    );
+    renderAt(<ReferralScreen />);
+    expect(screen.getByRole("heading", { name: "Реферальная программа" })).toBeInTheDocument();
+    expect(await screen.findByText("https://t.me/starflow_bot/app?startapp=ref_testcode123")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.getByText("Приглашено друзей")).toBeInTheDocument();
+    expect(screen.getByText("60")).toBeInTheDocument();
+    expect(screen.getByText("Заработано звёзд")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Скопировать ссылку" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Поделиться" })).toBeInTheDocument();
   });
 });

@@ -70,6 +70,8 @@ class ShareBody(BaseModel):
 class ReferralBody(BaseModel):
     code: str
     link: str
+    count: int = 0
+    stars_earned: int = 0
 
 
 class RelatedBody(BaseModel):
@@ -193,8 +195,10 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
     @router.get("/referral", response_model=ReferralBody)
     async def read_referral(request: Request) -> ReferralBody:
         actor = await actor_from_cookie(request, container, unauthorized)
-        code, link = await container.forecast_service.referral(actor.view.user_id)
-        return ReferralBody(code=code, link=link)
+        code, link, count, stars_earned = await container.forecast_service.referral(
+            actor.view.user_id
+        )
+        return ReferralBody(code=code, link=link, count=count, stars_earned=stars_earned)
 
     @router.get("/related", response_model=list[RelatedItem])
     async def read_related(request: Request) -> list[RelatedItem]:

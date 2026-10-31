@@ -4351,6 +4351,16 @@
           "link": {
             "type": "string",
             "title": "Link"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 0
+          },
+          "stars_earned": {
+            "type": "integer",
+            "title": "Stars Earned",
+            "default": 0
           }
         },
         "type": "object",

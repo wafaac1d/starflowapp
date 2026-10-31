@@ -67,6 +67,9 @@ class SessionService:
         async with self._uow_factory() as uow:
             user = await uow.users.upsert_telegram(telegram_id, username, language_code)
             await _remember(uow, user.id, start_param)
+            normalized = normalize_start_param(start_param)
+            if normalized:
+                await uow.users.bind_referrer(user.id, normalized)
             await uow.commit()
         return _view(user, telegram_id in self._admin_ids)
 

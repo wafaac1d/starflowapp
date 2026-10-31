@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
@@ -30,11 +31,11 @@ from starflow.services.ops import OpsService
 from starflow.services.session import SessionService
 
 _LOG = structlog.get_logger("bot")
+_bg_tasks: set[asyncio.Task[None]] = set()
 
 WELCOME_MESSAGE = (
     "Добро пожаловать в обсерваторию StarFlow! 🔭\n\n"
     "Открой приложение, чтобы продолжить — нажми на кнопку под сообщением 👇 "
-    "и кнопку снизу на открытие приложения."
 )
 
 FOLLOWUP_MESSAGE = (
@@ -315,7 +316,9 @@ def _make_keyboards(
     if not mini_app_url:
         return None, None
     inline_kb = InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text=button_text, web_app=WebAppInfo(url=mini_app_url))]]
+        inline_keyboard=[
+            [InlineKeyboardButton(text=button_text, web_app=WebAppInfo(url=mini_app_url))]
+        ]
     )
     reply_kb = ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text=button_text, web_app=WebAppInfo(url=mini_app_url))]],
@@ -339,19 +342,22 @@ async def _reply_welcome(
         text,
         reply_markup=inline_kb,
     )
-    if message.bot:
+    bot = message.bot
+    if bot is not None:
+
         async def _set_menu() -> None:
-            try:
-                await message.bot.set_chat_menu_button(
+            with contextlib.suppress(Exception):
+                await bot.set_chat_menu_button(
                     chat_id=message.chat.id,
                     menu_button=MenuButtonWebApp(
                         text=button_text,
                         web_app=WebAppInfo(url=mini_app_url),
                     ),
                 )
-            except Exception:
-                pass
-        asyncio.create_task(_set_menu())
+
+        task = asyncio.create_task(_set_menu())
+        _bg_tasks.add(task)
+        task.add_done_callback(_bg_tasks.discard)
 
 
 async def _reply_followup(

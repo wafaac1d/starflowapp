@@ -36,13 +36,12 @@ from starflow.db.tables import (
     ForecastCacheRow,
     ForecastHistoryRow,
     IdempotencyKeyRow,
-    StarSpendRow,
     UsageCounterRow,
 )
 from starflow.domain.plans import Plans, load_plans
 from starflow.domain.quota import Allowed, LimitReached
 from starflow.domain.records import PlaceHit, ProfileDraft
-from starflow.domain.stars import current_week_subject
+from starflow.domain.stars import current_tomorrow_subject, current_week_subject
 from starflow.domain.time import now_utc
 from starflow.i18n.catalog import load_catalog
 from starflow.repositories.uow import SqlUnitOfWork
@@ -587,7 +586,13 @@ async def test_changing_birth_date_resets_natal_star_spend(database_url: str) ->
     # Изменение только имени не сбрасывает оплату карты
     await container.profile_service.edit(
         user_id,
-        DraftInput(display_name="Новое Имя", birth_date=None, birth_time=None, birth_time_unknown=False, timezone=None),
+        DraftInput(
+            display_name="Новое Имя",
+            birth_date=None,
+            birth_time=None,
+            birth_time_unknown=False,
+            timezone=None,
+        ),
     )
     chart_same_date = await container.chart_service.read(user_id)
     assert chart_same_date.natal_access == "allowed"
@@ -595,7 +600,13 @@ async def test_changing_birth_date_resets_natal_star_spend(database_url: str) ->
     # Сохранение той же даты рождения не сбрасывает оплату карты
     await container.profile_service.edit(
         user_id,
-        DraftInput(display_name=None, birth_date="15.01.1990", birth_time=None, birth_time_unknown=False, timezone=None),
+        DraftInput(
+            display_name=None,
+            birth_date="15.01.1990",
+            birth_time=None,
+            birth_time_unknown=False,
+            timezone=None,
+        ),
     )
     chart_identical_date = await container.chart_service.read(user_id)
     assert chart_identical_date.natal_access == "allowed"
@@ -603,7 +614,13 @@ async def test_changing_birth_date_resets_natal_star_spend(database_url: str) ->
     # Изменение даты рождения сбрасывает оплату натальной карты
     await container.profile_service.edit(
         user_id,
-        DraftInput(display_name=None, birth_date="20.05.1995", birth_time=None, birth_time_unknown=False, timezone=None),
+        DraftInput(
+            display_name=None,
+            birth_date="20.05.1995",
+            birth_time=None,
+            birth_time_unknown=False,
+            timezone=None,
+        ),
     )
     assert not await container.stars_service.owns(user_id, "natal", "self")
     chart_new_date = await container.chart_service.read(user_id)
@@ -621,7 +638,9 @@ async def test_changing_birth_date_resets_natal_star_spend(database_url: str) ->
 
 
 @pytest.mark.asyncio
-async def test_birth_place_can_be_set_without_premium_and_computes_houses(database_url: str) -> None:
+async def test_birth_place_can_be_set_without_premium_and_computes_houses(
+    database_url: str,
+) -> None:
     engine, factory = _factory(database_url)
     settings = make_settings(database_url=database_url, singleton_lock=False)
     container = build_container(settings)
@@ -677,7 +696,9 @@ async def test_birth_place_can_be_set_without_premium_and_computes_houses(databa
 
 
 @pytest.mark.asyncio
-async def test_week_and_month_forecast_require_stars_and_expire_next_period(database_url: str) -> None:
+async def test_week_and_month_forecast_require_stars_and_expire_next_period(
+    database_url: str,
+) -> None:
     engine, factory = _factory(database_url)
     settings = make_settings(database_url=database_url, singleton_lock=False)
     container = build_container(settings)
@@ -696,7 +717,9 @@ async def test_week_and_month_forecast_require_stars_and_expire_next_period(data
     await container.stars_service.credit(user_id, 100)
 
     # Прогноз на неделю без Premium требует звёзд, но отдает короткие описания тем бесплатно
-    week_before = await container.forecast_service._premium(user_id, "week", now_utc(), ReadingScope())
+    week_before = await container.forecast_service._premium(
+        user_id, "week", now_utc(), ReadingScope()
+    )
     assert week_before.status == "stars"
     assert "relations" in week_before.topics
     assert "work" in week_before.topics
@@ -712,10 +735,96 @@ async def test_week_and_month_forecast_require_stars_and_expire_next_period(data
     assert await container.forecast_service._unlocked(user_id, "week", ReadingScope()) is True
     assert await container.forecast_service._unlocked(user_id, "topics", ReadingScope()) is True
 
-    # Но на следующей неделе старая оплата не действует и требуется новая
+    # Прогноз на завтра без Premium требует 20 звёзд
+    tomorrow_before = await container.forecast_service._premium(
+        user_id, "tomorrow", now_utc(), ReadingScope()
+    )
+    assert tomorrow_before.status == "stars"
+    assert "relations" in tomorrow_before.topics
+
+    # Оплачиваем завтра за 20 звёзд
+    bought_tomorrow = await container.stars_service.buy(
+        user_id, "tomorrow", current_tomorrow_subject()
+    )
+    assert bought_tomorrow.allowed is True
+    assert bought_tomorrow.charged is True
+    assert bought_tomorrow.price == 20
+
+    # Теперь завтра разблокировано
+    assert await container.forecast_service._unlocked(user_id, "tomorrow", ReadingScope()) is True
+
+    # Но на следующий день старая оплата не действует и требуется новая на завтра
+    next_day = now_utc() + timedelta(days=1)
+    container.forecast_service._clock = lambda: next_day
+    assert await container.forecast_service._unlocked(user_id, "tomorrow", ReadingScope()) is False
+
+    # Но на следующей неделе старая оплата недели не действует и требуется новая
     next_week = now_utc() + timedelta(days=7)
     container.forecast_service._clock = lambda: next_week
     assert await container.forecast_service._unlocked(user_id, "week", ReadingScope()) is False
+
+    await container.engine.dispose()
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_referral_rewards_both_users_and_endpoint_returns_stats(
+    database_url: str,
+) -> None:
+    engine, _ = _factory(database_url)
+    settings = make_settings(
+        database_url=database_url,
+        singleton_lock=False,
+        mini_app_url="https://t.me/starflow_bot/app",
+    )
+    container = build_container(settings)
+    app = build_fastapi(container)
+    intent = {"X-Starflow-Request": "1"}
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        raw_a = _init_data(
+            settings.bot_token, {"id": 901, "username": "user_a"}, int(unix_clock.time())
+        )
+        opened_a = await client.post(
+            "/api/v1/session", headers={"Authorization": f"TMA {raw_a}", **intent}
+        )
+        assert opened_a.status_code == 200
+        user_a_id = UUID(opened_a.json()["user_id"])
+
+        ref_a = await client.get("/api/v1/referral")
+        assert ref_a.status_code == 200
+        ref_data = ref_a.json()
+        assert ref_data["count"] == 0
+        assert ref_data["stars_earned"] == 0
+        code_a = ref_data["code"]
+        assert code_a != ""
+        assert f"ref_{code_a}" in ref_data["link"]
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client_b:
+        raw_b = _init_data(
+            settings.bot_token,
+            {"id": 902, "username": "user_b"},
+            int(unix_clock.time()),
+            extra={"start_param": f"ref_{code_a}"},
+        )
+        opened_b = await client_b.post(
+            "/api/v1/session", headers={"Authorization": f"TMA {raw_b}", **intent}
+        )
+        assert opened_b.status_code == 200
+        user_b_id = UUID(opened_b.json()["user_id"])
+        assert opened_b.json()["star_balance"] == 20
+        assert await container.stars_service.balance(user_b_id) == 20
+
+    assert await container.stars_service.balance(user_a_id) == 20
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client_a:
+        await client_a.post("/api/v1/session", headers={"Authorization": f"TMA {raw_a}", **intent})
+        updated_ref_a = await client_a.get("/api/v1/referral")
+        assert updated_ref_a.status_code == 200
+        data_a = updated_ref_a.json()
+        assert data_a["count"] == 1
+        assert data_a["stars_earned"] == 20
 
     await container.engine.dispose()
     await engine.dispose()

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 
 import {
   ApiRequestError,
@@ -20,14 +21,15 @@ import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { SegmentedControl } from "../shared/ui/SegmentedControl/SegmentedControl";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import { holdStarBalance, writeStarBalance } from "../starBalance";
-import { WEEK_STARS } from "../stars";
+import { TOMORROW_STARS } from "../stars";
 import { formatRuDate } from "./format";
 import styles from "./screens.module.css";
 import { TopUpDialog } from "./TopUpDialog";
 import { useTopicDetail } from "./topicDetail";
 
 const PERIODS = [
-  { id: "day", label: "День" },
+  { id: "day", label: "Сегодня" },
+  { id: "tomorrow", label: "Завтра" },
   { id: "week", label: "Неделя" },
   { id: "month", label: "Месяц" },
 ] as const;
@@ -36,6 +38,7 @@ type Period = (typeof PERIODS)[number]["id"];
 
 const KIND: Record<Period, string> = {
   day: "day",
+  tomorrow: "tomorrow",
   week: "week",
   month: "personal_month",
 };
@@ -53,7 +56,29 @@ function shortenTopicText(text: string, maxWords: number = 4): string {
 }
 
 export function ForecastScreen({ premium }: { premium: boolean }) {
-  const [period, setPeriod] = useState<Period>("day");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const periodParam = searchParams.get("period");
+  const initialPeriod: Period =
+    periodParam === "tomorrow" ||
+    periodParam === "week" ||
+    periodParam === "month" ||
+    periodParam === "day"
+      ? periodParam
+      : "day";
+  const [period, setPeriod] = useState<Period>(initialPeriod);
+
+  useEffect(() => {
+    if (
+      periodParam &&
+      (periodParam === "day" ||
+        periodParam === "tomorrow" ||
+        periodParam === "week" ||
+        periodParam === "month")
+    ) {
+      setPeriod(periodParam);
+    }
+  }, [periodParam]);
+
   const [topUp, setTopUp] = useState(false);
   const client = useQueryClient();
   const topics = useQuery({ queryKey: queryKeys.forecastTopics, queryFn: getForecastTopics });
@@ -66,9 +91,9 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
   const buy = useMutation({
     mutationFn: () =>
       spendStars({
-        feature: period === "week" ? "week" : "month",
+        feature: period === "tomorrow" ? "tomorrow" : period === "week" ? "week" : "month",
       }),
-    onMutate: () => holdStarBalance(client, WEEK_STARS),
+    onMutate: () => holdStarBalance(client, TOMORROW_STARS),
     onSuccess: async (ticket, _variables, restore) => {
       if (ticket.charged) {
         writeStarBalance(client, ticket.balance);
@@ -109,6 +134,7 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
 
   const rows = topics.data ?? forecastTopics;
   const topicPreviews = reading.data?.topics ?? {};
+  const targetDate = period === "tomorrow" ? new Date(Date.now() + 86400000) : new Date();
 
   return (
     <Screen tab="today">
@@ -117,18 +143,38 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
         label="Период прогноза"
         value={period}
         options={PERIODS}
-        onChange={setPeriod}
+        onChange={(next) => {
+          setPeriod(next);
+          setSearchParams(
+            (prev) => {
+              const nextParams = new URLSearchParams(prev);
+              nextParams.set("period", next);
+              return nextParams;
+            },
+            { replace: true }
+          );
+        }}
       />
-      <p className={styles.kicker}>{formatRuDate(new Date())}</p>
+      <p className={styles.kicker}>{formatRuDate(targetDate)}</p>
       {period !== "day" && reading.face.phase === "stars" ? (
         <section className={styles.reading}>
-          <h2>Прогноз на {period === "week" ? "неделю" : "месяц"}</h2>
+          <h2>
+            {period === "tomorrow"
+              ? "Прогноз на завтра"
+              : period === "week"
+                ? "Прогноз на неделю"
+                : "Прогноз на месяц"}
+          </h2>
           <p>
-            Прогноз на {period === "week" ? "неделю" : "месяц"} стоит{" "}
-            <StarPrice amount={WEEK_STARS} /> звёзд. С Premium он входит в период.
+            {period === "tomorrow"
+              ? "Прогноз на завтра"
+              : period === "week"
+                ? "Прогноз на неделю"
+                : "Прогноз на месяц"}{" "}
+            стоит <StarPrice amount={TOMORROW_STARS} /> звёзд. С Premium он входит в период.
           </p>
           <Button loading={buy.isPending} onClick={() => buy.mutate()}>
-            Открыть за <StarPrice amount={WEEK_STARS} />
+            Открыть за <StarPrice amount={TOMORROW_STARS} />
           </Button>
         </section>
       ) : reading.face.phase === "loading" ? (

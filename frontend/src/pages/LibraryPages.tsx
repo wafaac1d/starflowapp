@@ -13,6 +13,7 @@ import {
 } from "../api/client";
 import { BackHome, Button, EmptyState, ErrorState, Field, Skeleton } from "../components/ui/controls";
 import { CompatibilityEntry, EditorialListRow, PageHeader } from "../components/ui/editorial";
+import { ReferralScreen } from "../screens/ReferralScreen";
 import { text } from "../resources";
 
 type FetchProps = {
@@ -167,17 +168,5 @@ export function RelatedPage({ fetchImpl = fetch }: FetchProps) {
 }
 
 export function ReferralPage({ fetchImpl = fetch }: FetchProps) {
-  const referral = useQuery({ queryKey: ["referral"], queryFn: () => getReferral(fetchImpl) });
-  return (
-    <main className="shell">
-      <h1>{text("ui.reading.referral")}</h1>
-      {referral.data !== undefined ? (
-        <>
-          <p>{referral.data.code}</p>
-          <p className="reading-copy">{referral.data.link}</p>
-        </>
-      ) : null}
-      <BackHome />
-    </main>
-  );
+  return <ReferralScreen fetchImpl={fetchImpl} />;
 }
