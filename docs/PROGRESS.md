@@ -1090,6 +1090,22 @@ D-097. Создан экран реферальной программы `/refer
 
 Живой клиент Telegram не открывался (проверено моками).
 
+## Удаление предыдущего сообщения бота при рассылке и уведомлениях, 2026-11-01
+
+D-098. При отправке уведомления или рассылки от бота предыдущее отправленное сообщение бота в диалоге с пользователем автоматически удаляется, предотвращая захламление чата. Идентификатор последнего отправленного ботом сообщения сохраняется в таблице `users.last_bot_message_id` (миграция `20261101_0012_last_bot_message_id.py`). `SqlOutboxRepository.claim_due` возвращает `last_bot_message_id` в `OutboxJob`, а `BotRuntime.send_notice` удаляет старое сообщение перед отправкой нового. Также `last_bot_message_id` обновляется при интерактивных ответах бота в диалоге.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check src/starflow/bot/ src/starflow/services/outbox.py src/starflow/services/session.py src/starflow/db/ src/starflow/domain/ src/starflow/repositories/ migrations/ tests/unit/test_bot_reply.py tests/integration/test_ops.py` | 0 |
+| `uv run ruff format --check src/starflow/bot/ src/starflow/services/outbox.py src/starflow/services/session.py src/starflow/db/ src/starflow/domain/ src/starflow/repositories/ migrations/ tests/unit/test_bot_reply.py tests/integration/test_ops.py` | 0, 11 файлов отформатированы |
+| `uv run mypy` | 0, 108 файлов |
+| `uv run pytest` | 0, 130 тестов |
+| `corepack pnpm --pm-on-fail=ignore --prefix frontend test` | 0, 18 файлов, 103 теста Vitest |
+| `corepack pnpm --pm-on-fail=ignore --prefix frontend typecheck` | 0 |
+| `corepack pnpm --pm-on-fail=ignore --prefix frontend build` | 0 |
+
+Живой клиент Telegram не открывался (проверено моками и testcontainers PostgreSQL).
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

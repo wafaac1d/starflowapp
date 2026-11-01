@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 
 import structlog
 from aiogram import Bot, Dispatcher
@@ -36,6 +37,10 @@ class BotRuntime:
         self._stopped = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
         self._log = structlog.get_logger("bot")
+        self._last_message_ids: dict[int, int] = {}
+
+    def remember_message_id(self, telegram_id: int, message_id: int) -> None:
+        self._last_message_ids[telegram_id] = message_id
 
     async def send_text(self, telegram_id: int, text: str) -> None:
         await self.send_notice(telegram_id, text, "")
@@ -46,7 +51,8 @@ class BotRuntime:
         text: str,
         page: str,
         button_text: str = "",
-    ) -> None:
+        previous_message_id: int | None = None,
+    ) -> int | None:
         markup = None
         if page and self._settings.mini_app_url:
             url = screen_url(self._settings.mini_app_url, page)
@@ -56,8 +62,27 @@ class BotRuntime:
                 web_app=WebAppInfo(url=url),
             )
             markup = InlineKeyboardMarkup(inline_keyboard=[[button]])
+
+        prev_id = previous_message_id or self._last_message_ids.get(telegram_id)
+        if prev_id is not None:
+            try:
+                await self._bot.delete_message(chat_id=telegram_id, message_id=prev_id)
+            except TelegramRetryAfter as error:
+                raise DeliveryRetry(float(error.retry_after)) from error
+            except TelegramForbiddenError as error:
+                raise DeliveryBlocked() from error
+            except Exception as error:
+                self._log.debug(
+                    "delete_previous_notice_failed",
+                    telegram_id=telegram_id,
+                    message_id=prev_id,
+                    error=str(error),
+                )
+
         try:
-            await self._bot.send_message(telegram_id, text, reply_markup=markup)
+            message = await self._bot.send_message(telegram_id, text, reply_markup=markup)
+            self._last_message_ids[telegram_id] = message.message_id
+            return message.message_id
         except TelegramRetryAfter as error:
             raise DeliveryRetry(float(error.retry_after)) from error
         except TelegramForbiddenError as error:
@@ -99,10 +124,8 @@ class BotRuntime:
             try:
                 await self._configure()
                 if self._settings.bot_mode == "polling":
-                    try:
+                    with contextlib.suppress(Exception):
                         await self._bot.delete_webhook(drop_pending_updates=False)
-                    except Exception:
-                        pass
                     await self._dispatcher.start_polling(
                         self._bot,
                         handle_signals=False,

@@ -54,6 +54,7 @@ class UserRow(Base):
     bot_welcomed: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )
+    last_bot_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
 
 class StarSpendRow(Base):

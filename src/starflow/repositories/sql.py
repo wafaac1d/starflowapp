@@ -138,6 +138,16 @@ class SqlUserRepository:
             await self._session.flush()
         return first_time
 
+    async def update_last_bot_message_id(self, telegram_id: int, message_id: int) -> None:
+        result = await self._session.execute(
+            select(UserRow).where(UserRow.telegram_id == telegram_id)
+        )
+        row = result.scalar_one_or_none()
+        if row is not None:
+            row.last_bot_message_id = message_id
+            row.updated_at = now_utc()
+            await self._session.flush()
+
     async def lock(self, user_id: UUID) -> None:
         result = await self._session.execute(
             select(UserRow.id).where(UserRow.id == user_id).with_for_update()
@@ -1325,7 +1335,7 @@ class SqlOutboxRepository:
                 LIMIT :limit
                 FOR UPDATE OF o2 SKIP LOCKED
               )
-            RETURNING o.id, u.telegram_id, o.payload
+            RETURNING o.id, u.telegram_id, o.payload, u.last_bot_message_id
             """
         )
         rows = await self._session.execute(
@@ -1353,6 +1363,7 @@ class SqlOutboxRepository:
                     planet=planet if isinstance(planet, str) else "",
                     body=body if isinstance(body, str) else "",
                     button_key=button_key if isinstance(button_key, str) else "",
+                    last_message_id=item.get("last_bot_message_id"),
                 )
             )
         await self._session.flush()
@@ -1783,6 +1794,7 @@ def _user(row: UserRow) -> User:
         referral_code=row.referral_code,
         referred_by=row.referred_by,
         bot_welcomed=getattr(row, "bot_welcomed", False),
+        last_bot_message_id=getattr(row, "last_bot_message_id", None),
     )
 
 

@@ -13,6 +13,7 @@ class User:
     referral_code: str | None = None
     referred_by: UUID | None = None
     bot_welcomed: bool = False
+    last_bot_message_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -115,6 +116,7 @@ class OutboxJob:
     planet: str = ""
     body: str = ""
     button_key: str = ""
+    last_message_id: int | None = None
 
 
 @dataclass(frozen=True)

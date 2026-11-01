@@ -34,6 +34,8 @@ class UserRepository(Protocol):
 
     async def mark_bot_welcomed(self, telegram_id: int) -> bool: ...
 
+    async def update_last_bot_message_id(self, telegram_id: int, message_id: int) -> None: ...
+
 
 class OutboxRepository(Protocol):
     async def enqueue(

@@ -44,7 +44,8 @@ class TextSender(Protocol):
         text: str,
         page: str,
         button_text: str = "",
-    ) -> None: ...
+        previous_message_id: int | None = None,
+    ) -> int | None: ...
 
 
 class OutboxService:
@@ -75,15 +76,13 @@ class OutboxService:
                     text = self._catalog.format(job.text_key, planet=job.planet)
             button_label = self._catalog.text(job.button_key) if job.button_key else ""
             try:
-                if button_label != "":
-                    await sender.send_notice(
-                        job.telegram_id,
-                        text,
-                        job.page,
-                        button_text=button_label,
-                    )
-                else:
-                    await sender.send_notice(job.telegram_id, text, job.page)
+                sent_message_id = await sender.send_notice(
+                    job.telegram_id,
+                    text,
+                    job.page,
+                    button_text=button_label,
+                    previous_message_id=job.last_message_id,
+                )
             except DeliveryBlocked as error:
                 await self._fail(job.telegram_id, job.id, type(error).__name__, None, blocked=True)
                 continue
@@ -104,6 +103,8 @@ class OutboxService:
             sent_at = now_utc()
             async with self._uow_factory() as uow:
                 await uow.outbox.mark_sent(job.id, sent_at)
+                if isinstance(sent_message_id, int):
+                    await uow.users.update_last_bot_message_id(job.telegram_id, sent_message_id)
                 await uow.commit()
             delivered += 1
         return delivered

@@ -124,6 +124,8 @@ class _Ephemeris:
 class _Sender:
     def __init__(self) -> None:
         self.sent: list[tuple[int, str, str, str]] = []
+        self.deleted: list[tuple[int, int]] = []
+        self.last_sent_by_user: dict[int, int] = {}
 
     async def send_notice(
         self,
@@ -131,12 +133,18 @@ class _Sender:
         text: str,
         page: str,
         button_text: str = "",
-    ) -> None:
+        previous_message_id: int | None = None,
+    ) -> int | None:
         if telegram_id == 8802:
             raise DeliveryBlocked()
         if telegram_id == 8803:
             raise DeliveryRetry(4)
+        if previous_message_id is not None:
+            self.deleted.append((telegram_id, previous_message_id))
+        msg_id = 1000 + len(self.sent) + 1
         self.sent.append((telegram_id, text, page, button_text))
+        self.last_sent_by_user[telegram_id] = msg_id
+        return msg_id
 
 
 def _ops(
@@ -350,6 +358,38 @@ async def test_bedtime_tomorrow_notification_enqueued_and_sent(database_url: str
     assert "Узнайте, что вас ждёт завтра" in user_sends[0][1]
     assert user_sends[0][2] == "forecast?period=tomorrow"
     assert user_sends[0][3] == "Узнать, что ждёт завтра"
+
+    first_msg_id = sender.last_sent_by_user[8810]
+    async with factory() as session:
+        user_row = await session.scalar(select(UserRow).where(UserRow.id == user.id))
+        assert user_row is not None
+        assert user_row.last_bot_message_id == first_msg_id
+
+    # Second notification for the same user should delete the first message
+    async with SqlUnitOfWork(factory) as uow:
+        await uow.outbox.enqueue(
+            user.id,
+            "day",
+            "bot.day_ready",
+            MOMENT.date(),
+            evening,
+            event_key="next_day",
+            page="reading/day",
+        )
+        await uow.commit()
+
+    sent2 = await service.dispatch_due(sender)
+    assert sent2 == 1
+    assert (8810, first_msg_id) in sender.deleted
+
+    second_msg_id = sender.last_sent_by_user[8810]
+    assert second_msg_id != first_msg_id
+
+    async with factory() as session:
+        user_row = await session.scalar(select(UserRow).where(UserRow.id == user.id))
+        assert user_row is not None
+        assert user_row.last_bot_message_id == second_msg_id
+
     await engine.dispose()
 
 

@@ -79,6 +79,11 @@ class SessionService:
             await uow.commit()
             return is_first
 
+    async def save_bot_message_id(self, telegram_id: int, message_id: int) -> None:
+        async with self._uow_factory() as uow:
+            await uow.users.update_last_bot_message_id(telegram_id, message_id)
+            await uow.commit()
+
     async def issue(self, view: SessionView) -> IssuedSession:
         token = secrets.token_urlsafe(32)
         expires_at = now_utc() + timedelta(seconds=self._ttl_sec)
