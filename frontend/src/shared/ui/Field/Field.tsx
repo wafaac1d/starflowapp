@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 
 import { Icon, type IconName } from "../Icon/Icon";
 import styles from "./Field.module.css";
@@ -9,6 +9,8 @@ type FieldProps = {
   icon?: IconName;
   chevron?: boolean;
   disabled?: boolean;
+  inputMode?: HTMLAttributes<HTMLInputElement>["inputMode"];
+  pattern?: string;
   onChange?: (value: string) => void;
   children?: ReactNode;
 };
@@ -19,6 +21,8 @@ export function Field({
   icon,
   chevron = true,
   disabled = false,
+  inputMode,
+  pattern,
   onChange,
 }: FieldProps) {
   return (
@@ -30,6 +34,8 @@ export function Field({
           className={styles.input}
           value={value}
           disabled={disabled}
+          inputMode={inputMode}
+          pattern={pattern}
           onChange={(event) => {
             onChange?.(event.target.value);
           }}

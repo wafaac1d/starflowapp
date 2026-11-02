@@ -73,8 +73,10 @@ describe("shared ui", () => {
   });
 
   it("keeps a field value", () => {
-    render(<Field label="Дата рождения" value="12.08.1995" onChange={() => undefined} />);
-    expect(screen.getByRole("textbox", { name: "Дата рождения" })).toHaveValue("12.08.1995");
+    render(<Field label="Дата рождения" value="12.08.1995" inputMode="numeric" onChange={() => undefined} />);
+    const input = screen.getByRole("textbox", { name: "Дата рождения" });
+    expect(input).toHaveValue("12.08.1995");
+    expect(input).toHaveAttribute("inputmode", "numeric");
   });
 
   it("marks the active tab", () => {

@@ -389,6 +389,7 @@ function PersonSlot({
             icon="date_calendar"
             chevron={false}
             value={slot.date}
+            inputMode="numeric"
             onChange={(value) => {
               onChange({ ...slot, date: maskBirthDate(value) });
             }}
@@ -398,6 +399,7 @@ function PersonSlot({
             icon="clock"
             chevron={false}
             value={slot.time}
+            inputMode="numeric"
             onChange={(time) => {
               onChange({ ...slot, time: maskBirthTime(time) });
             }}

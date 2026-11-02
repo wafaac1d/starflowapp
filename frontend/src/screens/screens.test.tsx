@@ -68,6 +68,8 @@ describe("screens", () => {
     renderAt(<BirthScreen profile={{ ...profile(), step: "date", birth_date: null, birth_time: null }} displayName="Анна" />);
     const date = screen.getByRole("textbox", { name: "Дата рождения" });
     const time = screen.getByRole("textbox", { name: "Время рождения" });
+    expect(date).toHaveAttribute("inputmode", "numeric");
+    expect(time).toHaveAttribute("inputmode", "numeric");
     await userEvent.type(date, "12081995");
     await userEvent.type(time, "1430");
     expect(date).toHaveValue("12.08.1995");

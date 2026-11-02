@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router";
 
 import { addRelated, getRelated, readingKey } from "../api/client";
 import { queryKeys } from "../api/keys";
+import { maskBirthDate } from "../birthDate";
 import { Button } from "../shared/ui/Button/Button";
 import { Field } from "../shared/ui/Field/Field";
 import { ListRow } from "../shared/ui/ListRow/ListRow";
@@ -58,7 +59,13 @@ export function PeopleScreen() {
         {adding ? (
           <>
             <Field label="Имя" value={name} chevron={false} onChange={setName} />
-            <Field label="Дата рождения" value={born} chevron={false} onChange={setBorn} />
+            <Field
+              label="Дата рождения"
+              value={born}
+              chevron={false}
+              inputMode="numeric"
+              onChange={(value) => setBorn(maskBirthDate(value))}
+            />
             <Button
               disabled={name.trim() === "" || born.trim() === ""}
               onClick={() => {

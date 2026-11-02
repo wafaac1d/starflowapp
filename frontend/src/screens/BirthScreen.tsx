@@ -189,6 +189,7 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
             label="Дата рождения"
             icon="date_calendar"
             value={date}
+            inputMode="numeric"
             onChange={(value) => {
               setDate(maskBirthDate(value));
             }}
@@ -198,6 +199,7 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
               label="Время рождения"
               icon="clock"
               value={time}
+              inputMode="numeric"
               onChange={(value) => {
                 setTime(maskBirthTime(value));
               }}

@@ -195,6 +195,7 @@ export function OnboardingPage({ profile }: OnboardingPageProps) {
           <Field
             label={text("ui.onboarding.time_title")}
             value={birthTime}
+            inputMode="numeric"
             onChange={setBirthTime}
             {...(fields.birth_time !== undefined ? { error: fields.birth_time } : {})}
           />
