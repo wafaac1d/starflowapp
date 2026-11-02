@@ -3,10 +3,12 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
 import { applyTheme, bindViewportChrome, readThemeChoice } from "./theme";
+import { preventZoom } from "./zoom";
 import "./shared/styles/tokens.css";
 
 applyTheme(readThemeChoice());
 bindViewportChrome();
+preventZoom();
 
 const root = document.getElementById("root");
 if (root === null) {

@@ -11,6 +11,7 @@ import { DeletePage } from "./pages/DeletePage";
 import { HistoryPage, ReferralPage } from "./pages/LibraryPages";
 import { HelpPage, PaySupportPage, TermsPage } from "./pages/InfoPages";
 import { OpenAppPage } from "./pages/OpenAppPage";
+import { ScrollToTop } from "./ScrollToTop";
 import { BirthScreen } from "./screens/BirthScreen";
 import { CalendarScreen } from "./screens/CalendarScreen";
 import { ChatScreen } from "./screens/ChatScreen";
@@ -40,6 +41,7 @@ export function App() {
   return (
     <QueryClientProvider client={client}>
       <BrowserRouter>
+        <ScrollToTop />
         <div className="app-column">
           <AuthedApp initData={webApp.initData} />
         </div>

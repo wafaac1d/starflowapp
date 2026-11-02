@@ -86,7 +86,7 @@ profile:
   save: Сохранить
   delete: Удалить данные
   delete_confirm: Подтвердить удаление
-  birth_row: Данные рождения
+  birth_row: Мои данные
   date_missing: Дата не указана
   time_missing: Время неизвестно
   unnamed: Имя не указано

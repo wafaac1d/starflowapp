@@ -656,7 +656,7 @@ test("chat shows the sent line before the model answers", async ({ page }) => {
 
 test("profile edit saves the birth time and an empty field means unknown", async ({ page }) => {
   await openReady(page, "/profile");
-  await page.getByRole("link", { name: "Данные рождения" }).click();
+  await page.getByRole("link", { name: "Мои данные" }).click();
   await expect(page.getByRole("heading", { name: "Когда вы родились?" })).toBeVisible();
   await expect(page.getByRole("switch", { name: "Не знаю время" })).toHaveCount(0);
   const time = page.getByRole("textbox", { name: "Время рождения" });
@@ -673,7 +673,7 @@ test("profile edit saves the birth time and an empty field means unknown", async
   await expect(page.getByRole("heading", { name: "Анна" })).toBeVisible();
 
   await page.getByRole("link", { name: "Профиль" }).click();
-  await page.getByRole("link", { name: "Данные рождения" }).click();
+  await page.getByRole("link", { name: "Мои данные" }).click();
   await page.getByRole("textbox", { name: "Время рождения" }).fill("");
   const cleared = page.waitForRequest(
     (request) => request.method() === "PATCH" && request.url().includes("/api/v1/profile"),

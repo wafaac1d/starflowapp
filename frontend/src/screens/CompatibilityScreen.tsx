@@ -13,7 +13,7 @@ import {
 } from "../api/client";
 import { compatRows, getCompatRows, partnerFixture, peopleFixture } from "../api/fixtures";
 import { queryKeys } from "../api/keys";
-import { maskBirthDate } from "../birthDate";
+import { maskBirthDate, maskBirthTime } from "../birthDate";
 import { calendarSign, displayBirthDate } from "../calendarSign";
 import { titled } from "../case";
 import { STAR_SILENCE, useReading } from "../readingWait";
@@ -399,7 +399,7 @@ function PersonSlot({
             chevron={false}
             value={slot.time}
             onChange={(time) => {
-              onChange({ ...slot, time });
+              onChange({ ...slot, time: maskBirthTime(time) });
             }}
           />
           {showSave ? (

@@ -131,6 +131,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: var(--space-1);
   margin: 0;
   padding: 0 var(--space-3);
   border: 0;
@@ -141,6 +142,13 @@
   line-height: 1;
   appearance: none;
   cursor: pointer;
+}
+
+.balanceIcon {
+  width: 16px;
+  height: 16px;
+  display: block;
+  flex-shrink: 0;
 }
 
 .balanceFace {

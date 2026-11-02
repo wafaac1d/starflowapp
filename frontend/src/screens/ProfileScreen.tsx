@@ -47,7 +47,7 @@ export function ProfileScreen({ profile }: { profile: ProfileResponse }) {
         </span>
       </div>
       <div>
-        <ListRow plain title="Данные рождения" chevron to="/onboarding/birth" />
+        <ListRow plain title="Мои данные" chevron to="/onboarding/birth" />
         <ListRow
           plain
           title="Добавить близкого"

@@ -234,6 +234,8 @@ describe("screens", () => {
     }
     expect(within(balance).getByText("unlim")).toBeInTheDocument();
     expect(within(balance).getByText("/15")).toHaveClass(rest);
+    const star = balance.querySelector("img");
+    expect(star).toHaveAttribute("src", "/icons/svg/stars_currency.svg");
   });
 
   it("opens a top-up from the balance", async () => {
@@ -586,7 +588,9 @@ describe("screens", () => {
       "03.05.1993",
     );
     expect(screen.getByRole("switch", { name: "Сохранить в близкие" })).toBeInTheDocument();
-    await userEvent.type(within(second).getByRole("textbox", { name: "Время рождения" }), "09:15");
+    const timeField = within(second).getByRole("textbox", { name: "Время рождения" });
+    await userEvent.type(timeField, "0915");
+    expect(timeField).toHaveValue("09:15");
     expect(screen.getByRole("button", { name: (value) => value.startsWith("Проверить") })).toBeEnabled();
     expect(screen.queryByText("Глубокая связь")).not.toBeInTheDocument();
     expect(calls.some((call) => call.method === "POST")).toBe(false);
@@ -959,6 +963,10 @@ describe("screens", () => {
     renderAt(<ProfileScreen profile={profile()} />);
     expect(screen.getByRole("heading", { name: "Анна" })).toBeInTheDocument();
     expect(screen.getByText("Лев · 12.08.1995")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Мои данные" })).toHaveAttribute(
+      "href",
+      "/onboarding/birth",
+    );
     expect(screen.getByRole("link", { name: "Избранное" })).toHaveAttribute("href", "/favorites");
     expect(screen.queryByRole("link", { name: "История" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Моя подписка" })).toHaveAttribute("href", "/premium");

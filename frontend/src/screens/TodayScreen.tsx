@@ -114,6 +114,14 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
               setTopUp(true);
             }}
           >
+            <img
+              className={styles.balanceIcon}
+              src="/icons/svg/stars_currency.svg"
+              width={16}
+              height={16}
+              alt=""
+              aria-hidden="true"
+            />
             {profile.is_premium ? (
               <span className={styles.balanceFace}><span>unlim</span><span className={styles.balanceRest}>/{balance}</span></span>
             ) : (

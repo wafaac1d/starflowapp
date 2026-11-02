@@ -162,7 +162,7 @@ export const texts = {
   "ui.profile.save": "Сохранить",
   "ui.profile.delete": "Удалить данные",
   "ui.profile.delete_confirm": "Подтвердить удаление",
-  "ui.profile.birth_row": "Данные рождения",
+  "ui.profile.birth_row": "Мои данные",
   "ui.profile.date_missing": "Дата не указана",
   "ui.profile.time_missing": "Время неизвестно",
   "ui.profile.unnamed": "Имя не указано",
