@@ -284,7 +284,7 @@ class OpsService:
             zone = self._zone_name
             if profile is not None and profile.timezone:
                 zone = profile.timezone
-            return "09:00", zone, False, False, False
+            return "09:00", zone, True, True, True
         return (
             slot_label(row.digest_local_time),
             row.timezone,
@@ -445,7 +445,11 @@ class OpsService:
         ready: bool,
         button_key: str = "",
     ) -> int:
-        text_key = f"bot.{kind}_ready" if ready else f"bot.{kind}_fallback"
+        if ready and kind in ("day", "tomorrow"):
+            day_index = day.weekday() + 1
+            text_key = f"bot.{kind}_ready_{day_index}"
+        else:
+            text_key = f"bot.{kind}_ready" if ready else f"bot.{kind}_fallback"
         try:
             await uow.outbox.enqueue(
                 user_id,

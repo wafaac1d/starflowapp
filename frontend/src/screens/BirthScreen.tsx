@@ -191,7 +191,7 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
             value={date}
             inputMode="numeric"
             onChange={(value) => {
-              setDate(maskBirthDate(value));
+              setDate((prev) => maskBirthDate(value, prev));
             }}
           />
           <div className={styles.fieldNote}>
@@ -201,7 +201,7 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
               value={time}
               inputMode="numeric"
               onChange={(value) => {
-                setTime(maskBirthTime(value));
+                setTime((prev) => maskBirthTime(value, prev));
               }}
             />
             <p className={styles.meta}>Можно оставить пустым, если не знаете время рождения</p>

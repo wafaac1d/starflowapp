@@ -124,3 +124,46 @@ async def test_failed_star_answer_returns_the_charge() -> None:
     reply = await service.ask(USER, "question-2", "Что с луной сегодня?")
     assert reply.status == "error"
     assert events == ["buy", "model", "model", "credit"]
+
+
+async def test_unanswerable_question_charges_quota() -> None:
+    from starflow.domain.quota import Allowed
+
+    events: list[str] = []
+
+    class _AllowedQuota:
+        def __init__(self) -> None:
+            self.rem = 10
+
+        async def hold(self, *_args: object) -> Allowed:
+            return Allowed()
+
+        async def finish(
+            self,
+            _user_id: object,
+            _feature: str,
+            _key: str,
+            _producer: object,
+            *,
+            charge: bool,
+        ) -> None:
+            events.append(f"finish:charge={charge}")
+            if charge:
+                self.rem -= 1
+
+        async def remaining(self, *_args: object) -> int:
+            return self.rem
+
+    service = AssistantService(
+        lambda: _Work(),
+        _Model(events, ""),
+        _AllowedQuota(),  # type: ignore[arg-type]
+        _Catalog(),
+        system="system",
+        model_name="deepseek-flash",
+    )
+    reply = await service.ask(USER, "key-1", "Какая погода в Казани?")
+    assert reply.status == "off_topic"
+    assert reply.remaining == 9
+    assert events == ["finish:charge=True"]
+

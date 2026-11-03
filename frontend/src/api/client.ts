@@ -398,8 +398,29 @@ export type RetroPeriod = {
   end: string;
 };
 
+export type RetroMeaning = {
+  planet: string;
+  start: string;
+  end: string;
+  access: "allowed" | "stars_required" | string;
+  price: number;
+  title: string;
+  body: string;
+  advice: string;
+};
+
 export async function getRetro(fetchImpl: typeof fetch = fetch): Promise<RetroPeriod[]> {
   return requestJson<RetroPeriod[]>("/api/v1/retro", { method: "GET" }, fetchImpl);
+}
+
+export async function getRetroMeaning(
+  planet: string,
+  start: string,
+  end: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<RetroMeaning> {
+  const query = new URLSearchParams({ planet, start, end });
+  return requestJson<RetroMeaning>(`/api/v1/retro/meaning?${query.toString()}`, { method: "GET" }, fetchImpl);
 }
 
 export type FavorableDay = {
@@ -782,7 +803,8 @@ export async function spendStars(
     | { feature: "week"; period?: string }
     | { feature: "month"; month?: string }
     | { feature: "topics"; period?: string }
-    | { feature: "tomorrow"; day?: string; period?: string },
+    | { feature: "tomorrow"; day?: string; period?: string }
+    | { feature: "retrograde"; planet: string; start: string },
   fetchImpl: typeof fetch = fetch,
 ): Promise<SpendResponse> {
   return requestJson<SpendResponse>(

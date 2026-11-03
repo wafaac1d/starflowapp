@@ -36,6 +36,17 @@ class RetroPeriodBody(BaseModel):
     end: str
 
 
+class RetroMeaningBody(BaseModel):
+    planet: str
+    start: str
+    end: str
+    access: str
+    price: int
+    title: str
+    body: str
+    advice: str
+
+
 class SourceCount(BaseModel):
     source: str
     count: int
@@ -162,6 +173,29 @@ def register_ops_routes(router: APIRouter, container: Container) -> None:
         return [
             RetroPeriodBody(planet=planet, start=start, end=end) for planet, start, end in found
         ]
+
+    @router.get("/retro/meaning", response_model=RetroMeaningBody)
+    async def read_retro_meaning(
+        request: Request,
+        planet: Annotated[str, Query()],
+        start: Annotated[str, Query()],
+        end: Annotated[str, Query()],
+    ) -> RetroMeaningBody:
+        actor = await actor_from_cookie(request, container, unauthorized)
+        try:
+            view = await container.retro_service.meaning(actor.view.user_id, planet, start, end)
+        except FieldInvalid as error:
+            raise _field(container, error) from error
+        return RetroMeaningBody(
+            planet=view.planet,
+            start=view.start,
+            end=view.end,
+            access=view.access,
+            price=view.price,
+            title=view.title,
+            body=view.body,
+            advice=view.advice,
+        )
 
     @router.get("/admin/overview", response_model=AdminBody)
     async def admin_overview(

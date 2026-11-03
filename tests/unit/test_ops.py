@@ -18,9 +18,8 @@ from starflow.scheduler.runtime import SchedulerRuntime
 from starflow.services.ops import OpsService
 from tests.support import make_settings
 
-ROOT_PROMPTS = load_prompts(
-    Path(__file__).resolve().parents[2] / "resources" / "prompts" / "forecasts.yaml"
-)
+RESOURCES = Path(__file__).resolve().parents[2] / "resources"
+ROOT_PROMPTS = load_prompts(RESOURCES / "prompts" / "forecasts.yaml")
 
 
 def test_slots_catch_up_and_dst_folds() -> None:
@@ -185,3 +184,188 @@ async def test_scheduler_bounds_and_shutdown() -> None:
         assert job.coalesce is True
         assert job.misfire_grace_time == 60
     await runtime.shutdown()
+
+
+@pytest.mark.asyncio
+async def test_morning_and_evening_daily_variations_across_seven_days() -> None:
+    from uuid import uuid4
+
+    from starflow.cache.memory import MemoryCache
+    from starflow.i18n.catalog import load_catalog
+    from starflow.i18n.guard import contains_emoji
+
+    catalog = load_catalog(RESOURCES, "ru", MemoryCache(8))
+
+    morning_texts: set[str] = set()
+    evening_texts: set[str] = set()
+
+    for day_num in range(1, 8):
+        m_key = f"bot.day_ready_{day_num}"
+        e_key = f"bot.tomorrow_ready_{day_num}"
+
+        m_text = catalog.text(m_key)
+        e_text = catalog.text(e_key)
+
+        assert m_text.strip() != ""
+        assert e_text.strip() != ""
+        assert not contains_emoji(m_text)
+        assert not contains_emoji(e_text)
+
+        morning_texts.add(m_text)
+        evening_texts.add(e_text)
+
+    # All 7 morning texts and 7 evening texts must be distinct
+    assert len(morning_texts) == 7
+    assert len(evening_texts) == 7
+
+    class _MockOutbox:
+        def __init__(self) -> None:
+            self.records: list[dict[str, object]] = []
+
+        async def enqueue(
+            self,
+            user_id: object,
+            kind: str,
+            text_key: str,
+            local_date: date,
+            scheduled_for: datetime,
+            **kwargs: object,
+        ) -> None:
+            self.records.append(
+                {
+                    "user_id": user_id,
+                    "kind": kind,
+                    "text_key": text_key,
+                    "local_date": local_date,
+                    "scheduled_for": scheduled_for,
+                    **kwargs,
+                }
+            )
+
+    class _MockUow:
+        def __init__(self) -> None:
+            self.outbox = _MockOutbox()
+
+    service = OpsService(
+        lambda: None,  # type: ignore[arg-type]
+        ROOT_PROMPTS,
+        _Cache(set()),  # type: ignore[arg-type]
+        _Model(),
+        _Speed(),
+        zone_name="Europe/Moscow",
+        locale="ru",
+        fast_model="deepseek-flash",
+        pro_model="deepseek-v4-pro",
+    )
+
+    uow = _MockUow()
+    user_id = uuid4()
+    moment = datetime(2026, 6, 15, 6, 0, tzinfo=UTC)  # Monday: weekday 0, day 1
+
+    # Check 7 consecutive days starting from Monday 2026-06-15
+    for offset in range(7):
+        current_day = date(2026, 6, 15) + timedelta(days=offset)
+        expected_day_num = offset + 1
+
+        # Morning notice (ready)
+        await service._notice(
+            uow,  # type: ignore[arg-type]
+            user_id,
+            "day",
+            current_day,
+            moment,
+            "reading/day",
+            ready=True,
+        )
+        assert uow.outbox.records[-1]["text_key"] == f"bot.day_ready_{expected_day_num}"
+
+        # Evening notice (ready)
+        await service._notice(
+            uow,  # type: ignore[arg-type]
+            user_id,
+            "tomorrow",
+            current_day,
+            moment,
+            "forecast?period=tomorrow",
+            ready=True,
+        )
+        assert uow.outbox.records[-1]["text_key"] == f"bot.tomorrow_ready_{expected_day_num}"
+
+    # Fallbacks remain constant
+    await service._notice(
+        uow,  # type: ignore[arg-type]
+        user_id,
+        "day",
+        date(2026, 6, 15),
+        moment,
+        "reading/day",
+        ready=False,
+    )
+    assert uow.outbox.records[-1]["text_key"] == "bot.day_fallback"
+
+    await service._notice(
+        uow,  # type: ignore[arg-type]
+        user_id,
+        "tomorrow",
+        date(2026, 6, 15),
+        moment,
+        "forecast?period=tomorrow",
+        ready=False,
+    )
+    assert uow.outbox.records[-1]["text_key"] == "bot.tomorrow_fallback"
+
+    # Moon notice remains bot.moon_ready
+    await service._notice(
+        uow,  # type: ignore[arg-type]
+        user_id,
+        "moon",
+        date(2026, 6, 15),
+        moment,
+        "reading/moon",
+        ready=True,
+    )
+    assert uow.outbox.records[-1]["text_key"] == "bot.moon_ready"
+
+
+@pytest.mark.asyncio
+async def test_ops_preferences_default_enabled_for_new_users() -> None:
+    from uuid import uuid4
+
+    class _MockSettingsRepo:
+        async def read(self, _user_id: object) -> None:
+            return None
+
+    class _MockProfilesRepo:
+        async def get_by_user_id(self, _user_id: object) -> None:
+            return None
+
+    class _MockStore:
+        notification_settings = _MockSettingsRepo()
+        profiles = _MockProfilesRepo()
+
+    class _MockWork:
+        async def __aenter__(self) -> _MockStore:
+            return _MockStore()
+
+        async def __aexit__(self, *_args: object) -> None:
+            pass
+
+    service = OpsService(
+        lambda: _MockWork(),  # type: ignore[arg-type]
+        ROOT_PROMPTS,
+        _Cache(set()),  # type: ignore[arg-type]
+        _Model(),
+        _Speed(),
+        zone_name="Europe/Moscow",
+        locale="ru",
+        fast_model="deepseek-flash",
+        pro_model="deepseek-v4-pro",
+    )
+    local_time, zone, day, moon, retro = await service.preferences(uuid4())
+    assert local_time == "09:00"
+    assert zone == "Europe/Moscow"
+    assert day is True
+    assert moon is True
+    assert retro is True
+
+

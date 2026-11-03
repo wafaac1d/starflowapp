@@ -6,3 +6,4 @@ export const AFFIRMATION_STARS = 20;
 export const WEEK_STARS = 20;
 export const MONTH_STARS = 20;
 export const TOMORROW_STARS = 20;
+export const RETROGRADE_STARS = 15;

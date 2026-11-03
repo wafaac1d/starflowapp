@@ -135,7 +135,7 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
             type="button"
             className={styles.decisionHead}
             aria-busy={waiting}
-            onClick={() => void navigate("/natal")}
+            onClick={openForecast}
           >
             <Icon name="profile_trait_sparkle" size={22} />
             <span>{waiting ? <Skeleton lines={1} /> : title}</span>

@@ -359,17 +359,23 @@ class NotificationSettingsRow(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
     )
-    digest_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    digest_local_time: Mapped[time] = mapped_column(Time, nullable=False)
-    timezone: Mapped[str] = mapped_column(Text, nullable=False)
+    digest_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
+    digest_local_time: Mapped[time] = mapped_column(
+        Time, nullable=False, default=time(9, 0), server_default=text("'09:00:00'")
+    )
+    timezone: Mapped[str] = mapped_column(
+        Text, nullable=False, default="Europe/Moscow", server_default=text("'Europe/Moscow'")
+    )
     day_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=text("false")
+        Boolean, nullable=False, default=True, server_default=text("true")
     )
     moon_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=text("false")
+        Boolean, nullable=False, default=True, server_default=text("true")
     )
     retro_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default=text("false")
+        Boolean, nullable=False, default=True, server_default=text("true")
     )
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 

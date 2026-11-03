@@ -2,14 +2,26 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router";
 
-import { getNotifications, getRetro, saveNotifications, type RetroPeriod } from "../api/client";
+import {
+  ApiRequestError,
+  getNotifications,
+  getRetro,
+  getRetroMeaning,
+  saveNotifications,
+  spendStars,
+  type RetroPeriod,
+} from "../api/client";
 import { queryKeys } from "../api/keys";
+import { holdStarBalance, writeStarBalance } from "../starBalance";
+import { RETROGRADE_STARS } from "../stars";
 import { Button } from "../shared/ui/Button/Button";
 import { ErrorState } from "../shared/ui/ErrorState/ErrorState";
 import { Screen } from "../shared/ui/Screen/Screen";
 import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
+import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import styles from "./screens.module.css";
+import { TopUpDialog } from "./TopUpDialog";
 
 const FILTERS = [
   { id: "now", label: "Сейчас" },
@@ -123,6 +135,7 @@ export function RetroScreen() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterId>("now");
+  const [selectedPeriod, setSelectedPeriod] = useState<RetroPeriod | null>(null);
   const today = isoToday();
   const periods = useQuery({
     queryKey: queryKeys.retro,
@@ -189,7 +202,12 @@ export function RetroScreen() {
               const current = isCurrent(period, today);
               const ratio = Math.round(progress(period, today) * 100);
               return (
-                <article key={`${period.planet}-${period.start}`} className={styles.retroCard}>
+                <button
+                  type="button"
+                  key={`${period.planet}-${period.start}`}
+                  className={`${styles.retroCard} ${styles.retroCardClickable}`}
+                  onClick={() => setSelectedPeriod(period)}
+                >
                   <div className={styles.retroHead}>
                     <img className={styles.glyph} src={art.image} alt="" />
                     <div className={styles.retroCopy}>
@@ -215,7 +233,7 @@ export function RetroScreen() {
                     <span>{shortDate(period.start)}</span>
                     <span>{shortDate(period.end)}</span>
                   </div>
-                </article>
+                </button>
               );
             })
           : null}
@@ -242,6 +260,157 @@ export function RetroScreen() {
           {remind.isError ? <p className={styles.kicker}>Не удалось включить напоминание.</p> : null}
         </div>
       </div>
+      {selectedPeriod !== null ? (
+        <RetroDetailDialog
+          period={selectedPeriod}
+          onClose={() => setSelectedPeriod(null)}
+        />
+      ) : null}
     </Screen>
+  );
+}
+
+function RetroDetailDialog({
+  period,
+  onClose,
+}: {
+  period: RetroPeriod;
+  onClose: () => void;
+}) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [topUp, setTopUp] = useState(false);
+  const art = PLANETS[period.planet];
+  const planetTitle = art?.title ?? period.planet;
+  const today = isoToday();
+  const current = isCurrent(period, today);
+  const ended = period.end < today;
+
+  const meaningQuery = useQuery({
+    queryKey: queryKeys.retroMeaning(period.planet, period.start),
+    queryFn: () => getRetroMeaning(period.planet, period.start, period.end),
+  });
+
+  const meaning = meaningQuery.data;
+  const price = meaning?.price ?? RETROGRADE_STARS;
+  const locked = meaning?.access === "stars_required";
+
+  const buy = useMutation({
+    mutationFn: () =>
+      spendStars({
+        feature: "retrograde",
+        planet: period.planet,
+        start: period.start,
+      }),
+    onMutate: () => holdStarBalance(queryClient, price),
+    onSuccess: async (ticket, _variables, restore) => {
+      if (ticket.charged) {
+        writeStarBalance(queryClient, ticket.balance);
+      } else {
+        restore?.();
+      }
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.retroMeaning(period.planet, period.start),
+      });
+    },
+    onError: (error, _variables, restore) => {
+      restore?.();
+      if (error instanceof ApiRequestError && error.status === 402) {
+        setTopUp(true);
+      }
+    },
+  });
+
+  return (
+    <>
+      <div className={styles.retroModalBackdrop} onClick={onClose}>
+        <div
+          className={styles.retroModalDialog}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="retro-detail-title"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={styles.retroModalHead}>
+            {art ? <img className={styles.glyph} src={art.image} alt="" /> : null}
+            <div className={styles.retroCopy}>
+              <div className={styles.retroTitleRow}>
+                <h2 id="retro-detail-title" className={styles.retroTitle}>
+                  {planetTitle}
+                </h2>
+                {current ? (
+                  <span className={styles.retroBadge}>Ретроградный</span>
+                ) : ended ? (
+                  <span className={styles.retroDates}>Завершён</span>
+                ) : (
+                  <span className={styles.retroDates}>Скоро</span>
+                )}
+              </div>
+              <p className={styles.retroDates}>{rangeLabel(period.start, period.end)}</p>
+            </div>
+          </div>
+
+          <div className={styles.retroModalBody}>
+            {meaningQuery.isPending ? <Skeleton lines={4} /> : null}
+            {meaningQuery.isError ? (
+              <div>
+                <p>Не удалось загрузить разбор влияния.</p>
+                <Button onClick={() => void meaningQuery.refetch()}>Повторить</Button>
+              </div>
+            ) : null}
+            {meaningQuery.isSuccess && locked ? (
+              <div className={styles.retroModalBody}>
+                <p>
+                  Узнайте, что означает ретроградный {planetTitle} конкретно для вас
+                  с учётом даты рождения и вашей натальной карты.
+                </p>
+                {ended ? (
+                  <p className={styles.kicker}>
+                    Этот период ретроградности уже завершился. Для каждого нового периода требуется отдельный просмотр.
+                  </p>
+                ) : (
+                  <p className={styles.kicker}>
+                    Разбор доступен с Premium или за <StarPrice amount={price} /> звёзд на этот период.
+                  </p>
+                )}
+                <div className={styles.retroModalActions}>
+                  <Button loading={buy.isPending} onClick={() => buy.mutate()}>
+                    Открыть за <StarPrice amount={price} />
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      onClose();
+                      void navigate("/premium");
+                    }}
+                  >
+                    Подключить Premium
+                  </Button>
+                  <Button variant="secondary" onClick={onClose}>
+                    Закрыть
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+            {meaningQuery.isSuccess && !locked && meaning ? (
+              <div className={styles.retroModalBody}>
+                <h3 className={styles.retroTitle}>{meaning.title}</h3>
+                <p>{meaning.body}</p>
+                {meaning.advice ? (
+                  <div className={styles.retroAdviceBox}>
+                    <span className={styles.retroAdviceTitle}>Рекомендация на период</span>
+                    <p className={styles.retroAdviceText}>{meaning.advice}</p>
+                  </div>
+                ) : null}
+                <div className={styles.retroModalActions}>
+                  <Button onClick={onClose}>Понятно</Button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+      {topUp ? <TopUpDialog balance={null} onClose={() => setTopUp(false)} /> : null}
+    </>
   );
 }

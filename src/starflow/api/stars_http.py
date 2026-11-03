@@ -17,6 +17,7 @@ from starflow.domain.stars import (
     current_tomorrow_subject,
     current_week_subject,
     pair_subject,
+    retrograde_subject,
 )
 from starflow.services.billing import TopupView
 
@@ -45,6 +46,8 @@ class SpendRequest(BaseModel):
     event: str = ""
     custom: str = ""
     category: str = ""
+    planet: str = ""
+    start: str = ""
 
 
 class SpendBody(BaseModel):
@@ -169,6 +172,9 @@ def _subject(body: SpendRequest) -> str:
     if body.feature == "affirmation":
         category_name = body.category or body.event or "for_you"
         return affirmation_subject(category_name)
+    if body.feature == "retrograde":
+        start_date = body.start or body.period
+        return retrograde_subject(body.planet, start_date)
     raise FieldInvalid("feature", "errors.validation")
 
 

@@ -8,7 +8,7 @@ import {
   type DraftPayload,
   type ProfileResponse,
 } from "../api/client";
-import { maskBirthDate } from "../birthDate";
+import { maskBirthDate, maskBirthTime } from "../birthDate";
 import { Button, Input } from "../components/ui/controls";
 import { EditorialListRow, PageHeader, ProfileSummary } from "../components/ui/editorial";
 import { text, type TextKey } from "../resources";
@@ -105,7 +105,7 @@ export function ProfilePage({ profile }: ProfilePageProps) {
           value={birthDate}
           inputMode="numeric"
           onChange={(value) => {
-            setBirthDate(maskBirthDate(value));
+            setBirthDate((prev) => maskBirthDate(value, prev));
           }}
           {...(fields.birth_date !== undefined ? { error: fields.birth_date } : {})}
         />
@@ -113,7 +113,9 @@ export function ProfilePage({ profile }: ProfilePageProps) {
           label={text("ui.onboarding.time_title")}
           value={birthTime}
           inputMode="numeric"
-          onChange={setBirthTime}
+          onChange={(value) => {
+            setBirthTime((prev) => maskBirthTime(value, prev));
+          }}
           {...(fields.birth_time !== undefined ? { error: fields.birth_time } : {})}
         />
         {save.isError && Object.keys(fields).length === 0 ? (

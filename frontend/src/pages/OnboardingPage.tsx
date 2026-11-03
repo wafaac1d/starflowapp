@@ -11,7 +11,7 @@ import {
   type PlaceHit,
   type ProfileResponse,
 } from "../api/client";
-import { maskBirthDate } from "../birthDate";
+import { maskBirthDate, maskBirthTime } from "../birthDate";
 import { Button, Field, LoadingScreen, LogoSlot } from "../components/ui/controls";
 import { RotatingPhrase } from "../components/ui/RotatingPhrase";
 import { deviceTimezone } from "../deviceZone";
@@ -186,7 +186,7 @@ export function OnboardingPage({ profile }: OnboardingPageProps) {
             value={birthDate}
             inputMode="numeric"
             onChange={(value) => {
-              setBirthDate(maskBirthDate(value));
+              setBirthDate((prev) => maskBirthDate(value, prev));
             }}
             {...(fields.birth_date !== undefined ? { error: fields.birth_date } : {})}
           />
@@ -196,7 +196,9 @@ export function OnboardingPage({ profile }: OnboardingPageProps) {
             label={text("ui.onboarding.time_title")}
             value={birthTime}
             inputMode="numeric"
-            onChange={setBirthTime}
+            onChange={(value) => {
+              setBirthTime((prev) => maskBirthTime(value, prev));
+            }}
             {...(fields.birth_time !== undefined ? { error: fields.birth_time } : {})}
           />
         ) : null}

@@ -4,7 +4,6 @@ import { NavLink, useLocation, useNavigate } from "react-router";
 import type { AlmanacDay } from "../../almanacDate";
 import { titled } from "../../case";
 import { text, type TextKey } from "../../resources";
-import type { ThemeChoice } from "../../theme";
 import { Icon, illustrationCream, type IconName } from "./icons";
 
 export function Divider() {
@@ -290,42 +289,6 @@ export function PeriodTabs({
             type="button"
             role="tab"
             aria-selected={selected}
-            className={selected ? "segment-item segment-item-active" : "segment-item"}
-            onClick={() => {
-              onChange(item.id);
-            }}
-          >
-            {text(item.label)}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-const THEME_OPTIONS: { id: ThemeChoice; label: TextKey }[] = [
-  { id: "telegram", label: "ui.theme.telegram" },
-  { id: "light", label: "ui.theme.light" },
-  { id: "dark", label: "ui.theme.dark" },
-];
-
-export function ThemeSelector({
-  value,
-  onChange,
-}: {
-  value: ThemeChoice;
-  onChange: (value: ThemeChoice) => void;
-}) {
-  return (
-    <div className="segment" role="radiogroup" aria-label={text("ui.settings.appearance")}>
-      {THEME_OPTIONS.map((item) => {
-        const selected = value === item.id;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            role="radio"
-            aria-checked={selected}
             className={selected ? "segment-item segment-item-active" : "segment-item"}
             onClick={() => {
               onChange(item.id);

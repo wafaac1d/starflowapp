@@ -16,6 +16,7 @@ AFFIRMATION_STARS = 20
 WEEK_STARS = 20
 MONTH_STARS = 20
 TOMORROW_STARS = 20
+RETROGRADE_STARS = 15
 TOPUP_PRESETS = (10, 20, 50, 100)
 MIN_TOPUP = 1
 
@@ -31,6 +32,7 @@ PRICES = {
     "personal_month": MONTH_STARS,
     "tomorrow": TOMORROW_STARS,
     "topics": WEEK_STARS,
+    "retrograde": RETROGRADE_STARS,
 }
 
 
@@ -85,6 +87,12 @@ def current_tomorrow_subject(
     local = now.astimezone(ZoneInfo(zone_name)).date()
     tomorrow = local + timedelta(days=1)
     return f"tomorrow:{tomorrow.isoformat()}"
+
+
+def retrograde_subject(planet: str, start: str) -> str:
+    clean_planet = planet.strip().casefold()
+    clean_start = start.strip()
+    return f"{clean_planet}:{clean_start}"
 
 
 def purchase_effect(kind: str) -> str:

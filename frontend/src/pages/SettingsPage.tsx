@@ -13,11 +13,9 @@ import {
   EditorialListRow,
   PageHeader,
   Switch,
-  ThemeSelector,
 } from "../components/ui/editorial";
 import { Icon } from "../components/ui/icons";
 import { text } from "../resources";
-import { applyTheme, readThemeChoice, type ThemeChoice } from "../theme";
 
 type SettingsPageProps = {
   fetchImpl?: typeof fetch;
@@ -26,7 +24,6 @@ type SettingsPageProps = {
 export function SettingsPage({ fetchImpl = fetch }: SettingsPageProps) {
   const navigate = useNavigate();
   const client = useQueryClient();
-  const [choice, setChoice] = useState<ThemeChoice>(readThemeChoice());
   const notice = useQuery({
     queryKey: ["notifications"],
     queryFn: () => getNotifications(fetchImpl),
@@ -47,14 +44,6 @@ export function SettingsPage({ fetchImpl = fetch }: SettingsPageProps) {
   return (
     <main className="shell page">
       <PageHeader title={text("ui.settings.title")} backTo="/profile" />
-      <h2>{text("ui.settings.appearance")}</h2>
-      <ThemeSelector
-        value={choice}
-        onChange={(next) => {
-          applyTheme(next);
-          setChoice(next);
-        }}
-      />
       <h2>{text("ui.settings.notices")}</h2>
       <p className="lead">{text("ui.settings.lead")}</p>
       {notice.isPending ? <Skeleton /> : null}

@@ -219,7 +219,7 @@ class AssistantService:
         verdict = classify(question, has_context=len(history) > 0)
         if verdict != "allow":
             reply = self._catalog.text(f"ui.assistant.{verdict}")
-            await self._finish(user_id, key, question, reply, verdict, charge=False)
+            await self._finish(user_id, key, question, reply, verdict, charge=True)
             remaining = await self._quota.remaining(user_id, "assistant")
             return AssistantReply(status=verdict, reply=reply, remaining=remaining, code=verdict)
         facts = await self._facts(user_id)

@@ -64,7 +64,7 @@ export function PeopleScreen() {
               value={born}
               chevron={false}
               inputMode="numeric"
-              onChange={(value) => setBorn(maskBirthDate(value))}
+              onChange={(value) => setBorn((prev) => maskBirthDate(value, prev))}
             />
             <Button
               disabled={name.trim() === "" || born.trim() === ""}

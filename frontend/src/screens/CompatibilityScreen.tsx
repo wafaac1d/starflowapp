@@ -391,7 +391,7 @@ function PersonSlot({
             value={slot.date}
             inputMode="numeric"
             onChange={(value) => {
-              onChange({ ...slot, date: maskBirthDate(value) });
+              onChange({ ...slot, date: maskBirthDate(value, slot.date) });
             }}
           />
           <Field
@@ -401,7 +401,7 @@ function PersonSlot({
             value={slot.time}
             inputMode="numeric"
             onChange={(time) => {
-              onChange({ ...slot, time: maskBirthTime(time) });
+              onChange({ ...slot, time: maskBirthTime(time, slot.time) });
             }}
           />
           {showSave ? (

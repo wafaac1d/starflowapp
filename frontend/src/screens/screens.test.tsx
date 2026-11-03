@@ -226,6 +226,26 @@ describe("screens", () => {
     expect(screen.queryByText("День для ясных решений")).not.toBeInTheDocument();
   });
 
+  it("navigates to forecast when clicking the decision card header", async () => {
+    vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/"]}>
+          <Routes>
+            <Route path="/" element={<TodayScreen profile={profile()} />} />
+            <Route path="/forecast" element={<div>Экран прогноза</div>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    const starSilence = await screen.findByText("Не удалось связаться со звёздами");
+    const headBtn = starSilence.closest("button");
+    expect(headBtn).not.toBeNull();
+    await userEvent.click(headBtn!);
+    expect(await screen.findByText("Экран прогноза")).toBeInTheDocument();
+  });
+
   it("shows unlim beside the balance while premium is active", () => {
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
     renderAt(<TodayScreen profile={{ ...profile(), is_premium: true, star_balance: 15 }} />);
@@ -1126,32 +1146,20 @@ describe("screens", () => {
   });
 
   it("toggles a settings switch", async () => {
-    localStorage.removeItem("starflow-theme");
-    const previous = window.Telegram;
-    try {
-      window.Telegram = { WebApp: { colorScheme: "dark" } };
-      applyTheme(readThemeChoice());
-      expect(document.documentElement.dataset.themeChoice).toBe("telegram");
-      expect(document.documentElement.dataset.theme).toBe("dark");
-      window.Telegram = { WebApp: { colorScheme: "light" } };
-      applyTheme(readThemeChoice());
-      expect(document.documentElement.dataset.theme).toBe("light");
-    } finally {
-      if (previous === undefined) delete window.Telegram;
-      else window.Telegram = previous;
-    }
+    applyTheme();
+    expect(document.documentElement.dataset.theme).toBe("dark");
+
     vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
     renderAt(<SettingsScreen />);
     const master = screen.getByRole("switch", { name: "Уведомления" });
     expect(master).toBeChecked();
     await userEvent.click(master);
     expect(master).not.toBeChecked();
-    expect(screen.getByRole("radio", { name: "Авто" })).toBeChecked();
-    await userEvent.click(screen.getByRole("radio", { name: "Светлая" }));
-    expect(document.documentElement.dataset.theme).toBe("light");
-    expect(screen.getByRole("radio", { name: "Светлая" })).toBeChecked();
-    await userEvent.click(screen.getByRole("radio", { name: "Тёмная" }));
-    expect(document.documentElement.dataset.theme).toBe("dark");
+
+    const reminders = screen.getByRole("switch", { name: "Напоминания" });
+    expect(reminders).toBeChecked();
+    await userEvent.click(reminders);
+    expect(reminders).not.toBeChecked();
   });
 
   it("shows the premium offer", () => {
@@ -1273,6 +1281,121 @@ describe("screens", () => {
       const saved = calls.find((call) => call.method === "PUT");
       expect(saved?.body).toMatchObject({ retro: true, local_time: "08:30" });
       expect(screen.getByRole("button", { name: "Напоминание включено" })).toBeDisabled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("opens retrograde planet detail and allows purchase for 15 stars", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-15T12:00:00"));
+
+    let purchased = false;
+    const spendCalls: any[] = [];
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input, init) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as any).url;
+        const method = init?.method ?? "GET";
+
+        if (url.includes("/api/v1/retro/meaning")) {
+          if (!purchased) {
+            return Response.json({
+              planet: "меркурий",
+              start: "2026-11-09",
+              end: "2026-11-29",
+              access: "stars_required",
+              price: 15,
+              title: "Ретроградный Меркурий",
+              body: "",
+              advice: "",
+            });
+          }
+          return Response.json({
+            planet: "меркурий",
+            start: "2026-11-09",
+            end: "2026-11-29",
+            access: "allowed",
+            price: 15,
+            title: "Ретроградный Меркурий: фокус",
+            body: "Персональный разбор влияния на вас.",
+            advice: "Не спешите с решениями.",
+          });
+        }
+
+        if (url.includes("/api/v1/retro")) {
+          return Response.json([
+            { planet: "меркурий", start: "2026-11-09", end: "2026-11-29" },
+          ]);
+        }
+
+        if (url.includes("/api/v1/notifications")) {
+          return Response.json({
+            local_time: "08:30",
+            timezone: "Europe/Moscow",
+            day: true,
+            moon: false,
+            retro: false,
+          });
+        }
+
+        if (url.includes("/api/v1/stars/spends") && method === "POST") {
+          const body = typeof init?.body === "string" ? JSON.parse(init.body) : {};
+          spendCalls.push(body);
+          purchased = true;
+          return Response.json({
+            balance: 5,
+            allowed: true,
+            charged: true,
+            price: 15,
+          });
+        }
+
+        return Response.json({});
+      }),
+    );
+
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    try {
+      render(
+        <QueryClientProvider client={client}>
+          <MemoryRouter initialEntries={["/retro"]}>
+            <Routes>
+              <Route path="/retro" element={<RetroScreen />} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      // Card for Mercury is visible
+      const mercuryCard = await screen.findByRole("button", { name: (v) => v.startsWith("Меркурий") });
+      await userEvent.click(mercuryCard);
+
+      // Detail dialog is opened with 15 stars prompt
+      const dialog = await screen.findByRole("dialog");
+      expect(dialog).toBeInTheDocument();
+      expect(dialog).toHaveTextContent("Разбор доступен с Premium или за 15 звёзд на этот период.");
+
+      // Click to unlock with 15 stars
+      const buyBtn = screen.getByRole("button", { name: (v) => v.startsWith("Открыть за") });
+      await userEvent.click(buyBtn);
+
+      expect(spendCalls).toHaveLength(1);
+      expect(spendCalls[0]).toMatchObject({
+        feature: "retrograde",
+        planet: "меркурий",
+        start: "2026-11-09",
+      });
+
+      // Now allowed meaning is shown
+      expect(await screen.findByText("Ретроградный Меркурий: фокус")).toBeInTheDocument();
+      expect(screen.getByText("Персональный разбор влияния на вас.")).toBeInTheDocument();
+      expect(screen.getByText("Не спешите с решениями.")).toBeInTheDocument();
+
+      // Close dialog
+      await userEvent.click(screen.getByRole("button", { name: "Понятно" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }

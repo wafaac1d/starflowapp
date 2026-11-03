@@ -793,6 +793,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/retro/meaning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Retro Meaning */
+        get: operations["read_retro_meaning_api_v1_retro_meaning_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/overview": {
         parameters: {
             query?: never;
@@ -1388,6 +1405,11 @@ export interface components {
             birth_time_unknown: boolean;
             /** Timezone */
             timezone?: string | null;
+            /**
+             * Clear Place
+             * @default false
+             */
+            clear_place: boolean;
         };
         /** FavorableDayBody */
         FavorableDayBody: {
@@ -1703,6 +1725,10 @@ export interface components {
              * @default []
              */
             limitations: string[];
+            /** Topics */
+            topics?: {
+                [key: string]: string;
+            };
         };
         /** RedeemBody */
         RedeemBody: {
@@ -1719,12 +1745,12 @@ export interface components {
              * Count
              * @default 0
              */
-            count?: number;
+            count: number;
             /**
              * Stars Earned
              * @default 0
              */
-            stars_earned?: number;
+            stars_earned: number;
         };
         /** RefundBody */
         RefundBody: {
@@ -1777,6 +1803,25 @@ export interface components {
              * @default false
              */
             consent: boolean;
+        };
+        /** RetroMeaningBody */
+        RetroMeaningBody: {
+            /** Planet */
+            planet: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Access */
+            access: string;
+            /** Price */
+            price: number;
+            /** Title */
+            title: string;
+            /** Body */
+            body: string;
+            /** Advice */
+            advice: string;
         };
         /** RetroPeriodBody */
         RetroPeriodBody: {
@@ -1845,6 +1890,11 @@ export interface components {
              */
             right_sign: string;
             /**
+             * Period
+             * @default
+             */
+            period: string;
+            /**
              * Month
              * @default
              */
@@ -1864,6 +1914,16 @@ export interface components {
              * @default
              */
             category: string;
+            /**
+             * Planet
+             * @default
+             */
+            planet: string;
+            /**
+             * Start
+             * @default
+             */
+            start: string;
         };
         /** SupportTicketBody */
         SupportTicketBody: {
@@ -3408,6 +3468,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RetroPeriodBody"][];
+                };
+            };
+        };
+    };
+    read_retro_meaning_api_v1_retro_meaning_get: {
+        parameters: {
+            query: {
+                planet: string;
+                start: string;
+                end: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetroMeaningBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

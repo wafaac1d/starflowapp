@@ -71,7 +71,11 @@ class OutboxService:
             if job.body != "":
                 text = job.body
             else:
-                text = self._catalog.text(job.text_key)
+                try:
+                    text = self._catalog.text(job.text_key)
+                except KeyError:
+                    base_key = job.text_key.rsplit("_", 1)[0]
+                    text = self._catalog.text(base_key)
                 if job.planet:
                     text = self._catalog.format(job.text_key, planet=job.planet)
             button_label = self._catalog.text(job.button_key) if job.button_key else ""

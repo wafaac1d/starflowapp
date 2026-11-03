@@ -1814,6 +1814,63 @@
         }
       }
     },
+    "/api/v1/retro/meaning": {
+      "get": {
+        "summary": "Read Retro Meaning",
+        "operationId": "read_retro_meaning_api_v1_retro_meaning_get",
+        "parameters": [
+          {
+            "name": "planet",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Planet"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetroMeaningBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/overview": {
       "get": {
         "summary": "Admin Overview",
@@ -4487,6 +4544,54 @@
         ],
         "title": "RelatedItem"
       },
+      "RetroMeaningBody": {
+        "properties": {
+          "planet": {
+            "type": "string",
+            "title": "Planet"
+          },
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "title": "End"
+          },
+          "access": {
+            "type": "string",
+            "title": "Access"
+          },
+          "price": {
+            "type": "integer",
+            "title": "Price"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "advice": {
+            "type": "string",
+            "title": "Advice"
+          }
+        },
+        "type": "object",
+        "required": [
+          "planet",
+          "start",
+          "end",
+          "access",
+          "price",
+          "title",
+          "body",
+          "advice"
+        ],
+        "title": "RetroMeaningBody"
+      },
       "RetroPeriodBody": {
         "properties": {
           "planet": {
@@ -4662,6 +4767,16 @@
           "category": {
             "type": "string",
             "title": "Category",
+            "default": ""
+          },
+          "planet": {
+            "type": "string",
+            "title": "Planet",
+            "default": ""
+          },
+          "start": {
+            "type": "string",
+            "title": "Start",
             "default": ""
           }
         },

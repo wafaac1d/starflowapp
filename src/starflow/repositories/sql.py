@@ -114,6 +114,16 @@ class SqlUserRepository:
                 language_code=language_code,
             )
             await _save(self._session, row)
+            settings_row = NotificationSettingsRow(
+                user_id=row.id,
+                digest_enabled=True,
+                digest_local_time=time(9, 0),
+                timezone="Europe/Moscow",
+                day_enabled=True,
+                moon_enabled=True,
+                retro_enabled=True,
+            )
+            await _save(self._session, settings_row)
             return _user(row)
         stored = await self._session.get(UserRow, current.id)
         if stored is None:
@@ -273,6 +283,20 @@ class ProfileRepository:
             return current
         row = ProfileRow(user_id=user_id, onboarding_step="welcome", birth_time_unknown=False)
         self._session.add(row)
+        settings = await self._session.get(NotificationSettingsRow, user_id)
+        if settings is None:
+            await _save(
+                self._session,
+                NotificationSettingsRow(
+                    user_id=user_id,
+                    digest_enabled=True,
+                    digest_local_time=time(9, 0),
+                    timezone="Europe/Moscow",
+                    day_enabled=True,
+                    moon_enabled=True,
+                    retro_enabled=True,
+                ),
+            )
         await self._session.flush()
         return _profile(row)
 
@@ -879,6 +903,23 @@ class FavoriteRepository:
 class NotificationSettingsRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
+
+    async def ensure(
+        self, user_id: UUID, timezone: str = "Europe/Moscow"
+    ) -> NotificationSettingsRow:
+        row = await self._session.get(NotificationSettingsRow, user_id)
+        if row is None:
+            row = NotificationSettingsRow(
+                user_id=user_id,
+                digest_enabled=True,
+                digest_local_time=time(9, 0),
+                timezone=timezone,
+                day_enabled=True,
+                moon_enabled=True,
+                retro_enabled=True,
+            )
+            await _save(self._session, row)
+        return row
 
     async def upsert(
         self,

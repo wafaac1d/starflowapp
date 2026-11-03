@@ -4,24 +4,15 @@ import { useNavigate } from "react-router";
 
 import { getNotifications, saveNotifications, type NoticePrefs } from "../api/client";
 import { queryKeys } from "../api/keys";
-import { applyTheme, readThemeChoice, type ThemeChoice } from "../theme";
 import { ListRow } from "../shared/ui/ListRow/ListRow";
 import { Screen } from "../shared/ui/Screen/Screen";
-import { SegmentedControl } from "../shared/ui/SegmentedControl/SegmentedControl";
 import { Toggle } from "../shared/ui/Toggle/Toggle";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import styles from "./screens.module.css";
 
-const THEMES = [
-  { id: "telegram", label: "Авто" },
-  { id: "light", label: "Светлая" },
-  { id: "dark", label: "Тёмная" },
-] as const;
-
 export function SettingsScreen() {
   const navigate = useNavigate();
   const client = useQueryClient();
-  const [theme, setTheme] = useState<ThemeChoice>(readThemeChoice());
   const [master, setMaster] = useState(true);
   const [reminders, setReminders] = useState(true);
   const notices = useQuery({ queryKey: queryKeys.notifications, queryFn: () => getNotifications() });
@@ -42,24 +33,11 @@ export function SettingsScreen() {
     <Screen tab="profile">
       <TopBar title="Настройки" back />
       <div className={styles.settings}>
-      <div>
-      <p className={styles.settingsLabel}>Тема</p>
-      <SegmentedControl
-        label="Тема"
-        role="radiogroup"
-        value={theme}
-        options={THEMES}
-        onChange={(value) => {
-          setTheme(value);
-          applyTheme(value);
-        }}
-      />
-      </div>
       <div className={styles.group}>
         <Toggle label="Уведомления" checked={master} onChange={setMaster} />
         <Toggle
           label="Ежедневный прогноз"
-          checked={current?.day ?? false}
+          checked={current?.day ?? true}
           onChange={(checked) => {
             patch({ day: checked });
           }}

@@ -14,6 +14,7 @@ export const queryKeys = {
   compatibility: (personId: string) => ["compatibility", personId] as const,
   lunarDay: (iso: string) => ["lunar", iso] as const,
   retro: ["retro"] as const,
+  retroMeaning: (planet: string, start: string) => ["retro", "meaning", planet, start] as const,
   favorable: (month: string, event: string, custom: string) =>
     ["favorable", month, event, custom] as const,
   favorableStatus: ["favorable", "status"] as const,

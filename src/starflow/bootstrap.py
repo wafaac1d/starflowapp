@@ -41,6 +41,7 @@ from starflow.services.outbox import OutboxService
 from starflow.services.places import PlaceService, RequestPace
 from starflow.services.profile import ProfileService
 from starflow.services.quota import QuotaService
+from starflow.services.retro import RetroService
 from starflow.services.session import SessionService
 from starflow.services.sky import SkyService
 from starflow.services.support import SupportService
@@ -82,8 +83,22 @@ REQUIRED_TEXTS = (
     "bot.command_cache_stats",
     "bot.command_refund",
     "bot.day_ready",
+    "bot.day_ready_1",
+    "bot.day_ready_2",
+    "bot.day_ready_3",
+    "bot.day_ready_4",
+    "bot.day_ready_5",
+    "bot.day_ready_6",
+    "bot.day_ready_7",
     "bot.day_fallback",
     "bot.tomorrow_ready",
+    "bot.tomorrow_ready_1",
+    "bot.tomorrow_ready_2",
+    "bot.tomorrow_ready_3",
+    "bot.tomorrow_ready_4",
+    "bot.tomorrow_ready_5",
+    "bot.tomorrow_ready_6",
+    "bot.tomorrow_ready_7",
     "bot.tomorrow_fallback",
     "bot.tomorrow_button",
     "bot.moon_ready",
@@ -213,6 +228,7 @@ class Container:
     forecast_service: ForecastService
     favorable_service: FavorableService
     affirmations_service: AffirmationsService
+    retro_service: RetroService
     assistant_service: AssistantService
     billing_service: BillingService
     stars_service: StarsWallet
@@ -308,6 +324,15 @@ def build_container(settings: Settings) -> Container:
         stars=stars_service,
     )
     affirmations_service = AffirmationsService(
+        uow_factory,
+        forecast_cache,
+        deepseek,
+        prompts,
+        model_name=settings.deepseek_model_fast,
+        zone_name=settings.default_timezone,
+        stars=stars_service,
+    )
+    retro_service = RetroService(
         uow_factory,
         forecast_cache,
         deepseek,
@@ -412,6 +437,7 @@ def build_container(settings: Settings) -> Container:
         forecast_service=forecast_service,
         favorable_service=favorable_service,
         affirmations_service=affirmations_service,
+        retro_service=retro_service,
         assistant_service=assistant_service,
         billing_service=billing_service,
         stars_service=stars_service,

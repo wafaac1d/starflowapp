@@ -27,10 +27,7 @@ describe("almanac dates", () => {
 });
 
 describe("theme", () => {
-  it("keeps an explicit choice and otherwise follows telegram", () => {
-    expect(resolveTheme("light", "dark", true)).toBe("light");
-    expect(resolveTheme("telegram", "dark", false)).toBe("dark");
-    expect(resolveTheme("telegram", null, true)).toBe("dark");
-    expect(resolveTheme("telegram", null, false)).toBe("light");
+  it("always resolves to dark theme", () => {
+    expect(resolveTheme()).toBe("dark");
   });
 });
