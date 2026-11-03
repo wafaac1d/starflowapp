@@ -18,6 +18,7 @@ import { Button } from "../shared/ui/Button/Button";
 import { ErrorState } from "../shared/ui/ErrorState/ErrorState";
 import { Screen } from "../shared/ui/Screen/Screen";
 import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
+import { StarLink } from "../shared/ui/StarLink/StarLink";
 import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import styles from "./screens.module.css";
@@ -351,7 +352,7 @@ function RetroDetailDialog({
           </div>
 
           <div className={styles.retroModalBody}>
-            {meaningQuery.isPending ? <Skeleton lines={4} /> : null}
+            {meaningQuery.isPending ? <StarLink /> : null}
             {meaningQuery.isError ? (
               <div>
                 <p>Не удалось загрузить разбор влияния.</p>

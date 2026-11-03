@@ -1,7 +1,7 @@
 import { useEffect, useId } from "react";
 
 import { Button } from "../Button/Button";
-import { Skeleton } from "../Skeleton/Skeleton";
+import { StarLink } from "../StarLink/StarLink";
 import styles from "./AlertDialog.module.css";
 
 type AlertDialogProps = {
@@ -56,7 +56,7 @@ export function AlertDialog({
           {title}
         </h2>
         <div id={bodyId} className={styles.body}>
-          {busy ? <Skeleton lines={3} /> : <p>{body}</p>}
+          {busy ? <StarLink /> : <p>{body}</p>}
         </div>
         <div className={styles.actions}>
           {actionLabel !== undefined && onAction !== undefined ? (

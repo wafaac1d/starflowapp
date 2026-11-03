@@ -1287,9 +1287,8 @@ def _shorten_topic(text: str, max_words: int = 4) -> str:
     if not cleaned:
         return ""
     words = cleaned.split()
-    if len(words) <= max_words:
-        return f"{cleaned}..."
-    return f"{' '.join(words[:max_words])}..."
+    short = cleaned if len(words) <= max_words else " ".join(words[:max_words])
+    return f"{short[:1].upper()}{short[1:]}..."
 
 
 def _parse_reply(content: str) -> tuple[str, str, dict[str, str]] | None:

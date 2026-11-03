@@ -542,33 +542,10 @@
   text-align: center;
 }
 
-.linkStage p {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font: var(--font-body);
-}
-
-.linkWheel {
-  width: min(100%, 260px);
-  filter: drop-shadow(var(--shadow-glow));
-  animation: linkSpin 2s ease-in-out;
-}
-
 .compatWheel {
   width: min(72%, 240px);
   display: block;
   margin: 0 auto;
-}
-
-@keyframes linkSpin {
-  from {
-    transform: rotate(-20deg) scale(0.86);
-    opacity: 0.75;
-  }
-  to {
-    transform: rotate(20deg) scale(1);
-    opacity: 1;
-  }
 }
 
 .trait {

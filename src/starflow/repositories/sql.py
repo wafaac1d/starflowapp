@@ -1,6 +1,7 @@
 import secrets
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+from typing import NamedTuple
 from uuid import UUID
 
 from sqlalchemy import Select, case, delete, func, or_, select, text, update
@@ -294,6 +295,19 @@ class SqlUserRepository:
         await self._session.flush()
 
 
+def _zone_or_none(value: object) -> str | None:
+    if isinstance(value, str) and value != "":
+        return value
+    return None
+
+
+class UnfinishedRegistration(NamedTuple):
+    user_id: UUID
+    created_at: datetime
+    timezone: str | None
+    settings_timezone: str | None
+
+
 class ProfileRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -312,6 +326,34 @@ class ProfileRepository:
         _apply_profile(row, draft)
         await self._session.flush()
         return _profile(row)
+
+    async def unfinished_registrations(self) -> list[UnfinishedRegistration]:
+        result = await self._session.execute(
+            select(
+                UserRow.id,
+                UserRow.created_at,
+                ProfileRow.timezone,
+                NotificationSettingsRow.timezone,
+            )
+            .outerjoin(ProfileRow, ProfileRow.user_id == UserRow.id)
+            .outerjoin(NotificationSettingsRow, NotificationSettingsRow.user_id == UserRow.id)
+            .where(
+                UserRow.deleted_at.is_(None),
+                UserRow.is_blocked.is_(False),
+                or_(ProfileRow.user_id.is_(None), ProfileRow.onboarding_step != "done"),
+            )
+        )
+        found: list[UnfinishedRegistration] = []
+        for user_id, created_at, profile_zone, settings_zone in result.all():
+            found.append(
+                UnfinishedRegistration(
+                    user_id=user_id,
+                    created_at=created_at,
+                    timezone=_zone_or_none(profile_zone),
+                    settings_timezone=_zone_or_none(settings_zone),
+                )
+            )
+        return found
 
     async def get_by_user_id(self, user_id: UUID) -> Profile | None:
         result = await self._session.execute(

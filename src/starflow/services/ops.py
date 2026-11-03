@@ -49,6 +49,8 @@ from starflow.repositories.sql import (
 )
 
 BEDTIME_LOCAL_TIME = time(21, 0)
+ONBOARDING_LOCAL_TIME = time(9, 0)
+ONBOARDING_GRACE = timedelta(hours=12)
 
 
 class OpsStore(Protocol):
@@ -215,6 +217,25 @@ class OpsService:
                         True,
                         button_key="bot.affirmation_button",
                     )
+            for pending in await uow.profiles.unfinished_registrations():
+                zone = _registration_zone(
+                    pending.timezone, pending.settings_timezone, self._zone_name
+                )
+                if now - pending.created_at < ONBOARDING_GRACE:
+                    continue
+                if not is_due(now, zone, ONBOARDING_LOCAL_TIME):
+                    continue
+                day = local_date(now, zone).date()
+                created += await self._notice(
+                    uow,
+                    pending.user_id,
+                    "onboarding",
+                    day,
+                    now,
+                    "welcome",
+                    True,
+                    button_key="bot.onboarding_button",
+                )
             await uow.commit()
         return created
 
@@ -461,7 +482,7 @@ class OpsService:
         ready: bool,
         button_key: str = "",
     ) -> int:
-        if ready and kind in ("day", "tomorrow"):
+        if ready and kind in ("day", "tomorrow", "onboarding"):
             day_index = day.weekday() + 1
             text_key = f"bot.{kind}_ready_{day_index}"
         else:
@@ -585,6 +606,18 @@ class OpsService:
                 return parsed
             last = "invalid"
         raise ValueError(last)
+
+
+def _registration_zone(profile_zone: str | None, settings_zone: str | None, fallback: str) -> str:
+    for candidate in (profile_zone, settings_zone, fallback):
+        if candidate is None or candidate == "":
+            continue
+        try:
+            known_zone(candidate)
+        except ValueError:
+            continue
+        return candidate
+    return fallback
 
 
 async def _birth(uow: OpsStore, user_id: UUID) -> date | None:

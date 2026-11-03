@@ -13,6 +13,7 @@ import { holdStarBalance, writeStarBalance } from "../starBalance";
 import { NATAL_STARS } from "../stars";
 import { Screen } from "../shared/ui/Screen/Screen";
 import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
+import { StarLink } from "../shared/ui/StarLink/StarLink";
 import { SegmentedControl } from "../shared/ui/SegmentedControl/SegmentedControl";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import { degreeInSign } from "./format";
@@ -122,7 +123,7 @@ function NatalEssay({ sections }: { sections: ChartSection[] }) {
   if (face.phase === "loading") {
     return (
       <section aria-label="Разбор" aria-busy="true">
-        <Skeleton lines={8} />
+        <StarLink />
       </section>
     );
   }

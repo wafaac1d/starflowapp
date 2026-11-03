@@ -19,7 +19,7 @@ import { queryKeys } from "../api/keys";
 import { Button } from "../shared/ui/Button/Button";
 import { Icon } from "../shared/ui/Icon/Icon";
 import { Screen } from "../shared/ui/Screen/Screen";
-import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
+import { StarLink } from "../shared/ui/StarLink/StarLink";
 import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { Toggle } from "../shared/ui/Toggle/Toggle";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
@@ -271,7 +271,7 @@ export function AffirmationsScreen() {
         {category === null ? (
           <p className={styles.subtitle}>Выберите категорию</p>
         ) : affirmationsQuery.isPending ? (
-          <Skeleton lines={4} />
+          <StarLink />
         ) : affirmationsQuery.isError ? (
           <div>
             <p className={styles.subtitle}>Не удалось открыть аффирмации</p>

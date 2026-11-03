@@ -198,25 +198,33 @@ async def test_morning_and_evening_daily_variations_across_seven_days() -> None:
 
     morning_texts: set[str] = set()
     evening_texts: set[str] = set()
+    nudge_texts: set[str] = set()
 
     for day_num in range(1, 8):
         m_key = f"bot.day_ready_{day_num}"
         e_key = f"bot.tomorrow_ready_{day_num}"
+        nudge_key = f"bot.onboarding_ready_{day_num}"
 
         m_text = catalog.text(m_key)
         e_text = catalog.text(e_key)
+        nudge_text = catalog.text(nudge_key)
 
         assert m_text.strip() != ""
         assert e_text.strip() != ""
+        assert nudge_text.strip() != ""
         assert not contains_emoji(m_text)
         assert not contains_emoji(e_text)
+        assert not contains_emoji(nudge_text)
 
         morning_texts.add(m_text)
         evening_texts.add(e_text)
+        nudge_texts.add(nudge_text)
 
     # All 7 morning texts and 7 evening texts must be distinct
     assert len(morning_texts) == 7
     assert len(evening_texts) == 7
+    assert len(nudge_texts) == 7
+    assert catalog.text("bot.onboarding_button") == "Завершить регистрацию"
 
     class _MockOutbox:
         def __init__(self) -> None:

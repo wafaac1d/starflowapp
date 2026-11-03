@@ -328,6 +328,54 @@ async def test_planner_reads_cache_and_retro_without_the_model(database_url: str
 
 
 @pytest.mark.asyncio
+async def test_unfinished_registration_is_nudged_once_a_day(database_url: str) -> None:
+    engine, factory = _factory(database_url)
+    async with SqlUnitOfWork(factory) as uow:
+        fresh = await uow.users.upsert_telegram(8821, "fresh", "ru")
+        stale = await uow.users.upsert_telegram(8822, "stale", "ru")
+        await uow.profiles.ensure(stale.id)
+        await uow.commit()
+        fresh_id = fresh.id
+        stale_id = stale.id
+    async with factory() as session:
+        stored = await session.scalar(select(UserRow).where(UserRow.id == stale_id))
+        assert stored is not None
+        stored.created_at = MOMENT - timedelta(days=2)
+        await session.commit()
+    await _ops(factory).plan()
+    async with factory() as session:
+        rows = list(
+            (
+                await session.execute(
+                    select(NotificationOutboxRow).where(NotificationOutboxRow.kind == "onboarding")
+                )
+            ).scalars()
+        )
+    assert [row.user_id for row in rows] == [stale_id]
+    assert rows[0].payload["text_key"] == "bot.onboarding_ready_1"
+    assert rows[0].payload["page"] == "welcome"
+    assert rows[0].payload["button_key"] == "bot.onboarding_button"
+    await _ops(factory).plan()
+    async with SqlUnitOfWork(factory) as uow:
+        await uow.profiles.upsert(stale_id, _draft())
+        await uow.commit()
+    later = _ops(factory)
+    later._clock = lambda: MOMENT + timedelta(days=1)
+    await later.plan()
+    async with factory() as session:
+        again = list(
+            (
+                await session.execute(
+                    select(NotificationOutboxRow).where(NotificationOutboxRow.kind == "onboarding")
+                )
+            ).scalars()
+        )
+    assert [row.user_id for row in again] == [stale_id]
+    assert all(row.user_id != fresh_id for row in again)
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_bedtime_tomorrow_notification_enqueued_and_sent(database_url: str) -> None:
     engine, factory = _factory(database_url)
     user = await _person(factory, 8810, day=True)

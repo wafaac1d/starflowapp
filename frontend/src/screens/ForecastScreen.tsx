@@ -12,11 +12,12 @@ import {
 } from "../api/client";
 import { forecastTopics, getForecastTopics } from "../api/fixtures";
 import { queryKeys } from "../api/keys";
+import { titled } from "../case";
 import { STAR_SILENCE, useReading } from "../readingWait";
 import { Button } from "../shared/ui/Button/Button";
 import { ListRow } from "../shared/ui/ListRow/ListRow";
 import { Screen } from "../shared/ui/Screen/Screen";
-import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
+import { StarLink } from "../shared/ui/StarLink/StarLink";
 import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { SegmentedControl } from "../shared/ui/SegmentedControl/SegmentedControl";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
@@ -49,10 +50,9 @@ function shortenTopicText(text: string, maxWords: number = 4): string {
     return "";
   }
   const words = cleaned.split(/\s+/);
-  if (words.length <= maxWords) {
-    return `${cleaned}...`;
-  }
-  return `${words.slice(0, maxWords).join(" ")}...`;
+  const short =
+    words.length <= maxWords ? `${cleaned}...` : `${words.slice(0, maxWords).join(" ")}...`;
+  return titled(short);
 }
 
 export function ForecastScreen({ premium }: { premium: boolean }) {
@@ -178,7 +178,7 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
           </Button>
         </section>
       ) : reading.face.phase === "loading" ? (
-        <Skeleton lines={4} />
+        <StarLink />
       ) : (
         <p className={styles.paragraph}>
           {reading.face.phase === "ready" ? reading.face.body : STAR_SILENCE}

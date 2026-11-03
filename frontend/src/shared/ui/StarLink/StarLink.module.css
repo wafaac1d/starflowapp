@@ -1,0 +1,34 @@
+.panel,
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+  text-align: center;
+}
+
+.image {
+  width: 140px;
+  height: auto;
+}
+
+.stage .image {
+  width: min(100%, 220px);
+}
+
+.title,
+.line {
+  margin: 0;
+}
+
+.title {
+  color: var(--color-text-primary);
+  font: var(--font-title-card);
+}
+
+.line {
+  min-height: 22px;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}

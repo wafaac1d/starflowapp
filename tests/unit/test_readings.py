@@ -402,6 +402,7 @@ def test_forecast_title_cleans_birth_date_and_topic_adds_ellipsis() -> None:
     )
 
     assert _shorten_topic("Гармония и искренний диалог") == "Гармония и искренний диалог..."
+    assert _shorten_topic("лёгкое и открытое общение") == "Лёгкое и открытое общение..."
     assert (
         _shorten_topic("Сегодня в отношениях возможны приятные открытия и теплота")
         == "Сегодня в отношениях возможны..."

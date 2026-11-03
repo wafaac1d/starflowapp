@@ -23,6 +23,7 @@ import { ErrorState } from "../shared/ui/ErrorState/ErrorState";
 import { Field } from "../shared/ui/Field/Field";
 import { ListRow } from "../shared/ui/ListRow/ListRow";
 import { Screen } from "../shared/ui/Screen/Screen";
+import { StarLink } from "../shared/ui/StarLink/StarLink";
 import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { holdStarBalance, writeStarBalance } from "../starBalance";
 import { COMPATIBILITY_STARS } from "../stars";
@@ -78,10 +79,9 @@ function shortenTopicText(text: string, maxWords: number = 4): string {
     return "";
   }
   const words = cleaned.split(/\s+/);
-  if (words.length <= maxWords) {
-    return `${cleaned}...`;
-  }
-  return `${words.slice(0, maxWords).join(" ")}...`;
+  const short =
+    words.length <= maxWords ? `${cleaned}...` : `${words.slice(0, maxWords).join(" ")}...`;
+  return titled(short);
 }
 
 export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
@@ -217,9 +217,8 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
         </div>
       ) : null}
       {phase === "link" ? (
-        <div className={styles.linkStage} role="status">
-          <img className={styles.linkWheel} src="/illustrations/png/compatibility_diagram.png" alt="" />
-          <p>Связь со звёздами</p>
+        <div className={styles.linkStage}>
+          <StarLink size="stage" />
         </div>
       ) : null}
       {phase === "result" && owner !== null && partner !== null ? (
