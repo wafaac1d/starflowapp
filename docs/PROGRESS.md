@@ -1157,6 +1157,27 @@ D-101. Раз в сутки в 09:00 по местному времени бот
 
 Живой Telegram не вызывался.
 
+## Второй человек в совместимости, 2026-11-04
+
+D-102. Вариант «Я» есть только у первого человека. Второй выбирается из близких или новых данных.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx -t "keeps self off the second person\|compares two people\|shows compatibility cards\|asks the pair\|holds the star link"` | 0, 5 тестов |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+
+Браузер без Telegram WebApp по-прежнему показывает только заглушку Mini App, поэтому сам экран совместимости в браузере не открывался.
+
+## Одинаковая длина прогнозов, 2026-11-04
+
+D-103. Сегодня, завтра и неделя просят один абзац из пяти или шести предложений и делят один потолок токенов. Старый сохранённый текст этих трёх видов при новой версии промпта запрашивается снова.
+
+| Команда | Код |
+| --- | --- |
+| `uv run pytest tests/unit/test_readings.py -q` | 0, 14 тестов |
+| `uv run ruff check src/starflow/services/forecast.py tests/unit/test_readings.py` | 0 |
+| `uv run ruff format --check` по тем же файлам | 0 |
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

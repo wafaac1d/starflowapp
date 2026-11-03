@@ -105,7 +105,11 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
   });
   const people = knownPeople(related.data, remembered, personId);
   const owner = resolveSlot(left, profile, people);
-  const partner = resolveSlot(right, profile, people);
+  const partner = resolveSlot(
+    right.choice === "self" ? { ...right, choice: "draft" } : right,
+    profile,
+    people,
+  );
   const leftSign = owner?.sign.toLocaleLowerCase("ru") ?? "";
   const rightSign = partner?.sign.toLocaleLowerCase("ru") ?? "";
   const compatReading = useReading(
@@ -164,6 +168,7 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
               slot={right}
               people={people}
               profile={profile}
+              allowSelf={false}
               onChange={setRight}
               onRemember={remember}
             />
@@ -284,6 +289,7 @@ function PersonSlot({
   slot,
   people,
   profile,
+  allowSelf = true,
   onChange,
   onRemember,
 }: {
@@ -292,6 +298,7 @@ function PersonSlot({
   slot: SlotState;
   people: KnownPerson[];
   profile: ProfileResponse;
+  allowSelf?: boolean;
   onChange: (slot: SlotState) => void;
   onRemember: (person: KnownPerson) => void;
 }) {
@@ -323,24 +330,27 @@ function PersonSlot({
       onChange({ ...slot, save: false });
     },
   });
-  const modes: { id: Choice; label: string }[] = [
-    { id: "self", label: "Я" },
-    { id: "draft", label: "Новый" },
-  ];
-  if (people.length > 0 || slot.choice === "saved") {
-    modes.splice(1, 0, { id: "saved", label: "Близкий" });
+  const shown: SlotState =
+    !allowSelf && slot.choice === "self" ? { ...slot, choice: "draft" } : slot;
+  const modes: { id: Choice; label: string }[] = [];
+  if (allowSelf) {
+    modes.push({ id: "self", label: "Я" });
   }
-  const chosen = people.find((person) => person.id === slot.savedId);
-  const ready = resolveSlot(slot, profile, people) !== null;
+  if (people.length > 0 || shown.choice === "saved") {
+    modes.push({ id: "saved", label: "Близкий" });
+  }
+  modes.push({ id: "draft", label: "Новый" });
+  const chosen = people.find((person) => person.id === shown.savedId);
+  const ready = resolveSlot(shown, profile, people) !== null;
   const showSave =
-    slot.choice === "draft" &&
+    shown.choice === "draft" &&
     ready &&
-    clockReady(slot.time) &&
-    !alreadySaved(people, slot.name, slot.date);
+    clockReady(shown.time) &&
+    !alreadySaved(people, shown.name, shown.date);
   const summary =
-    slot.choice === "self"
+    shown.choice === "self"
       ? selfSummary(profile)
-      : slot.choice === "saved" && chosen !== undefined
+      : shown.choice === "saved" && chosen !== undefined
         ? `${chosen.name} · ${displayBirthDate(chosen.birthDate)}`
         : "";
   return (
@@ -351,9 +361,12 @@ function PersonSlot({
       <SegmentedControl
         label={legend}
         role="radiogroup"
-        value={slot.choice}
+        value={shown.choice}
         options={modes}
         onChange={(choice) => {
+          if (!allowSelf && choice === "self") {
+            return;
+          }
           if (choice === "saved" && !people.some((person) => person.id === slot.savedId)) {
             onChange({ ...slot, choice, savedId: people[0]?.id ?? "" });
             return;
@@ -361,7 +374,7 @@ function PersonSlot({
           onChange({ ...slot, choice });
         }}
       />
-      {slot.choice === "saved" && people.length > 0 ? (
+      {shown.choice === "saved" && people.length > 0 ? (
         <SegmentedControl
           label={`${legend}: близкий`}
           role="radiogroup"
@@ -373,7 +386,7 @@ function PersonSlot({
         />
       ) : null}
       {summary !== "" ? <p className={styles.meta}>{summary}</p> : null}
-      {slot.choice === "draft" ? (
+      {shown.choice === "draft" ? (
         <>
           <Field
             label="Имя"

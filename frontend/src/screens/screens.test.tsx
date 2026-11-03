@@ -578,6 +578,18 @@ describe("screens", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("keeps self off the second person", () => {
+    renderAt(<CompatibilityScreen profile={profile()} />, "/compatibility");
+    const first = screen.getByRole("region", { name: "Первый человек" });
+    const second = screen.getByRole("region", { name: "Второй человек" });
+    expect(within(first).getByRole("radio", { name: "Я" })).toHaveAttribute("aria-checked", "true");
+    expect(within(second).queryByRole("radio", { name: "Я" })).not.toBeInTheDocument();
+    expect(within(second).getByRole("radio", { name: "Новый" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
   it("compares two people without saving the new one", async () => {
     const calls: { url: string; method: string; body: Record<string, unknown> }[] = [];
     vi.stubGlobal(

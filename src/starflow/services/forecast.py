@@ -64,6 +64,7 @@ from starflow.services.chart import ChartView, NatalStars
 from starflow.services.quota import QuotaStore, ResultWriter, StoredResult
 
 _OPEN = frozenset({"day", "advice", "moon", "compatibility"})
+_ALIGNED = frozenset({"day", "tomorrow", "week"})
 _PREMIUM = frozenset(
     {
         "week",
@@ -590,6 +591,8 @@ class ForecastService:
         if found is None:
             return None
         history_id, payload = found
+        if not saved_reading_is_current(kind, payload, self._prompt_version(kind)):
+            return None
         sign = None if profile.birth_date is None else calendar_sign(profile.birth_date)
         topics_val = payload.get("topics")
         topics_dict = (
@@ -1309,6 +1312,13 @@ def _parse_reply(content: str) -> tuple[str, str, dict[str, str]] | None:
                 if g is not None:
                     clean_topics[k] = _shorten_topic(g[1])
     return clean_title, guarded[1], clean_topics
+
+
+def saved_reading_is_current(kind: str, payload: dict[str, object], version: int | None) -> bool:
+    base = kind.split(":", 1)[0]
+    if base not in _ALIGNED or version is None:
+        return True
+    return payload.get("prompt_version") == version
 
 
 def _as_text(value: object) -> str | None:

@@ -31,7 +31,13 @@ from starflow.domain.segments import (
     synastry_segment,
 )
 from starflow.services.chart import ChartView, PlanetPlacement
-from starflow.services.forecast import PAIR_FOCUS, checked_signs, natal_facts, pair_facts
+from starflow.services.forecast import (
+    PAIR_FOCUS,
+    checked_signs,
+    natal_facts,
+    pair_facts,
+    saved_reading_is_current,
+)
 from tests.support import make_settings
 
 MOMENT = datetime(2026, 10, 21, 9, 0, tzinfo=UTC)
@@ -313,6 +319,14 @@ def test_pair_focus_is_separate_from_a_daily_topic() -> None:
     )
     day = prompts.get("day").user
     assert "только про эти сутки" in day
+    length = "Поле body — один абзац из пяти или шести предложений."
+    day_prompt = prompts.get("day")
+    week_prompt = prompts.get("week")
+    tomorrow_prompt = prompts.get("tomorrow")
+    assert day_prompt.max_tokens == week_prompt.max_tokens == tomorrow_prompt.max_tokens
+    for prompt in (day_prompt, week_prompt, tomorrow_prompt):
+        assert length in prompt.system
+        assert length in prompt.user
     assert "только про эту пару" in prompts.get("compatibility").user
     assert "поля focus" in prompts.get("synastry").system
     assert prompts.get("natal").max_tokens >= 1000
@@ -378,6 +392,13 @@ def test_all_forecast_prompts_instruct_to_use_birth_date_and_time() -> None:
         )
         assert "время" in system_lower or "время" in user_lower
         assert "рождения" in system_lower or "рождения" in user_lower
+
+
+def test_aligned_periods_refresh_when_the_prompt_version_changes() -> None:
+    assert saved_reading_is_current("day", {"prompt_version": 8, "body": "текст"}, 8) is True
+    assert saved_reading_is_current("tomorrow", {"prompt_version": 4, "body": "текст"}, 5) is False
+    assert saved_reading_is_current("week", {"body": "старый"}, 7) is False
+    assert saved_reading_is_current("natal", {"body": "разбор"}, 1) is True
 
 
 def test_forecast_title_cleans_birth_date_and_topic_adds_ellipsis() -> None:
