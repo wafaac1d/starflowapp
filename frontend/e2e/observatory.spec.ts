@@ -400,7 +400,7 @@ test("today content starts below the telegram header", async ({ page }) => {
     "href",
     "https://t.me/PremiumBot",
   );
-  await topUp.getByRole("button", { name: "Закрыть" }).click();
+  await topUp.getByRole("button", { name: "Понятно" }).click();
   await expect(topUp).toHaveCount(0);
 });
 

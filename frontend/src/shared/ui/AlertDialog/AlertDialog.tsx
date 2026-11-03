@@ -1,14 +1,15 @@
-import { useEffect, useId } from "react";
+import type { ReactNode } from "react";
 
 import { Button } from "../Button/Button";
+import { Dialog } from "../Dialog/Dialog";
+import type { IconName } from "../Icon/Icon";
 import { StarLink } from "../StarLink/StarLink";
-import styles from "./AlertDialog.module.css";
 
 type AlertDialogProps = {
   title: string;
   body: string;
   busy?: boolean;
-  dismissLabel: string;
+  icon?: IconName;
   onDismiss: () => void;
   actionLabel?: string;
   onAction?: () => void;
@@ -18,55 +19,25 @@ export function AlertDialog({
   title,
   body,
   busy = false,
-  dismissLabel,
+  icon,
   onDismiss,
   actionLabel,
   onAction,
 }: AlertDialogProps) {
-  const titleId = useId();
-  const bodyId = useId();
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onDismiss();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onDismiss]);
+  const action: ReactNode =
+    actionLabel !== undefined && onAction !== undefined ? (
+      <Button onClick={onAction}>{actionLabel}</Button>
+    ) : undefined;
   return (
-    <div
-      className={styles.backdrop}
-      onClick={onDismiss}
+    <Dialog
+      title={title}
+      role="alertdialog"
+      busy={busy}
+      onClose={onDismiss}
+      {...(icon !== undefined ? { icon } : {})}
+      {...(action !== undefined ? { actions: action } : {})}
     >
-      <div
-        className={styles.dialog}
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={bodyId}
-        aria-busy={busy}
-        onClick={(event) => {
-          event.stopPropagation();
-        }}
-      >
-        <h2 id={titleId} className={styles.title}>
-          {title}
-        </h2>
-        <div id={bodyId} className={styles.body}>
-          {busy ? <StarLink /> : <p>{body}</p>}
-        </div>
-        <div className={styles.actions}>
-          {actionLabel !== undefined && onAction !== undefined ? (
-            <Button onClick={onAction}>{actionLabel}</Button>
-          ) : null}
-          <Button variant={actionLabel !== undefined ? "secondary" : "primary"} onClick={onDismiss}>
-            {dismissLabel}
-          </Button>
-        </div>
-      </div>
-    </div>
+      {busy ? <StarLink /> : <p>{body}</p>}
+    </Dialog>
   );
 }

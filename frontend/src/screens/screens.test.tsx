@@ -285,7 +285,7 @@ describe("screens", () => {
       "https://t.me/PremiumBot",
     );
     expect(dialog).toHaveTextContent("Можно подключить");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Закрыть" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Понятно" }));
     expect(screen.queryByRole("dialog", { name: "Пополнение" })).not.toBeInTheDocument();
   });
 

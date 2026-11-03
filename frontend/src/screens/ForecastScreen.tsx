@@ -198,7 +198,7 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
                 if (period !== "day" && reading.face.phase === "stars") {
                   buy.mutate();
                 } else {
-                  detail.open(row.id, row.title);
+                  detail.open(row.id, row.title, row.icon);
                 }
               }}
             />

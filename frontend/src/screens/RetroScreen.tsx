@@ -15,6 +15,7 @@ import { queryKeys } from "../api/keys";
 import { holdStarBalance, writeStarBalance } from "../starBalance";
 import { RETROGRADE_STARS } from "../stars";
 import { Button } from "../shared/ui/Button/Button";
+import { Dialog } from "../shared/ui/Dialog/Dialog";
 import { ErrorState } from "../shared/ui/ErrorState/ErrorState";
 import { Screen } from "../shared/ui/Screen/Screen";
 import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
@@ -322,95 +323,72 @@ function RetroDetailDialog({
     },
   });
 
+  const badge = current ? "Ретроградный" : ended ? "Завершён" : "Скоро";
+  const purchase =
+    meaningQuery.isSuccess && locked ? (
+      <>
+        <Button loading={buy.isPending} onClick={() => buy.mutate()}>
+          Открыть за <StarPrice amount={price} />
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            onClose();
+            void navigate("/premium");
+          }}
+        >
+          Подключить Premium
+        </Button>
+      </>
+    ) : undefined;
   return (
     <>
-      <div className={styles.retroModalBackdrop} onClick={onClose}>
-        <div
-          className={styles.retroModalDialog}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="retro-detail-title"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className={styles.retroModalHead}>
-            {art ? <img className={styles.glyph} src={art.image} alt="" /> : null}
-            <div className={styles.retroCopy}>
-              <div className={styles.retroTitleRow}>
-                <h2 id="retro-detail-title" className={styles.retroTitle}>
-                  {planetTitle}
-                </h2>
-                {current ? (
-                  <span className={styles.retroBadge}>Ретроградный</span>
-                ) : ended ? (
-                  <span className={styles.retroDates}>Завершён</span>
-                ) : (
-                  <span className={styles.retroDates}>Скоро</span>
-                )}
-              </div>
-              <p className={styles.retroDates}>{rangeLabel(period.start, period.end)}</p>
-            </div>
+      <Dialog
+        title={planetTitle}
+        subtitle={rangeLabel(period.start, period.end)}
+        badge={badge}
+        busy={meaningQuery.isPending}
+        onClose={onClose}
+        {...(art !== undefined ? { imageSrc: art.image } : {})}
+        {...(purchase !== undefined ? { actions: purchase } : {})}
+      >
+        {meaningQuery.isPending ? <StarLink /> : null}
+        {meaningQuery.isError ? (
+          <div>
+            <p>Не удалось загрузить разбор влияния.</p>
+            <Button onClick={() => void meaningQuery.refetch()}>Повторить</Button>
           </div>
-
-          <div className={styles.retroModalBody}>
-            {meaningQuery.isPending ? <StarLink /> : null}
-            {meaningQuery.isError ? (
-              <div>
-                <p>Не удалось загрузить разбор влияния.</p>
-                <Button onClick={() => void meaningQuery.refetch()}>Повторить</Button>
+        ) : null}
+        {meaningQuery.isSuccess && locked ? (
+          <>
+            <p>
+              Узнайте, что означает ретроградный {planetTitle} конкретно для вас
+              с учётом даты рождения и вашей натальной карты.
+            </p>
+            {ended ? (
+              <p className={styles.kicker}>
+                Этот период уже завершился. Разбор этого периода открывается отдельно, следующий период считается заново.
+              </p>
+            ) : (
+              <p className={styles.kicker}>
+                Разбор доступен с Premium или за <StarPrice amount={price} /> звёзд на этот период.
+              </p>
+            )}
+          </>
+        ) : null}
+        {meaningQuery.isSuccess && !locked && meaning ? (
+          <>
+            <h3 className={styles.retroTitle}>{meaning.title}</h3>
+            <p>{meaning.body}</p>
+            {meaning.advice ? (
+              <div className={styles.retroAdviceBox}>
+                <span className={styles.retroAdviceTitle}>Рекомендация на период</span>
+                <p className={styles.retroAdviceText}>{meaning.advice}</p>
               </div>
             ) : null}
-            {meaningQuery.isSuccess && locked ? (
-              <div className={styles.retroModalBody}>
-                <p>
-                  Узнайте, что означает ретроградный {planetTitle} конкретно для вас
-                  с учётом даты рождения и вашей натальной карты.
-                </p>
-                {ended ? (
-                  <p className={styles.kicker}>
-                    Этот период уже завершился. Разбор этого периода открывается отдельно, следующий период считается заново.
-                  </p>
-                ) : (
-                  <p className={styles.kicker}>
-                    Разбор доступен с Premium или за <StarPrice amount={price} /> звёзд на этот период.
-                  </p>
-                )}
-                <div className={styles.retroModalActions}>
-                  <Button loading={buy.isPending} onClick={() => buy.mutate()}>
-                    Открыть за <StarPrice amount={price} />
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      onClose();
-                      void navigate("/premium");
-                    }}
-                  >
-                    Подключить Premium
-                  </Button>
-                  <Button variant="secondary" onClick={onClose}>
-                    Закрыть
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-            {meaningQuery.isSuccess && !locked && meaning ? (
-              <div className={styles.retroModalBody}>
-                <h3 className={styles.retroTitle}>{meaning.title}</h3>
-                <p>{meaning.body}</p>
-                {meaning.advice ? (
-                  <div className={styles.retroAdviceBox}>
-                    <span className={styles.retroAdviceTitle}>Рекомендация на период</span>
-                    <p className={styles.retroAdviceText}>{meaning.advice}</p>
-                  </div>
-                ) : null}
-                <div className={styles.retroModalActions}>
-                  <Button onClick={onClose}>Понятно</Button>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
+          </>
+        ) : null}
+      </Dialog>
       {topUp ? <TopUpDialog balance={null} onClose={() => setTopUp(false)} /> : null}
     </>
   );

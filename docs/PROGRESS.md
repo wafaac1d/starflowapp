@@ -1178,6 +1178,17 @@ D-103. Сегодня, завтра и неделя просят один абз
 | `uv run ruff check src/starflow/services/forecast.py tests/unit/test_readings.py` | 0 |
 | `uv run ruff format --check` по тем же файлам | 0 |
 
+## Диалоги и обводка кнопок, 2026-11-04
+
+D-104. Диалоги открываются шапкой с картинкой и текстом и заканчиваются кнопкой «Понятно». Кнопки при наведении обводятся акцентным цветом, как карточки ретроградных планет.
+
+| Команда | Код |
+| --- | --- |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx src/shared/ui/ui.test.tsx src/screens/AffirmationsScreen.test.tsx` | 0, 69 тестов |
+
+Браузер без Telegram WebApp по-прежнему показывает только заглушку Mini App, поэтому сами диалоги в браузере не открывались.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

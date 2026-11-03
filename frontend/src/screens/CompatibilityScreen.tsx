@@ -247,7 +247,7 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
                   title={row.title}
                   subtitle={preview}
                   onClick={() => {
-                    topics.open(row.id, row.title);
+                    topics.open(row.id, row.title, row.icon);
                   }}
                 />
               );

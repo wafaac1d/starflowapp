@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 
 import { STAR_SILENCE, useReading } from "../readingWait";
 import { AlertDialog } from "../shared/ui/AlertDialog/AlertDialog";
+import type { IconName } from "../shared/ui/Icon/Icon";
 import { TopUpDialog } from "./TopUpDialog";
 
 const LOCKED = "Эта функция только с Premium.";
@@ -29,6 +30,7 @@ export function useTopicDetail(premium: boolean, pair?: PairSigns) {
   const [topUp, setTopUp] = useState(false);
   const [title, setTitle] = useState("");
   const [topic, setTopic] = useState<string | null>(null);
+  const [icon, setIcon] = useState<IconName>("profile_trait_sparkle");
 
   const query =
     topic === null
@@ -39,7 +41,8 @@ export function useTopicDetail(premium: boolean, pair?: PairSigns) {
 
   const reading = useReading(pair === undefined ? "topics" : "synastry", query, topic !== null);
 
-  const open = (id: string, label: string) => {
+  const open = (id: string, label: string, mark?: IconName) => {
+    setIcon(mark ?? "profile_trait_sparkle");
     if (pair !== undefined) {
       if (!PAIR.has(id)) {
         return;
@@ -77,7 +80,7 @@ export function useTopicDetail(premium: boolean, pair?: PairSigns) {
     <AlertDialog
       title={LOCKED}
       body="Разбор темы открывается на оплаченном периоде."
-      dismissLabel="Понятно"
+      icon={icon}
       onDismiss={close}
       actionLabel="Подключить"
       onAction={() => {
@@ -104,7 +107,7 @@ export function useTopicDetail(premium: boolean, pair?: PairSigns) {
                 : STAR_SILENCE
       }
       busy={reading.face.phase === "loading"}
-      dismissLabel="Закрыть"
+      icon={icon}
       onDismiss={close}
       {...(starsReply
         ? {

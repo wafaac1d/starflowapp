@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 
 import { ApiRequestError, createTopup, postInvoiceStatus, redeemBalanceCode } from "../api/client";
 import { queryKeys } from "../api/keys";
 import { Button } from "../shared/ui/Button/Button";
+import { Dialog } from "../shared/ui/Dialog/Dialog";
 import { Field } from "../shared/ui/Field/Field";
 import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { invoiceGrantsPremium, openInvoice } from "../telegram";
@@ -18,7 +19,6 @@ type TopUpDialogProps = {
 };
 
 export function TopUpDialog({ balance, onClose }: TopUpDialogProps) {
-  const titleId = useId();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [preset, setPreset] = useState<(typeof PRESETS)[number]>(10);
@@ -69,25 +69,19 @@ export function TopUpDialog({ balance, onClose }: TopUpDialogProps) {
       setNotice(error instanceof ApiRequestError ? error.message : "Не удалось открыть счёт");
     },
   });
+  const balanceLine =
+    balance !== null ? (
+      <>
+        Сейчас на балансе <StarPrice amount={balance} />.
+      </>
+    ) : undefined;
   return (
-    <div className={styles.backdrop} onClick={onClose}>
-      <div
-        className={styles.dialog}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        onClick={(event) => {
-          event.stopPropagation();
-        }}
-      >
-        <h2 id={titleId} className={styles.title}>
-          Пополнение
-        </h2>
-        {balance !== null ? (
-          <p className={styles.body}>
-            Сейчас на балансе <StarPrice amount={balance} />.
-          </p>
-        ) : null}
+    <Dialog
+      title="Пополнение"
+      icon="stars_currency"
+      onClose={onClose}
+      {...(balanceLine !== undefined ? { subtitle: balanceLine } : {})}
+    >
         <div className={styles.presets}>
           {PRESETS.map((value) => (
             <button
@@ -165,11 +159,7 @@ export function TopUpDialog({ balance, onClose }: TopUpDialogProps) {
           </a>
           .
         </p>
-        <Button variant="secondary" onClick={onClose}>
-          Закрыть
-        </Button>
-      </div>
-    </div>
+    </Dialog>
   );
 }
 

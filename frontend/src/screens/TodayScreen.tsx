@@ -152,7 +152,7 @@ export function TodayScreen({ profile }: { profile: ProfileResponse }) {
               type="button"
               className={styles.cat}
               onClick={() => {
-                topics.open(item.id, item.label);
+                topics.open(item.id, item.label, item.icon);
               }}
             >
               <Icon name={item.icon} size={28} />
