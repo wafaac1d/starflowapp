@@ -361,11 +361,10 @@ async def test_ops_preferences_default_enabled_for_new_users() -> None:
         fast_model="deepseek-flash",
         pro_model="deepseek-v4-pro",
     )
-    local_time, zone, day, moon, retro = await service.preferences(uuid4())
+    local_time, zone, day, moon, retro, affirmation = await service.preferences(uuid4())
     assert local_time == "09:00"
     assert zone == "Europe/Moscow"
     assert day is True
     assert moon is True
     assert retro is True
-
-
+    assert affirmation is False

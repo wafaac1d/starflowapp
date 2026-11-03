@@ -658,15 +658,6 @@ class BillingRepository:
             ),
         )
 
-    async def referral_recorded(self, referred_user_id: UUID) -> bool:
-        result = await self._session.execute(
-            select(SubscriptionEventRow.id).where(
-                SubscriptionEventRow.event_type == "referral_reward",
-                SubscriptionEventRow.payload["referred_user_id"].astext == str(referred_user_id),
-            )
-        )
-        return result.first() is not None
-
     async def latest_order(self, user_id: UUID, kind: str) -> OrderRecord | None:
         result = await self._session.execute(
             select(OrderRow)

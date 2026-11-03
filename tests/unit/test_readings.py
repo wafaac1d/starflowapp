@@ -370,7 +370,12 @@ def test_all_forecast_prompts_instruct_to_use_birth_date_and_time() -> None:
     for spec in prompts.values():
         system_lower = spec.system.lower()
         user_lower = spec.user.lower()
-        assert "дата" in system_lower or "дата" in user_lower or "дат" in system_lower or "дат" in user_lower
+        assert (
+            "дата" in system_lower
+            or "дата" in user_lower
+            or "дат" in system_lower
+            or "дат" in user_lower
+        )
         assert "время" in system_lower or "время" in user_lower
         assert "рождения" in system_lower or "рождения" in user_lower
 
@@ -391,11 +396,13 @@ def test_forecast_title_cleans_birth_date_and_topic_adds_ellipsis() -> None:
     assert _clean_forecast_title("Фон дня", date(2002, 2, 23)) == clean
     assert _clean_forecast_title("Фон дня: фокус и ясность", date(2002, 2, 23)) == "Фокус и ясность"
     assert _clean_forecast_title("Спокойный ритм дня", date(2002, 2, 23)) == "Спокойный ритм дня"
-    assert _clean_forecast_title("День для ясных решений", date(2002, 2, 23)) == "День для ясных решений"
+    assert (
+        _clean_forecast_title("День для ясных решений", date(2002, 2, 23))
+        == "День для ясных решений"
+    )
 
     assert _shorten_topic("Гармония и искренний диалог") == "Гармония и искренний диалог..."
     assert (
         _shorten_topic("Сегодня в отношениях возможны приятные открытия и теплота")
         == "Сегодня в отношениях возможны..."
     )
-

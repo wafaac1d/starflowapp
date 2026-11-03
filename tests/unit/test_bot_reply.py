@@ -110,24 +110,15 @@ class _MsgWithMessageId:
         return _FakeSentMsg(self.msg_id)
 
 
-class _FakeSessionService:
-    def __init__(self) -> None:
-        self.saved: list[tuple[int, int]] = []
-
-    async def save_bot_message_id(self, telegram_id: int, message_id: int) -> None:
-        self.saved.append((telegram_id, message_id))
-
-
 @pytest.mark.asyncio
-async def test_reply_welcome_and_followup_save_message_id() -> None:
-    session_service = _FakeSessionService()
+async def test_reply_welcome_and_followup_do_not_replace_the_notice_slot() -> None:
     msg1 = _MsgWithMessageId(1234, 42)
-    await _reply_welcome(msg1, _catalog(), "https://t.me/starflowapp/bot", session_service)  # type: ignore[arg-type]
-    assert session_service.saved == [(1234, 42)]
+    await _reply_welcome(msg1, _catalog(), "https://t.me/starflowapp/bot")  # type: ignore[arg-type]
+    assert msg1.sent
 
     msg2 = _MsgWithMessageId(1234, 43)
-    await _reply_followup(msg2, _catalog(), "https://t.me/starflowapp/bot", session_service)  # type: ignore[arg-type]
-    assert session_service.saved == [(1234, 42), (1234, 43)]
+    await _reply_followup(msg2, _catalog(), "https://t.me/starflowapp/bot")  # type: ignore[arg-type]
+    assert msg2.sent
 
 
 class _FakeBot:
@@ -159,7 +150,6 @@ async def test_bot_runtime_send_notice_deletes_previous_message() -> None:
     from aiogram.methods import DeleteMessage
 
     from starflow.bot.runtime import BotRuntime
-    from starflow.domain.errors import DeliveryBlocked, DeliveryRetry
     from tests.support import make_settings
 
     fake_bot = _FakeBot()
@@ -186,17 +176,15 @@ async def test_bot_runtime_send_notice_deletes_previous_message() -> None:
     assert mid3 == 103
     assert len(fake_bot.sent) == 3
 
-    # 4. delete_message raises TelegramForbiddenError -> converts to DeliveryBlocked
+    # 4. A failed delete still sends the new notice.
     fake_bot.delete_error = TelegramForbiddenError(
         method=DeleteMessage(chat_id=999, message_id=103), message="bot was blocked by user"
     )
-    with pytest.raises(DeliveryBlocked):
-        await runtime.send_notice(999, "Hello 4", "")
+    mid4 = await runtime.send_notice(999, "Hello 4", "")
+    assert mid4 == 104
 
-    # 5. delete_message raises TelegramRetryAfter -> converts to DeliveryRetry
     fake_bot.delete_error = TelegramRetryAfter(
-        method=DeleteMessage(chat_id=999, message_id=103), message="retry", retry_after=7
+        method=DeleteMessage(chat_id=999, message_id=104), message="retry", retry_after=7
     )
-    with pytest.raises(DeliveryRetry) as exc_info:
-        await runtime.send_notice(999, "Hello 5", "")
-    assert exc_info.value.delay_sec == 7.0
+    mid5 = await runtime.send_notice(999, "Hello 5", "")
+    assert mid5 == 105

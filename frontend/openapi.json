@@ -2166,10 +2166,11 @@
           {
             "name": "category",
             "in": "query",
-            "required": false,
+            "required": true,
             "schema": {
               "type": "string",
-              "default": "for_you",
+              "minLength": 1,
+              "maxLength": 32,
               "title": "Category"
             }
           }
@@ -2184,6 +2185,96 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/affirmations/keeps": {
+      "get": {
+        "summary": "Read Affirmation Keeps",
+        "operationId": "read_affirmation_keeps_api_v1_affirmations_keeps_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AffirmationKeepBody"
+                  },
+                  "type": "array",
+                  "title": "Response Read Affirmation Keeps Api V1 Affirmations Keeps Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Affirmation Keep",
+        "operationId": "create_affirmation_keep_api_v1_affirmations_keeps_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AffirmationKeepWrite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AffirmationKeepBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/affirmations/keeps/{card_id}": {
+      "delete": {
+        "summary": "Delete Affirmation Keep",
+        "operationId": "delete_affirmation_keep_api_v1_affirmations_keeps__card_id__delete",
+        "parameters": [
+          {
+            "name": "card_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Card Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -2647,6 +2738,64 @@
           "bg_image"
         ],
         "title": "AffirmationCardBody"
+      },
+      "AffirmationKeepBody": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "card_id": {
+            "type": "string",
+            "title": "Card Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "card_id",
+          "text",
+          "category"
+        ],
+        "title": "AffirmationKeepBody"
+      },
+      "AffirmationKeepWrite": {
+        "properties": {
+          "card_id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Card Id"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "card_id",
+          "text",
+          "category"
+        ],
+        "title": "AffirmationKeepWrite"
       },
       "AffirmationsBody": {
         "properties": {
@@ -3862,6 +4011,10 @@
           "retro": {
             "type": "boolean",
             "title": "Retro"
+          },
+          "affirmation": {
+            "type": "boolean",
+            "title": "Affirmation"
           }
         },
         "type": "object",
@@ -3870,7 +4023,8 @@
           "timezone",
           "day",
           "moon",
-          "retro"
+          "retro",
+          "affirmation"
         ],
         "title": "NoticeBody"
       },
@@ -3899,6 +4053,17 @@
           "retro": {
             "type": "boolean",
             "title": "Retro"
+          },
+          "affirmation": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affirmation"
           }
         },
         "type": "object",

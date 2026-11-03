@@ -57,6 +57,22 @@ class UserRow(Base):
     last_bot_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
 
+class StarCreditRow(Base):
+    __tablename__ = "star_credits"
+    __table_args__ = (
+        UniqueConstraint("user_id", "reason", "subject", name="star_credits_once_uq"),
+        CheckConstraint("amount >= 1", name="star_credits_amount_ck"),
+        CheckConstraint("char_length(subject) BETWEEN 1 AND 80", name="star_credits_subject_ck"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    subject: Mapped[str] = mapped_column(Text, nullable=False)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
 class StarSpendRow(Base):
     __tablename__ = "star_spends"
     __table_args__ = (
@@ -377,7 +393,26 @@ class NotificationSettingsRow(Base):
     retro_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default=text("true")
     )
+    affirmation_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
+class AffirmationKeepRow(Base):
+    __tablename__ = "affirmation_keeps"
+    __table_args__ = (
+        UniqueConstraint("user_id", "card_id", name="affirmation_keeps_card_uq"),
+        CheckConstraint("char_length(card_id) BETWEEN 1 AND 80", name="affirmation_keeps_card_ck"),
+        CheckConstraint("char_length(text) BETWEEN 1 AND 500", name="affirmation_keeps_text_ck"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    card_id: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 
 
 class AssistantMessageRow(Base):

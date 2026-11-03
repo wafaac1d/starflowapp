@@ -20,6 +20,7 @@ export const queryKeys = {
   favorableStatus: ["favorable", "status"] as const,
   affirmations: (category: string) => ["affirmations", category] as const,
   affirmationsStatus: ["affirmations", "status"] as const,
+  affirmationKeeps: ["affirmations", "keeps"] as const,
   profileTrait: ["profile", "trait"] as const,
   referral: ["referral"] as const,
 };

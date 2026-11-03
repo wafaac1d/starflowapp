@@ -133,7 +133,16 @@ class _Model:
 
 class _Prompts:
     def get(self, _name: str) -> PromptSpec:
-        return PromptSpec("fast", "system", "user", 1, 0.5, 400, "json_object")
+        return PromptSpec(
+            "affirmation",
+            2,
+            "fast",
+            0.5,
+            400,
+            "json_object",
+            "system",
+            "user {facts} {category} {today}",
+        )
 
 
 def _service(

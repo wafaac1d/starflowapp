@@ -5,9 +5,7 @@ from types import TracebackType
 from typing import Protocol
 from uuid import UUID
 
-from starflow.domain.errors import PremiumRequired
 from starflow.domain.records import PlaceHit
-from starflow.domain.time import now_utc
 from starflow.repositories.sql import GeocodeCacheRepository, SubscriptionRepository
 from starflow.services.profile import normalize_place_query
 

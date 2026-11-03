@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from starflow.db.tables import (
+    AffirmationKeepRow,
     AiRequestRow,
     AssistantMessageRow,
     AuthSessionRow,
@@ -27,6 +28,7 @@ from starflow.db.tables import (
     PaymentChargeRow,
     ProfileRow,
     RelatedProfileRow,
+    StarCreditRow,
     StarSpendRow,
     SubscriptionEventRow,
     SubscriptionRow,
@@ -34,6 +36,7 @@ from starflow.db.tables import (
     UsageCounterRow,
     UserRow,
 )
+from starflow.domain.billing import MAX_STARS
 from starflow.domain.broadcast import (
     BROADCAST_BATCH,
     INACTIVE_DAYS,
@@ -71,6 +74,7 @@ from starflow.domain.retention import (
     OUTBOX_DAYS,
     cutoff,
 )
+from starflow.domain.stars import REFERRAL_STARS
 from starflow.domain.streak import next_streak
 from starflow.domain.support import SupportTicket
 from starflow.domain.time import now_utc
@@ -196,6 +200,15 @@ class SqlUserRepository:
         )
         return int(result.scalar() or 0)
 
+    async def referral_stars_earned(self, user_id: UUID) -> int:
+        result = await self._session.execute(
+            select(func.coalesce(func.sum(StarCreditRow.amount), 0)).where(
+                StarCreditRow.user_id == user_id,
+                StarCreditRow.reason == "referral",
+            )
+        )
+        return int(result.scalar() or 0)
+
     async def bind_referrer(self, user_id: UUID, start_param: str | None) -> bool:
         if start_param is None or not start_param.startswith("ref_"):
             return False
@@ -207,14 +220,46 @@ class SqlUserRepository:
         referrer = result.scalar_one_or_none()
         if referrer is None or referrer.id == user_id:
             return False
+        locked = await self._session.execute(
+            select(UserRow)
+            .where(UserRow.id.in_((owner.id, referrer.id)))
+            .order_by(UserRow.id)
+            .with_for_update()
+        )
+        rows = {row.id: row for row in locked.scalars()}
+        owner = rows[owner.id]
+        referrer = rows[referrer.id]
+        if owner.referred_by is not None or owner.id == referrer.id:
+            return False
         owner.referred_by = referrer.id
         owner.pending_start_param = None
-        owner.star_balance += 20
-        referrer.star_balance += 20
-        owner.updated_at = now_utc()
-        referrer.updated_at = now_utc()
+        now = now_utc()
+        owner.updated_at = now
+        referrer.updated_at = now
+        await self._grant_referral(referrer, str(owner.id), "referral")
+        await self._grant_referral(owner, str(referrer.id), "referral_welcome")
         await self._session.flush()
         return True
+
+    async def _grant_referral(self, row: UserRow, subject: str, reason: str) -> None:
+        room = MAX_STARS - row.star_balance
+        amount = min(REFERRAL_STARS, room)
+        if amount < 1:
+            return
+        try:
+            async with self._session.begin_nested():
+                await _save(
+                    self._session,
+                    StarCreditRow(
+                        user_id=row.id,
+                        reason=reason,
+                        subject=subject,
+                        amount=amount,
+                    ),
+                )
+        except IntegrityError:
+            return
+        row.star_balance += amount
 
     async def delete(self, user_id: UUID) -> None:
         charges = await self._session.execute(
@@ -900,6 +945,57 @@ class FavoriteRepository:
         return tuple(result.scalars())
 
 
+class AffirmationKeepRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def list_for_user(self, user_id: UUID) -> tuple[AffirmationKeepRow, ...]:
+        result = await self._session.execute(
+            select(AffirmationKeepRow)
+            .where(AffirmationKeepRow.user_id == user_id)
+            .order_by(AffirmationKeepRow.created_at.desc())
+        )
+        return tuple(result.scalars())
+
+    async def get(self, user_id: UUID, keep_id: UUID) -> AffirmationKeepRow | None:
+        row = await self._session.get(AffirmationKeepRow, keep_id)
+        if row is None or row.user_id != user_id:
+            return None
+        return row
+
+    async def find_card(self, user_id: UUID, card_id: str) -> AffirmationKeepRow | None:
+        result = await self._session.execute(
+            select(AffirmationKeepRow).where(
+                AffirmationKeepRow.user_id == user_id,
+                AffirmationKeepRow.card_id == card_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def add(
+        self, user_id: UUID, card_id: str, category: str, text: str
+    ) -> AffirmationKeepRow:
+        existing = await self.find_card(user_id, card_id)
+        if existing is not None:
+            return existing
+        row = AffirmationKeepRow(
+            user_id=user_id,
+            card_id=card_id,
+            category=category,
+            text=text,
+        )
+        await _save(self._session, row)
+        return row
+
+    async def delete_card(self, user_id: UUID, card_id: str) -> bool:
+        existing = await self.find_card(user_id, card_id)
+        if existing is None:
+            return False
+        await self._session.delete(existing)
+        await self._session.flush()
+        return True
+
+
 class NotificationSettingsRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
@@ -955,29 +1051,33 @@ class NotificationSettingsRepository:
         day: bool,
         moon: bool,
         retro: bool,
+        affirmation: bool | None = None,
     ) -> None:
         row = await self._session.get(NotificationSettingsRow, user_id)
-        enabled = day or moon or retro
         if row is None:
+            reminder = False if affirmation is None else affirmation
             await _save(
                 self._session,
                 NotificationSettingsRow(
                     user_id=user_id,
-                    digest_enabled=enabled,
+                    digest_enabled=day or moon or retro or reminder,
                     digest_local_time=local_time,
                     timezone=timezone,
                     day_enabled=day,
                     moon_enabled=moon,
                     retro_enabled=retro,
+                    affirmation_enabled=reminder,
                 ),
             )
             return
-        row.digest_enabled = enabled
+        reminder = row.affirmation_enabled if affirmation is None else affirmation
+        row.digest_enabled = day or moon or retro or reminder
         row.digest_local_time = local_time
         row.timezone = timezone
         row.day_enabled = day
         row.moon_enabled = moon
         row.retro_enabled = retro
+        row.affirmation_enabled = reminder
         row.updated_at = now_utc()
         await self._session.flush()
 
@@ -991,6 +1091,7 @@ class NotificationSettingsRepository:
                     NotificationSettingsRow.day_enabled.is_(True),
                     NotificationSettingsRow.moon_enabled.is_(True),
                     NotificationSettingsRow.retro_enabled.is_(True),
+                    NotificationSettingsRow.affirmation_enabled.is_(True),
                 )
             )
         )

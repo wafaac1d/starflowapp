@@ -20,7 +20,7 @@
 .categoryBtn,
 .categoryBtnActive {
   flex: 1;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 var(--space-3);
   border: 0;
   border-radius: var(--radius-pill);
@@ -223,4 +223,33 @@
   color: var(--color-text-secondary);
   font: var(--font-body);
   line-height: 1.4;
+}
+
+.lockedCopy {
+  z-index: 2;
+  padding: 0 var(--space-4);
+  text-align: center;
+}
+
+.lockedTitle {
+  margin: 0;
+  color: var(--color-text-primary);
+  font: var(--font-title-card);
+}
+
+.lockedText {
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-secondary);
+  font: var(--font-body);
+}
+
+.orbit {
+  stroke: var(--color-accent);
+  stroke-opacity: 0.28;
+  stroke-width: 1.2;
+}
+
+.orbitStar {
+  fill: var(--color-accent);
+  opacity: 0.85;
 }

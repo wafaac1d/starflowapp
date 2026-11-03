@@ -177,9 +177,9 @@ def register_handlers(
         )
         is_first = await session_service.mark_bot_welcomed(user.id)
         if is_first:
-            await _reply_welcome(message, catalog, mini_app_url, session_service)
+            await _reply_welcome(message, catalog, mini_app_url)
         else:
-            await _reply_followup(message, catalog, mini_app_url, session_service)
+            await _reply_followup(message, catalog, mini_app_url)
 
     for screen in SCREENS:
         _register_screen(router, session_service, catalog, mini_app_url, screen)
@@ -195,12 +195,10 @@ def register_handlers(
             text=catalog.text("bot.delete_confirm"),
             callback_data="delete_me",
         )
-        sent = await message.answer(
+        await message.answer(
             catalog.text("bot.delete_ask"),
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[[button]]),
         )
-        if user is not None and getattr(sent, "message_id", None) is not None:
-            await session_service.save_bot_message_id(user.id, sent.message_id)
 
     @router.message(Command("stats"))
     async def on_stats(message: Message) -> None:
@@ -274,9 +272,9 @@ def register_handlers(
         )
         is_first = await session_service.mark_bot_welcomed(user.id)
         if is_first:
-            await _reply_welcome(message, catalog, mini_app_url, session_service)
+            await _reply_welcome(message, catalog, mini_app_url)
         else:
-            await _reply_followup(message, catalog, mini_app_url, session_service)
+            await _reply_followup(message, catalog, mini_app_url)
 
     @router.callback_query(F.data == "delete_me")
     async def on_delete_confirmed(query: CallbackQuery) -> None:
@@ -288,9 +286,7 @@ def register_handlers(
         text = catalog.text("bot.delete_done" if removed else "bot.delete_missing")
         await query.answer()
         if query.message is not None:
-            sent = await query.message.answer(text)
-            if getattr(sent, "message_id", None) is not None:
-                await session_service.save_bot_message_id(user.id, sent.message_id)
+            await query.message.answer(text)
 
 
 def _register_screen(
@@ -309,9 +305,9 @@ def _register_screen(
             )
             is_first = await session_service.mark_bot_welcomed(user.id)
             if is_first:
-                await _reply_welcome(message, catalog, mini_app_url, session_service)
+                await _reply_welcome(message, catalog, mini_app_url)
                 return
-        await _reply_followup(message, catalog, mini_app_url, session_service)
+        await _reply_followup(message, catalog, mini_app_url)
 
 
 def _make_keyboards(
@@ -335,7 +331,6 @@ async def _reply_welcome(
     message: Message,
     catalog: Catalog,
     mini_app_url: str,
-    session_service: SessionService | None = None,
 ) -> None:
     if not mini_app_url:
         await message.answer(catalog.text("bot.start_without_app"))
@@ -343,16 +338,10 @@ async def _reply_welcome(
     text = WELCOME_MESSAGE
     button_text = BUTTON_TEXT
     inline_kb, _ = _make_keyboards(mini_app_url, button_text)
-    sent = await message.answer(
+    await message.answer(
         text,
         reply_markup=inline_kb,
     )
-    if (
-        session_service is not None
-        and message.from_user is not None
-        and getattr(sent, "message_id", None) is not None
-    ):
-        await session_service.save_bot_message_id(message.from_user.id, sent.message_id)
     bot = message.bot
     if bot is not None:
 
@@ -375,7 +364,6 @@ async def _reply_followup(
     message: Message,
     catalog: Catalog,
     mini_app_url: str,
-    session_service: SessionService | None = None,
 ) -> None:
     if not mini_app_url:
         await message.answer(catalog.text("bot.start_without_app"))
@@ -383,16 +371,10 @@ async def _reply_followup(
     text = FOLLOWUP_MESSAGE
     button_text = BUTTON_TEXT
     inline_kb, _ = _make_keyboards(mini_app_url, button_text)
-    sent = await message.answer(
+    await message.answer(
         text,
         reply_markup=inline_kb,
     )
-    if (
-        session_service is not None
-        and message.from_user is not None
-        and getattr(sent, "message_id", None) is not None
-    ):
-        await session_service.save_bot_message_id(message.from_user.id, sent.message_id)
 
 
 async def _open(

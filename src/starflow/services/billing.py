@@ -575,7 +575,6 @@ class BillingService:
                         "is_first_recurring": is_first_recurring,
                     },
                 )
-                await self._reward_referrer(uow, user.id, user.referred_by, now)
             else:
                 code = secrets.token_urlsafe(18)
                 gift = await uow.billing.insert_gift(code, user.id, charge.id)
@@ -587,32 +586,6 @@ class BillingService:
                 )
             await uow.billing.mark_paid(order.id, now)
             await uow.commit()
-
-    async def _reward_referrer(
-        self,
-        uow: BillingStore,
-        referred_user_id: UUID,
-        referrer_id: UUID | None,
-        now: datetime,
-    ) -> None:
-        if referrer_id is None:
-            return
-        if await uow.billing.subscription_charge_count(referred_user_id) != 1:
-            return
-        if await uow.billing.referral_recorded(referred_user_id):
-            return
-        grant_id = await uow.billing.insert_grant(
-            referrer_id,
-            "referral",
-            now,
-            now + timedelta(days=self._plans.referral.reward_days),
-        )
-        await uow.billing.add_event(
-            grant_id,
-            referrer_id,
-            "referral_reward",
-            {"referred_user_id": str(referred_user_id)},
-        )
 
     async def _checkout_message(
         self,

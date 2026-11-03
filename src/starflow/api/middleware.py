@@ -79,7 +79,9 @@ class RequestIdMiddleware:
 
             params = {**query_params, **body_params}
             context = structlog.contextvars.get_contextvars()
-            telegram_id = context.get("telegramId") or context.get("telegram_id") or initial_telegram_id
+            telegram_id = (
+                context.get("telegramId") or context.get("telegram_id") or initial_telegram_id
+            )
 
             if path not in {"/liveness", "/health", "/readiness"}:
                 _LOG.info(

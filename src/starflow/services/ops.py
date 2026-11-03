@@ -204,6 +204,17 @@ class OpsService:
                         await self._tomorrow_ready(uow, birth, now, row.timezone),
                         button_key="bot.tomorrow_button",
                     )
+                if row.affirmation_enabled and is_due(now, row.timezone, row.digest_local_time):
+                    created += await self._notice(
+                        uow,
+                        row.user_id,
+                        "affirmation",
+                        day,
+                        now,
+                        "affirmations",
+                        True,
+                        button_key="bot.affirmation_button",
+                    )
             await uow.commit()
         return created
 
@@ -276,7 +287,7 @@ class OpsService:
             await uow.ops.purge(self._clock())
             await uow.commit()
 
-    async def preferences(self, user_id: UUID) -> tuple[str, str, bool, bool, bool]:
+    async def preferences(self, user_id: UUID) -> tuple[str, str, bool, bool, bool, bool]:
         async with self._uow_factory() as uow:
             row = await uow.notification_settings.read(user_id)
             profile = await uow.profiles.get_by_user_id(user_id)
@@ -284,13 +295,14 @@ class OpsService:
             zone = self._zone_name
             if profile is not None and profile.timezone:
                 zone = profile.timezone
-            return "09:00", zone, True, True, True
+            return "09:00", zone, True, True, True, False
         return (
             slot_label(row.digest_local_time),
             row.timezone,
             row.day_enabled,
             row.moon_enabled,
             row.retro_enabled,
+            row.affirmation_enabled,
         )
 
     async def save_preferences(
@@ -302,7 +314,8 @@ class OpsService:
         day: bool,
         moon: bool,
         retro: bool,
-    ) -> tuple[str, str, bool, bool, bool]:
+        affirmation: bool | None = None,
+    ) -> tuple[str, str, bool, bool, bool, bool]:
         try:
             slot = parse_slot(local_time)
             known_zone(timezone)
@@ -318,9 +331,12 @@ class OpsService:
                 day=day,
                 moon=moon,
                 retro=retro,
+                affirmation=affirmation,
             )
             await uow.commit()
-        return local_time, timezone, day, moon, retro
+            stored = await uow.notification_settings.read(user_id)
+        reminder = False if stored is None else stored.affirmation_enabled
+        return local_time, timezone, day, moon, retro, reminder
 
     async def snapshot(self, start: datetime, end: datetime) -> AdminSnapshot:
         async with self._uow_factory() as uow:

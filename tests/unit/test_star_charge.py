@@ -166,4 +166,3 @@ async def test_unanswerable_question_charges_quota() -> None:
     assert reply.status == "off_topic"
     assert reply.remaining == 9
     assert events == ["finish:charge=True"]
-

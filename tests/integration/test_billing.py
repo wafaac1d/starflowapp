@@ -365,7 +365,7 @@ async def test_trial_gift_refund_and_referral(factory: async_sessionmaker[AsyncS
         expiration=int((end + timedelta(days=30)).timestamp()),
         first=False,
     )
-    assert await _count(factory, referrer.id, "referral") == 1
+    assert await _count(factory, referrer.id, "referral") == 0
     friend = await _user(factory)
     other = await _user(factory)
     await service.create_invoice(buyer.id, "gift", "idem-gift-0001")
@@ -450,4 +450,4 @@ async def test_trial_gift_refund_and_referral(factory: async_sessionmaker[AsyncS
     assert "revoked" in subscription
     assert "active" in subscription
     assert admin == ["active"]
-    assert await _count(factory, referrer.id, "referral") == 1
+    assert await _count(factory, referrer.id, "referral") == 0

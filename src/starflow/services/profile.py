@@ -1,13 +1,13 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from types import TracebackType
 from typing import Protocol
 from uuid import UUID
 
 from starflow.domain.calendar_sign import calendar_sign
-from starflow.domain.errors import FieldInvalid, PremiumRequired
+from starflow.domain.errors import FieldInvalid
 from starflow.domain.onboarding import (
     next_after,
     optional_birth_time,
@@ -141,17 +141,14 @@ class ProfileService:
         latitude: str,
         longitude: str,
     ) -> Profile:
+        if label.strip() == "":
+            raise FieldInvalid("birth_place", "errors.place_not_offered")
         normalized = normalize_place_query(query)
         async with self._uow_factory() as uow:
             hits = await uow.geocodes.get_results(normalized)
-            chosen = _matching_hit(hits, label, latitude, longitude)
+            chosen = _matching_hit(hits, latitude, longitude)
             if chosen is None:
-                try:
-                    lat_dec = Decimal(latitude)
-                    lon_dec = Decimal(longitude)
-                    chosen = PlaceHit(label.strip(), lat_dec, lon_dec)
-                except Exception:
-                    raise FieldInvalid("birth_place", "errors.place_not_offered")
+                raise FieldInvalid("birth_place", "errors.place_not_offered")
             zone = self._timezones.zone(float(chosen.latitude), float(chosen.longitude))
             if zone is None:
                 zone = self._default_timezone
@@ -223,15 +220,22 @@ def normalize_place_query(query: str) -> str:
     return " ".join(query.strip().lower().split())
 
 
+_COORDINATE = Decimal("0.000001")
+
+
 def _matching_hit(
     hits: list[PlaceHit] | None,
-    label: str,
     latitude: str,
     longitude: str,
 ) -> PlaceHit | None:
-    if hits is None:
+    if not hits:
+        return None
+    try:
+        lat = Decimal(latitude).quantize(_COORDINATE)
+        lon = Decimal(longitude).quantize(_COORDINATE)
+    except (InvalidOperation, ValueError):
         return None
     for hit in hits:
-        if hit.label == label and str(hit.latitude) == latitude and str(hit.longitude) == longitude:
+        if hit.latitude.quantize(_COORDINATE) == lat and hit.longitude.quantize(_COORDINATE) == lon:
             return hit
     return None

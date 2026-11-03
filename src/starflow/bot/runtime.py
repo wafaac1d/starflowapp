@@ -67,16 +67,12 @@ class BotRuntime:
         if prev_id is not None:
             try:
                 await self._bot.delete_message(chat_id=telegram_id, message_id=prev_id)
-            except TelegramRetryAfter as error:
-                raise DeliveryRetry(float(error.retry_after)) from error
-            except TelegramForbiddenError as error:
-                raise DeliveryBlocked() from error
             except Exception as error:
                 self._log.debug(
                     "delete_previous_notice_failed",
                     telegram_id=telegram_id,
                     message_id=prev_id,
-                    error=str(error),
+                    error_type=type(error).__name__,
                 )
 
         try:

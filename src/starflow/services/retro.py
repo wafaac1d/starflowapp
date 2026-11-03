@@ -5,7 +5,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from types import TracebackType
-from typing import Protocol
+from typing import Protocol, cast
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -126,9 +126,7 @@ FALLBACKS: dict[str, dict[str, str]] = {
             "к внутреннему миру. Период помогает мягко рассеять иллюзии и взглянуть "
             "на реальность без самообмана, находя гармонию в творчестве и покое."
         ),
-        "advice": (
-            "Доверяйте интуиции, но проверяйте факты при принятии практических решений."
-        ),
+        "advice": ("Доверяйте интуиции, но проверяйте факты при принятии практических решений."),
     },
     "плутон": {
         "title": "Ретроградный Плутон: глубинная трансформация и сила",
@@ -238,18 +236,13 @@ class RetroService:
             premium = await uow.subscriptions.has_active(user_id, now)
 
         zone = profile.timezone or self._zone_name
-        today = now.astimezone(ZoneInfo(zone)).date()
-        has_ended = today > end_date
 
         owned = False
         if not premium and self._stars is not None:
             subject = retrograde_subject(clean_planet, start)
             owned = await self._stars.owns(user_id, "retrograde", subject)
 
-        # Access: Premium always has access.
-        # Free users with active period purchase have access while the period has not ended.
-        # Once the period ends, free users must pay again for the next/current period.
-        access = "allowed" if premium or (owned and not has_ended) else "stars_required"
+        access = "allowed" if premium or owned else "stars_required"
 
         fallback = FALLBACKS.get(
             clean_planet,
@@ -358,7 +351,11 @@ class RetroService:
                 }
 
         _LOG.warning("retrograde_uses_fallback", model=self._model_name, planet=planet)
-        return fallback
+        return {
+            "title": fallback["title"],
+            "body": fallback["body"],
+            "advice": fallback["advice"],
+        }
 
     async def _complete(
         self,
@@ -391,7 +388,7 @@ class RetroService:
             await uow.commit()
 
         try:
-            return json.loads(reply.content)
+            return cast(object, json.loads(reply.content))
         except json.JSONDecodeError:
             _LOG.warning("model_reply_rejected", kind="retrograde", model=self._model_name)
             return None

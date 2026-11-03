@@ -38,6 +38,7 @@ from starflow.db.tables import (
     IdempotencyKeyRow,
     UsageCounterRow,
 )
+from starflow.domain.errors import FieldInvalid
 from starflow.domain.plans import Plans, load_plans
 from starflow.domain.quota import Allowed, LimitReached
 from starflow.domain.records import PlaceHit, ProfileDraft
@@ -680,6 +681,8 @@ async def test_birth_place_can_be_set_without_premium_and_computes_houses(
     updated = await container.profile_service.confirm_place(
         user_id, "москва", "Москва, Россия", "55.7558", "37.6173"
     )
+    with pytest.raises(FieldInvalid):
+        await container.profile_service.confirm_place(user_id, "москва", "Атлантида", "0", "0")
     assert updated.birth_place == "Москва, Россия"
     assert updated.latitude == Decimal("55.7558")
     assert updated.longitude == Decimal("37.6173")

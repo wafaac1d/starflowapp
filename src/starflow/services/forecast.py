@@ -52,6 +52,7 @@ from starflow.i18n.catalog import Catalog
 from starflow.logging import get_logger
 from starflow.repositories.protocols import UserRepository
 from starflow.repositories.sql import (
+    AffirmationKeepRepository,
     AiRequestRepository,
     FavoriteRepository,
     ForecastFeedbackRepository,
@@ -167,6 +168,7 @@ class ForecastStore(Protocol):
     related_profiles: RelatedProfileRepository
     forecast_history: ForecastHistoryRepository
     favorites: FavoriteRepository
+    affirmation_keeps: AffirmationKeepRepository
     feedback: ForecastFeedbackRepository
     ai_requests: AiRequestRepository
 
@@ -699,6 +701,8 @@ class ForecastService:
                     continue
                 title = payload.get("title")
                 found.append((row.target_id, title if isinstance(title, str) else row.target_type))
+            for keep in await uow.affirmation_keeps.list_for_user(user_id):
+                found.append((keep.id, _affirmation_title(keep.text)))
         return tuple(found)
 
     async def open_favorite(self, user_id: UUID, history_id: UUID) -> tuple[str, str]:
@@ -708,6 +712,11 @@ class ForecastService:
                 row.target_id == history_id and row.target_type == "forecast" for row in rows
             )
             payload = await uow.forecast_history.payload_for(user_id, history_id) if kept else None
+            affirmation = None
+            if payload is None:
+                affirmation = await uow.affirmation_keeps.get(user_id, history_id)
+        if affirmation is not None:
+            return "Аффирмация", affirmation.text
         if payload is None:
             raise FieldInvalid("forecast", "errors.not_found")
         body = payload.get("body")
@@ -767,8 +776,9 @@ class ForecastService:
         async with self._uow_factory() as uow:
             code = await uow.users.ensure_referral_code(user_id)
             count = await uow.users.referral_count(user_id)
+            earned = await uow.users.referral_stars_earned(user_id)
             await uow.commit()
-        return code, referral_link(self._mini_app_url, code), count, count * 20
+        return code, referral_link(self._mini_app_url, code), count, earned
 
     async def accept_referral(self, user_id: UUID) -> None:
         async with self._uow_factory() as uow:
@@ -1181,6 +1191,13 @@ class ForecastService:
 def public_share(title: str, body: str, sign: str | None) -> str:
     lines = [line for line in (title, body, sign or "") if line]
     return "\n".join(lines)
+
+
+def _affirmation_title(text: str) -> str:
+    flat = " ".join(text.replace("«", "").replace("»", "").split())
+    if len(flat) > 80:
+        return f"{flat[:79].rstrip()}…"
+    return flat or "Аффирмация"
 
 
 def referral_link(base: str, code: str) -> str:

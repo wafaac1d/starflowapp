@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from starflow.repositories.billing import BillingRepository
 from starflow.repositories.protocols import OutboxRepository, UserRepository
 from starflow.repositories.sql import (
+    AffirmationKeepRepository,
     AiRequestRepository,
     AssistantMessageRepository,
     AuthSessionRepository,
@@ -43,6 +44,7 @@ class SqlUnitOfWork:
     forecast_cache: ForecastCacheRepository
     forecast_history: ForecastHistoryRepository
     favorites: FavoriteRepository
+    affirmation_keeps: AffirmationKeepRepository
     notification_settings: NotificationSettingsRepository
     assistant_messages: AssistantMessageRepository
     feedback: ForecastFeedbackRepository
@@ -75,6 +77,7 @@ class SqlUnitOfWork:
         self.forecast_cache = ForecastCacheRepository(session)
         self.forecast_history = ForecastHistoryRepository(session)
         self.favorites = FavoriteRepository(session)
+        self.affirmation_keeps = AffirmationKeepRepository(session)
         self.notification_settings = NotificationSettingsRepository(session)
         self.assistant_messages = AssistantMessageRepository(session)
         self.feedback = ForecastFeedbackRepository(session)

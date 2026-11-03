@@ -28,6 +28,8 @@ type BirthScreenProps = {
   displayName: string;
 };
 
+type ChosenPlace = PlaceHit & { lookup: string };
+
 function timeDraft(value: string): DraftPayload {
   const clock = value.trim();
   if (clock.length === 0) {
@@ -66,7 +68,7 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
   const [placeQuery, setPlaceQuery] = useState(
     profile.birth_place ? formatPlaceLabel(profile.birth_place) : ""
   );
-  const [selectedPlace, setSelectedPlace] = useState<PlaceHit | null>(null);
+  const [selectedPlace, setSelectedPlace] = useState<ChosenPlace | null>(null);
   const [hits, setHits] = useState<PlaceHit[]>([]);
   const stablePlace = useDebouncedValue(placeQuery);
 
@@ -96,7 +98,7 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
   const save = useMutation({
     mutationFn: async () => {
       const clock = timeDraft(time);
-      let placeToConfirm: PlaceHit | null | undefined = selectedPlace;
+      let placeToConfirm: PlaceHit | ChosenPlace | null | undefined = selectedPlace;
       if (
         !placeToConfirm &&
         placeQuery.trim().length >= 2 &&
@@ -122,7 +124,7 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
         if (placeToConfirm) {
           try {
             current = await confirmPlace({
-              query: placeQuery,
+              query: "lookup" in placeToConfirm ? placeToConfirm.lookup : placeQuery.trim(),
               label: placeToConfirm.label,
               latitude: placeToConfirm.latitude,
               longitude: placeToConfirm.longitude,
@@ -157,7 +159,7 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
       if (placeToConfirm) {
         try {
           current = await confirmPlace({
-            query: placeQuery,
+            query: "lookup" in placeToConfirm ? placeToConfirm.lookup : placeQuery.trim(),
             label: placeToConfirm.label,
             latitude: placeToConfirm.latitude,
             longitude: placeToConfirm.longitude,
@@ -228,7 +230,7 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
                       className={styles.placeItem}
                       onClick={() => {
                         setPlaceQuery(label);
-                        setSelectedPlace({ ...hit, label });
+                        setSelectedPlace({ ...hit, label, lookup: stablePlace.trim() });
                         setHits([]);
                       }}
                     >

@@ -282,7 +282,7 @@ async def test_retro_meaning_premium_and_free_flow() -> None:
     assert res_paid.access == "allowed"
     assert res_paid.body != ""
 
-    # 4. Once period ends (e.g. today is 2026-12-01 > 2026-11-29), free user is asked to pay again
+    # 4. A paid period stays open after it ends. The next period has another start date.
     ended_dt = datetime(2026, 12, 1, 12, tzinfo=UTC)
     ended_service = RetroService(
         lambda: _MockRetroWork(premium=False),  # type: ignore[arg-type]
@@ -295,8 +295,8 @@ async def test_retro_meaning_premium_and_free_flow() -> None:
         clock=lambda: ended_dt,
     )
     res_ended = await ended_service.meaning(user_id, "меркурий", "2026-11-09", "2026-11-29")
-    assert res_ended.access == "stars_required"
-    assert res_ended.body == ""
+    assert res_ended.access == "allowed"
+    assert res_ended.body != ""
 
     # 5. Invalid planet and dates validation
     with pytest.raises(FieldInvalid, match=re.escape("errors.validation")):
@@ -304,4 +304,3 @@ async def test_retro_meaning_premium_and_free_flow() -> None:
 
     with pytest.raises(FieldInvalid, match=re.escape("errors.date_invalid")):
         await free_service.meaning(user_id, "меркурий", "не_дата", "2026-11-29")
-

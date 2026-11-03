@@ -17,6 +17,7 @@ const prefs: NoticePrefs = {
   day: false,
   moon: true,
   retro: false,
+  affirmation: false,
 };
 
 function requestUrl(input: RequestInfo | URL): string {

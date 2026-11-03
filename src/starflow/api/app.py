@@ -171,6 +171,9 @@ def _api_router(container: Container) -> APIRouter:
     return router
 
 
+_WEBHOOK_TASKS: set[asyncio.Task[None]] = set()
+
+
 def _register_webhook(app: FastAPI, container: Container) -> None:
     path = container.settings.webhook_path or "/telegram/webhook"
 
@@ -179,7 +182,8 @@ def _register_webhook(app: FastAPI, container: Container) -> None:
         if container.settings.bot_mode != "webhook":
             return error_response(404, "not_found", container.catalog.text("errors.not_found"))
         received = request.headers.get("x-telegram-bot-api-secret-token", "")
-        if container.settings.webhook_secret and not secrets_match(received, container.settings.webhook_secret):
+        secret = container.settings.webhook_secret
+        if secret and not secrets_match(received, secret):
             return error_response(
                 401,
                 "unauthorized",
@@ -191,7 +195,9 @@ def _register_webhook(app: FastAPI, container: Container) -> None:
             return Response(status_code=400)
         update = Update.model_validate(body, context={"bot": container.bot})
         structlog_update(update.update_id)
-        asyncio.create_task(_feed_update_safe(container, update))
+        task = asyncio.create_task(_feed_update_safe(container, update))
+        _WEBHOOK_TASKS.add(task)
+        task.add_done_callback(_WEBHOOK_TASKS.discard)
         return Response(status_code=200)
 
 
@@ -200,6 +206,7 @@ async def _feed_update_safe(container: Container, update: Update) -> None:
         await container.dispatcher.feed_update(container.bot, update)
     except Exception as exc:
         import structlog
+
         structlog.get_logger("bot").warning("webhook_feed_failed", error_type=type(exc).__name__)
 
 

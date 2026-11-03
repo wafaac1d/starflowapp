@@ -20,6 +20,7 @@ class NoticeBody(BaseModel):
     day: bool
     moon: bool
     retro: bool
+    affirmation: bool
 
 
 class NoticeWrite(BaseModel):
@@ -28,6 +29,7 @@ class NoticeWrite(BaseModel):
     day: bool
     moon: bool
     retro: bool
+    affirmation: bool | None = None
 
 
 class RetroPeriodBody(BaseModel):
@@ -134,13 +136,14 @@ def register_ops_routes(router: APIRouter, container: Container) -> None:
     @router.get("/notifications", response_model=NoticeBody)
     async def read_notifications(request: Request) -> NoticeBody:
         actor = await actor_from_cookie(request, container, unauthorized)
-        local_time, zone, day, moon, retro = await ops.preferences(actor.view.user_id)
+        local_time, zone, day, moon, retro, affirmation = await ops.preferences(actor.view.user_id)
         return NoticeBody(
             local_time=local_time,
             timezone=zone,
             day=day,
             moon=moon,
             retro=retro,
+            affirmation=affirmation,
         )
 
     @router.put("/notifications", response_model=NoticeBody)
@@ -155,6 +158,7 @@ def register_ops_routes(router: APIRouter, container: Container) -> None:
                 day=body.day,
                 moon=body.moon,
                 retro=body.retro,
+                affirmation=body.affirmation,
             )
         except FieldInvalid as error:
             raise _field(container, error) from error
@@ -164,6 +168,7 @@ def register_ops_routes(router: APIRouter, container: Container) -> None:
             day=saved[2],
             moon=saved[3],
             retro=saved[4],
+            affirmation=saved[5],
         )
 
     @router.get("/retro", response_model=list[RetroPeriodBody])

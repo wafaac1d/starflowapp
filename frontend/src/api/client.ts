@@ -367,6 +367,7 @@ export type NoticePrefs = {
   day: boolean;
   moon: boolean;
   retro: boolean;
+  affirmation: boolean;
 };
 
 export const NOTICE_SLOTS: readonly string[] = Array.from({ length: 48 }, (_, index) => {
@@ -495,7 +496,7 @@ export type AffirmationsStatus = {
 };
 
 export async function getAffirmations(
-  category = "for_you",
+  category: string,
   fetchImpl: typeof fetch = fetch,
 ): Promise<AffirmationsResponse> {
   return requestJson<AffirmationsResponse>(
@@ -511,6 +512,41 @@ export async function getAffirmationsStatus(
   return requestJson<AffirmationsStatus>(
     "/api/v1/affirmations/status",
     { method: "GET" },
+    fetchImpl,
+  );
+}
+
+export type AffirmationKeep = {
+  id: string;
+  card_id: string;
+  text: string;
+  category: string;
+};
+
+export async function getAffirmationKeeps(
+  fetchImpl: typeof fetch = fetch,
+): Promise<AffirmationKeep[]> {
+  return requestJson<AffirmationKeep[]>("/api/v1/affirmations/keeps", { method: "GET" }, fetchImpl);
+}
+
+export async function saveAffirmationKeep(
+  body: { card_id: string; text: string; category: string },
+  fetchImpl: typeof fetch = fetch,
+): Promise<AffirmationKeep> {
+  return requestJson<AffirmationKeep>(
+    "/api/v1/affirmations/keeps",
+    { method: "POST", body: JSON.stringify(body) },
+    fetchImpl,
+  );
+}
+
+export async function deleteAffirmationKeep(
+  cardId: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  await requestJson<void>(
+    `/api/v1/affirmations/keeps/${encodeURIComponent(cardId)}`,
+    { method: "DELETE" },
     fetchImpl,
   );
 }

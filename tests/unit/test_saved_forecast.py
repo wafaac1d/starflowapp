@@ -23,14 +23,32 @@ class _Work:
         return None
 
 
+class _Keeps:
+    def __init__(self, text: str | None = None) -> None:
+        self._text = text
+
+    async def list_for_user(self, _user_id: UUID) -> tuple[SimpleNamespace, ...]:
+        if self._text is None:
+            return ()
+        return (SimpleNamespace(id=HISTORY, text=self._text),)
+
+    async def get(self, _user_id: UUID, _history_id: UUID) -> SimpleNamespace | None:
+        if self._text is None:
+            return None
+        return SimpleNamespace(text=self._text)
+
+
 class _Rows:
     def __init__(
         self,
         rows: tuple[SimpleNamespace, ...],
         payload: dict[str, object] | None,
+        *,
+        affirmation: str | None = None,
     ) -> None:
         self.favorites = self
         self.forecast_history = self
+        self.affirmation_keeps = _Keeps(affirmation)
         self._rows = rows
         self._payload = payload
 
@@ -66,6 +84,11 @@ async def test_open_favorite_returns_the_stored_text() -> None:
         )
     )
     assert await service.open_favorite(USER, HISTORY) == ("День для ясных решений", "Текст дня.")
+
+
+async def test_open_favorite_returns_a_kept_affirmation() -> None:
+    service = _service(_Rows((), None, affirmation="Я спокоен."))
+    assert await service.open_favorite(USER, HISTORY) == ("Аффирмация", "Я спокоен.")
 
 
 async def test_open_favorite_refuses_a_reading_that_was_not_saved() -> None:

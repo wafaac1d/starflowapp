@@ -946,6 +946,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/affirmations/keeps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Affirmation Keeps */
+        get: operations["read_affirmation_keeps_api_v1_affirmations_keeps_get"];
+        put?: never;
+        /** Create Affirmation Keep */
+        post: operations["create_affirmation_keep_api_v1_affirmations_keeps_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/affirmations/keeps/{card_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Affirmation Keep */
+        delete: operations["delete_affirmation_keep_api_v1_affirmations_keeps__card_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/support": {
         parameters: {
             query?: never;
@@ -1144,6 +1179,29 @@ export interface components {
             category: string;
             /** Bg Image */
             bg_image: string;
+        };
+        /** AffirmationKeepBody */
+        AffirmationKeepBody: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Card Id */
+            card_id: string;
+            /** Text */
+            text: string;
+            /** Category */
+            category: string;
+        };
+        /** AffirmationKeepWrite */
+        AffirmationKeepWrite: {
+            /** Card Id */
+            card_id: string;
+            /** Text */
+            text: string;
+            /** Category */
+            category: string;
         };
         /** AffirmationsBody */
         AffirmationsBody: {
@@ -1577,6 +1635,8 @@ export interface components {
             moon: boolean;
             /** Retro */
             retro: boolean;
+            /** Affirmation */
+            affirmation: boolean;
         };
         /** NoticeWrite */
         NoticeWrite: {
@@ -1590,6 +1650,8 @@ export interface components {
             moon: boolean;
             /** Retro */
             retro: boolean;
+            /** Affirmation */
+            affirmation?: boolean | null;
         };
         /** OrderBody */
         OrderBody: {
@@ -3710,8 +3772,8 @@ export interface operations {
     };
     read_affirmations_api_v1_affirmations_get: {
         parameters: {
-            query?: {
-                category?: string;
+            query: {
+                category: string;
             };
             header?: never;
             path?: never;
@@ -3727,6 +3789,88 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AffirmationsBody"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_affirmation_keeps_api_v1_affirmations_keeps_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffirmationKeepBody"][];
+                };
+            };
+        };
+    };
+    create_affirmation_keep_api_v1_affirmations_keeps_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AffirmationKeepWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AffirmationKeepBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_affirmation_keep_api_v1_affirmations_keeps__card_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
