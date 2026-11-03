@@ -4,7 +4,7 @@ import calendar
 import re
 from dataclasses import dataclass
 
-from starflow.ai.guard import plain_text
+from starflow.ai.guard import guarded_copy, plain_text
 from starflow.domain.calendar_reading import parse_month
 from starflow.domain.errors import FieldInvalid
 from starflow.domain.stars import subject_ok
@@ -18,6 +18,38 @@ PRESETS = {
 CUSTOM = "custom"
 _CLOCK = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _NOTE_LIMIT = 240
+_WORD = re.compile(r"[A-Za-zА-Яа-яЁё]{2,}")
+_REPEAT = re.compile(r"(.)\1{3,}")
+_VOWELS = frozenset("аеёиоуыэюяaeiouy")
+_JUNK = frozenset(
+    {
+        "тест",
+        "test",
+        "asdf",
+        "asdfgh",
+        "qwe",
+        "qwert",
+        "qwerty",
+        "zxc",
+        "zxcv",
+        "йцук",
+        "йцукен",
+        "фыва",
+        "хз",
+        "лол",
+        "lol",
+        "кек",
+        "ок",
+        "ok",
+        "нет",
+        "да",
+        "ерунда",
+        "хрень",
+        "привет",
+        "ааа",
+        "аааа",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -28,12 +60,34 @@ class FavorableDay:
     note: str
 
 
+def clean_custom_event(raw: str) -> str:
+    cleaned = plain_text(raw)
+    folded = cleaned.casefold()
+    letters = [character for character in folded if character.isalpha()]
+    compact = folded.replace(" ", "")
+    words = _WORD.findall(cleaned)
+    readable = any(len(word) >= 3 for word in words) or len(words) >= 2
+    if (
+        len(cleaned) < 2
+        or len(cleaned) > 40
+        or contains_emoji(cleaned)
+        or folded in _JUNK
+        or "http" in folded
+        or "www." in folded
+        or "игнор" in folded
+        or len(letters) < 3
+        or len(letters) * 2 < len(compact)
+        or _REPEAT.search(folded) is not None
+        or not any(character in _VOWELS for character in folded)
+        or not readable
+    ):
+        raise FieldInvalid("custom", "errors.validation")
+    return cleaned
+
+
 def event_label(event: str, custom: str) -> str:
     if event == CUSTOM:
-        cleaned = plain_text(custom)
-        if len(cleaned) < 2 or len(cleaned) > 40:
-            raise FieldInvalid("custom", "errors.validation")
-        return cleaned
+        return clean_custom_event(custom)
     label = PRESETS.get(event)
     if label is None:
         raise FieldInvalid("event", "errors.validation")
@@ -57,6 +111,27 @@ def favorable_subject(month: str, event: str, custom: str) -> str:
     if slug == "" or not subject_ok(subject):
         raise FieldInvalid("event", "errors.validation")
     return subject
+
+
+def accept_day_detail(payload: object) -> tuple[str, str, str] | None:
+    if not isinstance(payload, dict):
+        return None
+    title = payload.get("title")
+    body = payload.get("body")
+    advice = payload.get("advice")
+    if not isinstance(title, str) or not isinstance(body, str) or not isinstance(advice, str):
+        return None
+    guarded = guarded_copy(title, body)
+    cleaned_advice = plain_text(advice)
+    if (
+        guarded is None
+        or cleaned_advice == ""
+        or contains_emoji(cleaned_advice)
+        or len(cleaned_advice) > 400
+        or len(guarded[1]) > 1200
+    ):
+        return None
+    return guarded[0], guarded[1], cleaned_advice
 
 
 def nearest_favorable(days: tuple[FavorableDay, ...], today: str) -> tuple[FavorableDay, ...]:

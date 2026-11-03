@@ -246,6 +246,7 @@ export function CompatibilityScreen({ profile }: { profile: ProfileResponse }) {
                   icon={row.icon}
                   title={row.title}
                   subtitle={preview}
+                  accentHover
                   onClick={() => {
                     topics.open(row.id, row.title, row.icon);
                   }}

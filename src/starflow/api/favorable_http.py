@@ -9,7 +9,7 @@ from starflow.api.actor import actor_from_cookie
 from starflow.api.http import ApiError
 from starflow.bootstrap import Container
 from starflow.domain.errors import FieldInvalid
-from starflow.services.favorable import FavorableMonth
+from starflow.services.favorable import FavorableDetail, FavorableMonth
 
 
 class FavorableDayBody(BaseModel):
@@ -29,6 +29,13 @@ class FavorableMonthBody(BaseModel):
     price: int
     days: list[FavorableDayBody]
     free_chosen_label: str | None = None
+
+
+class FavorableDetailBody(BaseModel):
+    access: str
+    title: str
+    body: str
+    advice: str
 
 
 class FavorableStatusBody(BaseModel):
@@ -52,6 +59,23 @@ def register_favorable_routes(router: APIRouter, container: Container) -> None:
             is_premium=status.is_premium,
         )
 
+    @router.get("/favorable/day", response_model=FavorableDetailBody)
+    async def read_favorable_day(
+        request: Request,
+        month: Annotated[str, Query()],
+        event: Annotated[str, Query()],
+        date: Annotated[str, Query()],
+        custom: Annotated[str, Query()] = "",
+    ) -> FavorableDetailBody:
+        actor = await actor_from_cookie(request, container, unauthorized)
+        try:
+            view = await container.favorable_service.detail(
+                actor.view.user_id, month, event, custom, date
+            )
+        except FieldInvalid as error:
+            raise _field_error(container, error) from error
+        return _detail(view)
+
     @router.get("/favorable", response_model=FavorableMonthBody)
     async def read_favorable(
         request: Request,
@@ -65,6 +89,15 @@ def register_favorable_routes(router: APIRouter, container: Container) -> None:
         except FieldInvalid as error:
             raise _field_error(container, error) from error
         return _body(view)
+
+
+def _detail(view: FavorableDetail) -> FavorableDetailBody:
+    return FavorableDetailBody(
+        access=view.access,
+        title=view.title,
+        body=view.body,
+        advice=view.advice,
+    )
 
 
 def _body(view: FavorableMonth) -> FavorableMonthBody:

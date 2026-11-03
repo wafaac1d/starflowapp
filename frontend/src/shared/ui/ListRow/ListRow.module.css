@@ -28,6 +28,12 @@
   outline-offset: 2px;
 }
 
+.accent:hover,
+.accent:focus-visible {
+  border-color: var(--color-accent);
+  outline: none;
+}
+
 .avatar {
   width: 40px;
   height: 40px;

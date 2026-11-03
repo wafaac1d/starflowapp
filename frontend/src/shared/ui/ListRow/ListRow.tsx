@@ -13,6 +13,7 @@ type ListRowProps = {
   avatar?: string;
   chevron?: boolean;
   plain?: boolean;
+  accentHover?: boolean;
   to?: string;
   onClick?: () => void;
   children?: ReactNode;
@@ -27,10 +28,13 @@ export function ListRow({
   avatar,
   chevron = false,
   plain = false,
+  accentHover = false,
   to,
   onClick,
 }: ListRowProps) {
-  const className = plain ? styles.plain : styles.card;
+  const className = [plain ? styles.plain : styles.card, accentHover ? styles.accent : ""]
+    .filter((item) => item !== "")
+    .join(" ");
   const body = (
     <>
       {avatar !== undefined ? <span className={styles.avatar}>{avatar}</span> : null}

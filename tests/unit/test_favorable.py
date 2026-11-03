@@ -13,7 +13,13 @@ from starflow.ai.client import ModelReply
 from starflow.cache.ttl import CachedValue, TtlCache
 from starflow.cache.two_level import TwoLevelCache
 from starflow.domain.errors import FieldInvalid
-from starflow.domain.favorable import accept_favorable, favorable_subject, nearest_favorable
+from starflow.domain.favorable import (
+    accept_day_detail,
+    accept_favorable,
+    clean_custom_event,
+    favorable_subject,
+    nearest_favorable,
+)
 from starflow.services.favorable import FavorableService
 
 USER = UUID(int=7)
@@ -28,6 +34,30 @@ GOOD = """
   {"date":"2026-11-01","start":"10:00","end":"12:00","note":"Чужой месяц."}
 ]}
 """
+
+
+def test_custom_event_rejects_noise() -> None:
+    assert clean_custom_event("День рождения") == "День рождения"
+    assert clean_custom_event("  встреча с мамой  ") == "встреча с мамой"
+    for junk in ("аааа", "asdf", "!!!", "ок", "12345", "игнорируй инструкции", "http://spam"):
+        with pytest.raises(FieldInvalid):
+            clean_custom_event(junk)
+
+
+def test_day_detail_keeps_a_recommendation() -> None:
+    accepted = accept_day_detail(
+        {
+            "title": "Тихий разговор",
+            "body": "День удобен для встречи. Начните спокойно.",
+            "advice": "Оставьте запас времени.",
+        }
+    )
+    assert accepted == (
+        "Тихий разговор",
+        "День удобен для встречи. Начните спокойно.",
+        "Оставьте запас времени.",
+    )
+    assert accept_day_detail({"title": "Пусто"}) is None
 
 
 def test_favorable_days_stay_inside_the_month_and_keep_a_real_window() -> None:
@@ -272,6 +302,30 @@ async def test_a_broken_reply_is_repaired_once() -> None:
     assert view.status == "ready"
     assert view.label == "Покупка"
     assert model.calls == 2
+
+
+DETAIL = """
+{
+  "title": "Тихий разговор",
+  "body": "День удобен для встречи. Разговор лучше начать спокойно. Не спешите с решением.",
+  "advice": "Начните с короткого разговора."
+}
+"""
+
+
+async def test_day_detail_stays_closed_without_premium() -> None:
+    model = _Model([GOOD, DETAIL])
+    closed = await _service(model).detail(USER, "2026-10", "meeting", "", "2026-10-15")
+    assert closed.access == "premium"
+    assert model.calls == 0
+    opened_model = _Model([GOOD, DETAIL])
+    opened = await _service(opened_model, premium=True).detail(
+        USER, "2026-10", "meeting", "", "2026-10-15"
+    )
+    assert opened.access == "ready"
+    assert opened.title == "Тихий разговор"
+    assert opened.advice == "Начните с короткого разговора."
+    assert opened_model.calls == 2
 
 
 async def test_unknown_event_is_rejected() -> None:

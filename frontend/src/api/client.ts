@@ -456,6 +456,31 @@ export async function getFavorableStatus(
   return requestJson<FavorableStatus>("/api/v1/favorable/status", { method: "GET" }, fetchImpl);
 }
 
+export type FavorableDetail = {
+  access: string;
+  title: string;
+  body: string;
+  advice: string;
+};
+
+export async function getFavorableDetail(
+  month: string,
+  event: string,
+  custom: string,
+  day: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<FavorableDetail> {
+  const params = new URLSearchParams({ month, event, date: day });
+  if (event === "custom" && custom !== "") {
+    params.set("custom", custom);
+  }
+  return requestJson<FavorableDetail>(
+    `/api/v1/favorable/day?${params.toString()}`,
+    { method: "GET" },
+    fetchImpl,
+  );
+}
+
 export async function getFavorable(
   month: string,
   event: string,

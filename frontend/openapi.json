@@ -2082,6 +2082,73 @@
         }
       }
     },
+    "/api/v1/favorable/day": {
+      "get": {
+        "summary": "Read Favorable Day",
+        "operationId": "read_favorable_day_api_v1_favorable_day_get",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Month"
+            }
+          },
+          {
+            "name": "event",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Event"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Date"
+            }
+          },
+          {
+            "name": "custom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Custom"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavorableDetailBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/favorable": {
       "get": {
         "summary": "Read Favorable",
@@ -3640,6 +3707,34 @@
           "note"
         ],
         "title": "FavorableDayBody"
+      },
+      "FavorableDetailBody": {
+        "properties": {
+          "access": {
+            "type": "string",
+            "title": "Access"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "advice": {
+            "type": "string",
+            "title": "Advice"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access",
+          "title",
+          "body",
+          "advice"
+        ],
+        "title": "FavorableDetailBody"
       },
       "FavorableMonthBody": {
         "properties": {

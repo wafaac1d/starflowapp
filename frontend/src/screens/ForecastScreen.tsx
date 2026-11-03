@@ -193,6 +193,7 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
               icon={row.icon}
               title={row.title}
               subtitle={preview}
+              accentHover
               chevron
               onClick={() => {
                 if (period !== "day" && reading.face.phase === "stars") {

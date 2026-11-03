@@ -17,6 +17,7 @@ from starflow.domain.calendar_sign import calendar_sign
 from starflow.domain.errors import Conflict, FieldInvalid
 from starflow.domain.favorable import (
     FavorableDay,
+    accept_day_detail,
     accept_favorable,
     event_label,
     favorable_subject,
@@ -83,6 +84,14 @@ class FavorableStatus:
     chosen_custom: str | None
     chosen_label: str | None
     is_premium: bool
+
+
+@dataclass(frozen=True)
+class FavorableDetail:
+    access: str
+    title: str
+    body: str
+    advice: str
 
 
 @dataclass(frozen=True)
@@ -161,7 +170,7 @@ class FavorableService:
         async with self._uow_factory() as uow:
             profile = await uow.profiles.ensure(user_id)
             premium = await uow.subscriptions.has_active(user_id, self._clock())
-        zone = profile.timezone or self._zone_name
+        zone, facts, born, clock = self._profile_facts(profile)
         today = self._clock().astimezone(ZoneInfo(zone)).date()
         today_iso = today.isoformat()
 
@@ -195,23 +204,6 @@ class FavorableService:
                         free_chosen_label=rec_label,
                     )
 
-        born = "unknown" if profile.birth_date is None else profile.birth_date.strftime("%d.%m.%Y")
-        clock = (
-            "unknown"
-            if profile.birth_time_unknown or profile.birth_time is None
-            else profile.birth_time.strftime("%H:%M")
-        )
-        sun = "unknown" if profile.birth_date is None else calendar_sign(profile.birth_date)
-        place = getattr(profile, "birth_place", None) or "unknown"
-        facts = facts_text(
-            {
-                "sun": sun,
-                "birth_date": born,
-                "birth_time": clock,
-                "birth_place": place,
-                "timezone": zone,
-            }
-        )
         prompt = self._prompts.get("favorable")
         key = "|".join(
             (
@@ -251,6 +243,107 @@ class FavorableService:
                         pass
 
         return self._access(view, today_iso, premium, owned)
+
+    async def detail(
+        self,
+        user_id: UUID,
+        month: str,
+        event: str,
+        custom: str,
+        day: str,
+    ) -> FavorableDetail:
+        event_label(event, custom)
+        async with self._uow_factory() as uow:
+            premium = await uow.subscriptions.has_active(user_id, self._clock())
+        if not premium:
+            return FavorableDetail(access="premium", title="", body="", advice="")
+        view = await self.month(user_id, month, event, custom)
+        match = next((item for item in view.days if item.date == day), None)
+        if view.status != "ready" or match is None:
+            raise FieldInvalid("date", "errors.validation")
+        async with self._uow_factory() as uow:
+            profile = await uow.profiles.ensure(user_id)
+        zone, facts, born, clock = self._profile_facts(profile)
+        prompt = self._prompts.get("favorable_detail")
+        key = "|".join(
+            (
+                "favorable-detail",
+                str(user_id),
+                view.label.casefold(),
+                day,
+                match.start,
+                match.end,
+                str(prompt.version),
+                born,
+                clock,
+                zone,
+            )
+        )
+        window = f"{match.start}–{match.end}"
+
+        async def produce() -> dict[str, object]:
+            return await self._ask_detail(user_id, facts, view.label, day, window, match.note)
+
+        hit = await self._cache.get_or_create(
+            key, "favorable_detail", _midnight(self._clock(), zone), produce
+        )
+        payload = hit.payload
+        if payload.get("status") != "ready":
+            return FavorableDetail(access="unavailable", title="", body="", advice="")
+        title = payload.get("title")
+        body = payload.get("body")
+        advice = payload.get("advice")
+        if not isinstance(title, str) or not isinstance(body, str) or not isinstance(advice, str):
+            return FavorableDetail(access="unavailable", title="", body="", advice="")
+        return FavorableDetail(access="ready", title=title, body=body, advice=advice)
+
+    def _profile_facts(self, profile: object) -> tuple[str, str, str, str]:
+        birth_date = getattr(profile, "birth_date", None)
+        birth_time = getattr(profile, "birth_time", None)
+        unknown = bool(getattr(profile, "birth_time_unknown", True))
+        zone = getattr(profile, "timezone", None) or self._zone_name
+        born = "unknown" if birth_date is None else birth_date.strftime("%d.%m.%Y")
+        clock = "unknown" if unknown or birth_time is None else birth_time.strftime("%H:%M")
+        sun = "unknown" if birth_date is None else calendar_sign(birth_date)
+        place = getattr(profile, "birth_place", None) or "unknown"
+        facts = facts_text(
+            {
+                "sun": sun,
+                "birth_date": born,
+                "birth_time": clock,
+                "birth_place": place,
+                "timezone": zone,
+            }
+        )
+        return str(zone), facts, born, clock
+
+    async def _ask_detail(
+        self,
+        user_id: UUID,
+        facts: str,
+        label: str,
+        day: str,
+        window: str,
+        note: str,
+    ) -> dict[str, object]:
+        prompt = self._prompts.get("favorable_detail")
+        user = (
+            prompt.user.replace("{facts}", facts)
+            .replace("{event}", label)
+            .replace("{date}", day)
+            .replace("{window}", window)
+            .replace("{note}", note)
+        )
+        repair = f"{user}\nВерни json с полями title, body и advice без emoji."
+        for text in (user, repair):
+            parsed = await self._complete(
+                user_id, prompt.system, text, prompt.temperature, prompt.max_tokens
+            )
+            accepted = None if parsed is None else accept_day_detail(parsed)
+            if accepted is not None:
+                title, body, advice = accepted
+                return {"status": "ready", "title": title, "body": body, "advice": advice}
+        return {"status": "unavailable"}
 
     def _access(
         self,

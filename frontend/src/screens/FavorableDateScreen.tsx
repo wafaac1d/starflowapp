@@ -2,14 +2,24 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
-import { ApiRequestError, getFavorable, getFavorableStatus, spendStars, type FavorableDay } from "../api/client";
+import {
+  ApiRequestError,
+  getFavorable,
+  getFavorableDetail,
+  getFavorableStatus,
+  spendStars,
+  type FavorableDay,
+} from "../api/client";
 import { queryKeys } from "../api/keys";
+import { customEventOk } from "../customEvent";
 import { Button } from "../shared/ui/Button/Button";
+import { Dialog } from "../shared/ui/Dialog/Dialog";
 import { Field } from "../shared/ui/Field/Field";
 import { Icon } from "../shared/ui/Icon/Icon";
 import { MonthGrid } from "../shared/ui/MonthGrid/MonthGrid";
 import { Screen } from "../shared/ui/Screen/Screen";
 import { Skeleton } from "../shared/ui/Skeleton/Skeleton";
+import { StarLink } from "../shared/ui/StarLink/StarLink";
 import { StarPrice } from "../shared/ui/StarPrice/StarPrice";
 import { TopBar } from "../shared/ui/TopBar/TopBar";
 import { holdStarBalance, writeStarBalance } from "../starBalance";
@@ -50,6 +60,7 @@ export function FavorableDateScreen() {
   const [committed, setCommitted] = useState("");
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() + 1 });
   const [selected, setSelected] = useState("");
+  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
     if (event === null && initialEvent !== null) {
@@ -72,12 +83,18 @@ export function FavorableDateScreen() {
 
   const month = `${cursor.year}-${String(cursor.month).padStart(2, "0")}`;
   const custom = event === "custom" ? committed : "";
-  const ready = event !== null && (event !== "custom" || custom.length >= 2);
+  const customRejected = event === "custom" && committed !== "" && !customEventOk(committed);
+  const ready = event !== null && (event !== "custom" || customEventOk(custom));
   const activeEvent = event ?? "meeting";
   const favorable = useQuery({
     queryKey: queryKeys.favorable(month, activeEvent, custom),
     queryFn: () => getFavorable(month, activeEvent, custom),
     enabled: ready,
+  });
+  const detail = useQuery({
+    queryKey: queryKeys.favorableDetail(month, activeEvent, custom, selected),
+    queryFn: () => getFavorableDetail(month, activeEvent, custom, selected),
+    enabled: detailOpen && isPremium && selected !== "",
   });
   const days = useMemo(
     () => (favorable.data?.status === "ready" ? favorable.data.days : []),
@@ -146,6 +163,7 @@ export function FavorableDateScreen() {
               className={event === item.id ? styles.eventOn : styles.event}
               aria-pressed={event === item.id}
               onClick={() => {
+                setDetailOpen(false);
                 setEvent(item.id);
               }}
             >
@@ -157,6 +175,7 @@ export function FavorableDateScreen() {
             className={event === "custom" ? styles.eventOn : styles.event}
             aria-pressed={event === "custom"}
             onClick={() => {
+              setDetailOpen(false);
               setEvent("custom");
             }}
           >
@@ -165,6 +184,9 @@ export function FavorableDateScreen() {
         </div>
         {event === "custom" ? (
           <Field label="Своё событие" value={draft} chevron={false} onChange={setDraft} />
+        ) : null}
+        {customRejected ? (
+          <p role="alert">Так событие не разобрать. Напишите, для чего ищете день.</p>
         ) : null}
         {event === null ? (
           <article className={styles.favorableCard}>
@@ -211,7 +233,13 @@ export function FavorableDateScreen() {
               </article>
             ) : null}
             {chosen !== undefined ? (
-              <article className={styles.favorableCard}>
+              <button
+                type="button"
+                className={styles.favorableCard}
+                onClick={() => {
+                  setDetailOpen(true);
+                }}
+              >
                 <div className={styles.favorableHead}>
                   <h2>{dayTitle(chosen.date)}</h2>
                   <p className={styles.favorableSuit}>{suitFor(event, custom)}</p>
@@ -221,7 +249,7 @@ export function FavorableDateScreen() {
                   Лучшее время · {chosen.start}–{chosen.end}
                 </p>
                 <p className={styles.favorableNote}>{chosen.note}</p>
-              </article>
+              </button>
             ) : null}
             {!favorable.isPending &&
             ready &&
@@ -261,6 +289,53 @@ export function FavorableDateScreen() {
               Открыть за <StarPrice amount={price} />
             </Button>
           </section>
+        ) : null}
+        {detailOpen && chosen !== undefined ? (
+          <Dialog
+            title={
+              detail.data?.access === "ready" && detail.data.title !== ""
+                ? detail.data.title
+                : dayTitle(chosen.date)
+            }
+            subtitle={`${chosen.start}–${chosen.end}`}
+            imageSrc="/favorable_date/favorable_date_256.png"
+            busy={isPremium && detail.isPending}
+            onClose={() => {
+              setDetailOpen(false);
+            }}
+            {...(isPremium
+              ? {}
+              : {
+                  actions: (
+                    <Button
+                      onClick={() => {
+                        setDetailOpen(false);
+                        void navigate("/premium");
+                      }}
+                    >
+                      Подключить
+                    </Button>
+                  ),
+                })}
+          >
+            {isPremium ? (
+              detail.isPending ? (
+                <StarLink />
+              ) : detail.data?.access === "ready" ? (
+                <>
+                  <p>{detail.data.body}</p>
+                  <div className={styles.retroAdviceBox}>
+                    <span className={styles.retroAdviceTitle}>Рекомендация</span>
+                    <p className={styles.retroAdviceText}>{detail.data.advice}</p>
+                  </div>
+                </>
+              ) : (
+                <p>Не удалось разобрать этот день.</p>
+              )
+            ) : (
+              <p>Развёрнутый разбор и рекомендации для этого дня входят в Premium.</p>
+            )}
+          </Dialog>
         ) : null}
         {topUp ? <TopUpDialog balance={null} onClose={() => setTopUp(false)} /> : null}
       </div>

@@ -1554,6 +1554,60 @@ describe("screens", () => {
     expect(await screen.findByRole("heading", { name: "12 августа" })).toBeInTheDocument();
   });
 
+  it("rejects a nonsense custom event and opens a premium day reading", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        calls.push(url);
+        if (url.includes("/favorable/day")) {
+          return Response.json({
+            access: "ready",
+            title: "Тихий разговор",
+            body: "Этот день удобен для встречи и спокойного разговора.",
+            advice: "Начните без спешки.",
+          });
+        }
+        if (url.includes("/favorable/status")) {
+          return Response.json({
+            chosen_event: null,
+            chosen_custom: null,
+            chosen_label: null,
+            is_premium: false,
+          });
+        }
+        if (!url.includes("/favorable")) {
+          return Response.json({});
+        }
+        return Response.json({
+          status: "ready",
+          event: "meeting",
+          label: "Встреча",
+          month: "2025-08",
+          timezone: "Europe/Moscow",
+          access: "preview",
+          price: 30,
+          days: [{ date: "2025-08-12", start: "11:00", end: "14:00", note: "Короткий разговор." }],
+        });
+      }),
+    );
+    renderAt(<FavorableDateScreen />);
+    await userEvent.click(await screen.findByRole("button", { name: "Свой вариант" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Своё событие" }), "аааа");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Так событие не разобрать");
+    expect(calls.some((url) => url.includes("custom="))).toBe(false);
+
+    await userEvent.click(screen.getByRole("button", { name: "Встреча" }));
+    const card = await screen.findByRole("button", { name: /12 августа/ });
+    await userEvent.click(card);
+    expect(
+      await screen.findByText("Развёрнутый разбор и рекомендации для этого дня входят в Premium."),
+    ).toBeInTheDocument();
+    expect(calls.some((url) => url.includes("/favorable/day"))).toBe(false);
+    await userEvent.click(screen.getByRole("button", { name: "Понятно" }));
+  });
+
   it("opens the relative form from the profile list", () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
