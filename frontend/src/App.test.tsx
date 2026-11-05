@@ -24,6 +24,7 @@ function profile(step: string) {
     longitude: null,
     calendar_sign: null,
     star_balance: 0,
+    privacy_accepted: false,
   };
 }
 
@@ -49,15 +50,20 @@ describe("entry", () => {
       },
     };
     resetWebAppCache();
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response(JSON.stringify(profile("welcome")), {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const body = profile("welcome");
+      const accepted = String(input).includes("/profile/privacy")
+        ? { ...body, privacy_accepted: true }
+        : body;
+      return new Response(JSON.stringify(accepted), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      }),
-    );
+      });
+    });
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
-    expect(await screen.findByRole("button", { name: "Начать" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Начать" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("checkbox", { name: /Я принимаю/ }));
     await userEvent.click(screen.getByRole("button", { name: "Начать" }));
     expect(screen.getByRole("heading", { name: "Когда вы родились?" })).toBeInTheDocument();
     const call = fetchMock.mock.calls[0];

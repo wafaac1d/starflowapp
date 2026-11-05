@@ -26,6 +26,7 @@ import { SettingsScreen } from "./SettingsScreen";
 import { TodayScreen } from "./TodayScreen";
 import { TopUpDialog } from "./TopUpDialog";
 import styles from "./screens.module.css";
+import { PrivacyScreen } from "./PrivacyScreen";
 import { WelcomeScreen } from "./WelcomeScreen";
 
 function profile(): ProfileResponse {
@@ -44,6 +45,7 @@ function profile(): ProfileResponse {
     longitude: null,
     calendar_sign: "Лев",
     star_balance: 0,
+    privacy_accepted: true,
   };
 }
 
@@ -58,10 +60,35 @@ function renderAt(ui: ReactNode, path = "/") {
 
 describe("screens", () => {
   it("shows the welcome copy", async () => {
-    renderAt(<WelcomeScreen />);
+    sessionStorage.removeItem("starflow.privacy.checked");
+    renderAt(<WelcomeScreen privacyAccepted={false} />);
     expect(screen.getByRole("heading", { name: /Ваш ритм/ })).toBeInTheDocument();
     expect(screen.getByText(/персональный астропомощник/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Начать" })).toBeInTheDocument();
+    const start = screen.getByRole("button", { name: "Начать" });
+    expect(start).toBeDisabled();
+    await userEvent.click(screen.getByRole("checkbox", { name: /Я принимаю/ }));
+    expect(start).toBeEnabled();
+  });
+
+  it("opens the privacy agreement from registration", async () => {
+    sessionStorage.removeItem("starflow.privacy.checked");
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/"]}>
+          <Routes>
+            <Route path="/" element={<WelcomeScreen privacyAccepted={false} />} />
+            <Route path="/privacy" element={<PrivacyScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "соглашение о конфиденциальности" }));
+    expect(screen.getByRole("heading", { name: "Соглашение о конфиденциальности" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Какие данные сохраняются" })).toBeInTheDocument();
+    expect(screen.getByText(/развлекательный материал/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Назад" }));
+    expect(screen.getByRole("checkbox", { name: /Я принимаю/ })).toBeInTheDocument();
   });
 
   it("inserts dots and a colon while the birth date and time are typed", async () => {

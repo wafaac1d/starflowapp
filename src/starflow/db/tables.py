@@ -170,6 +170,8 @@ class ProfileRow(Base):
     onboarding_step: Mapped[str] = mapped_column(Text, nullable=False, default="welcome")
     streak_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     streak_last_date: Mapped[date | None] = mapped_column(Date)
+    privacy_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    privacy_policy_version: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
 

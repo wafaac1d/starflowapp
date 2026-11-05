@@ -8,6 +8,7 @@ from starflow.api.actor import Actor, actor_from_cookie, require_intent
 from starflow.api.http import ApiError
 from starflow.bootstrap import Container
 from starflow.domain.errors import FieldInvalid, PremiumRequired
+from starflow.domain.privacy import privacy_is_current
 from starflow.domain.records import PlaceHit, Profile
 from starflow.services.profile import DraftInput
 
@@ -27,6 +28,11 @@ class ProfileBody(BaseModel):
     longitude: str | None
     calendar_sign: str | None
     star_balance: int
+    privacy_accepted: bool
+
+
+class PrivacyBody(BaseModel):
+    accepted: bool
 
 
 class DraftBody(BaseModel):
@@ -58,6 +64,15 @@ class PlaceBody(BaseModel):
 def register_profile_routes(router: APIRouter, container: Container) -> None:
     unauthorized = container.catalog.text("errors.unauthorized")
     not_found = container.catalog.text("errors.not_found")
+
+    @router.post("/profile/privacy", response_model=ProfileBody)
+    async def accept_privacy(request: Request, body: PrivacyBody) -> ProfileBody:
+        actor = await _actor(request, container, unauthorized)
+        try:
+            await container.profile_service.accept_privacy(actor.view.user_id, body.accepted)
+        except FieldInvalid as error:
+            raise _field_error(container, error) from error
+        return await profile_body(container, actor.view.user_id, actor.view.is_admin)
 
     @router.post("/profile/draft", response_model=ProfileBody)
     async def save_draft(request: Request, body: DraftBody) -> ProfileBody:
@@ -207,6 +222,7 @@ def _body(
         longitude=None if profile.longitude is None else str(profile.longitude),
         calendar_sign=sign,
         star_balance=balance,
+        privacy_accepted=privacy_is_current(profile.privacy_policy_version),
     )
 
 

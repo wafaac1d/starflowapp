@@ -16,6 +16,7 @@ from starflow.domain.onboarding import (
     parse_display_name,
     previous_step,
 )
+from starflow.domain.privacy import PRIVACY_VERSION
 from starflow.domain.records import Profile
 from starflow.domain.start_param import normalize_start_param
 from starflow.services.profile import DraftInput, ProfileService
@@ -121,6 +122,11 @@ class _Profiles:
         self.profile = updated
         return updated
 
+    async def accept_privacy(self, user_id: UUID, version: str, accepted_at: datetime) -> Profile:
+        del user_id, accepted_at
+        self.profile = replace(self.profile, privacy_policy_version=version)
+        return self.profile
+
 
 class _Subscriptions:
     async def has_active(self, user_id: UUID, moment: datetime) -> bool:
@@ -179,6 +185,7 @@ async def test_blank_birth_time_finishes_registration_without_a_touch() -> None:
             longitude=None,
             timezone=None,
             onboarding_step="welcome",
+            privacy_policy_version=PRIVACY_VERSION,
         )
     )
     service = ProfileService(lambda: _Work(profiles), _Zones())
@@ -192,6 +199,35 @@ async def test_blank_birth_time_finishes_registration_without_a_touch() -> None:
     assert finished.birth_time is None
     assert finished.birth_time_unknown is True
     assert finished.timezone == "Europe/Moscow"
+
+
+async def test_registration_waits_for_the_privacy_agreement() -> None:
+    user_id = UUID("00000000-0000-0000-0000-000000000042")
+    profiles = _Profiles(
+        Profile(
+            id=user_id,
+            user_id=user_id,
+            display_name=None,
+            birth_date=None,
+            birth_time=None,
+            birth_time_unknown=False,
+            birth_place=None,
+            latitude=None,
+            longitude=None,
+            timezone=None,
+            onboarding_step="welcome",
+        )
+    )
+    service = ProfileService(lambda: _Work(profiles), _Zones())
+    with pytest.raises(FieldInvalid) as blocked:
+        await service.continue_draft(user_id, _draft(display_name="Анна"))
+    assert blocked.value.field == "privacy"
+    accepted = await service.accept_privacy(user_id, True)
+    assert accepted.privacy_policy_version == PRIVACY_VERSION
+    named = await service.continue_draft(user_id, _draft(display_name="Анна"))
+    assert named.display_name == "Анна"
+    with pytest.raises(FieldInvalid):
+        await service.accept_privacy(user_id, False)
 
 
 def test_screen_url_keeps_the_screen_name() -> None:

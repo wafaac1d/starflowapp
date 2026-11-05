@@ -22,6 +22,7 @@ const profile: ProfileResponse = {
   longitude: null,
   calendar_sign: null,
   star_balance: 0,
+  privacy_accepted: true,
 };
 
 const billing: BillingResponse = {

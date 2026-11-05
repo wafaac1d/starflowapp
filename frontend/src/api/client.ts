@@ -18,6 +18,7 @@ export type ProfileResponse = {
   longitude: string | null;
   calendar_sign: string | null;
   star_balance: number;
+  privacy_accepted: boolean;
 };
 
 export type PlaceHit = {
@@ -60,6 +61,14 @@ export async function openSession(
       method: "POST",
       headers: { Authorization: `TMA ${initData}` },
     },
+    fetchImpl,
+  );
+}
+
+export async function acceptPrivacy(fetchImpl: typeof fetch = fetch): Promise<ProfileResponse> {
+  return requestJson<ProfileResponse>(
+    "/api/v1/profile/privacy",
+    { method: "POST", body: JSON.stringify({ accepted: true }) },
     fetchImpl,
   );
 }

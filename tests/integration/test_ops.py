@@ -126,6 +126,7 @@ class _Sender:
         self.sent: list[tuple[int, str, str, str]] = []
         self.deleted: list[tuple[int, int]] = []
         self.last_sent_by_user: dict[int, int] = {}
+        self.buttons: list[tuple[tuple[str, str], ...]] = []
 
     async def send_notice(
         self,
@@ -134,6 +135,7 @@ class _Sender:
         page: str,
         button_text: str = "",
         previous_message_id: int | None = None,
+        buttons: tuple[tuple[str, str], ...] = (),
     ) -> int | None:
         if telegram_id == 8802:
             raise DeliveryBlocked()
@@ -143,6 +145,7 @@ class _Sender:
             self.deleted.append((telegram_id, previous_message_id))
         msg_id = 1000 + len(self.sent) + 1
         self.sent.append((telegram_id, text, page, button_text))
+        self.buttons.append(tuple(buttons))
         self.last_sent_by_user[telegram_id] = msg_id
         return msg_id
 
@@ -442,6 +445,63 @@ async def test_bedtime_tomorrow_notification_enqueued_and_sent(database_url: str
 
 
 @pytest.mark.asyncio
+async def test_several_due_notices_leave_as_one_message(database_url: str) -> None:
+    engine, factory = _factory(database_url)
+    user = await _person(factory, 8811, day=True, moon=True)
+    async with SqlUnitOfWork(factory) as uow:
+        await uow.outbox.enqueue(
+            user.id,
+            "day",
+            "bot.day_ready",
+            MOMENT.date(),
+            MOMENT,
+            page="reading/day",
+        )
+        await uow.outbox.enqueue(
+            user.id,
+            "moon",
+            "bot.moon_ready",
+            MOMENT.date(),
+            MOMENT,
+            page="reading/moon",
+        )
+        await uow.outbox.enqueue(
+            user.id,
+            "affirmation",
+            "bot.affirmation_ready",
+            MOMENT.date(),
+            MOMENT,
+            page="affirmations",
+            button_key="bot.affirmation_button",
+        )
+        await uow.commit()
+    sender = _Sender()
+    catalog = load_catalog(ROOT / "resources", "ru", MemoryCache(8))
+    service = OutboxService(lambda: SqlUnitOfWork(factory), catalog, SendPace(10_000))
+    sent = await service.dispatch_due(sender)
+    assert sent == 1
+    user_sends = [item for item in sender.sent if item[0] == 8811]
+    assert len(user_sends) == 1
+    text = user_sends[0][1]
+    assert text.index("День уже собран") < text.index("Луна на эту дату")
+    assert text.index("Луна на эту дату") < text.index("Аффирмация на сегодня")
+    assert sender.buttons[0] == (
+        ("Открыть день", "reading/day"),
+        ("Открыть луну", "reading/moon"),
+        ("Открыть аффирмацию", "affirmations"),
+    )
+    async with factory() as session:
+        rows = list(
+            (
+                await session.execute(
+                    select(NotificationOutboxRow).where(NotificationOutboxRow.user_id == user.id)
+                )
+            ).scalars()
+        )
+    assert {row.status for row in rows} == {"sent"}
+    await engine.dispose()
+
+
 async def test_referral_rejects_self_and_a_second_attribution(database_url: str) -> None:
     engine, factory = _factory(database_url)
     async with SqlUnitOfWork(factory) as uow:

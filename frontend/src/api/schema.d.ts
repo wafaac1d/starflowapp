@@ -124,6 +124,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/profile/privacy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept Privacy */
+        post: operations["accept_privacy_api_v1_profile_privacy_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/profile/draft": {
         parameters: {
             query?: never;
@@ -1741,6 +1758,11 @@ export interface components {
             /** Charged */
             charged: boolean;
         };
+        /** PrivacyBody */
+        PrivacyBody: {
+            /** Accepted */
+            accepted: boolean;
+        };
         /** ProfileBody */
         ProfileBody: {
             /**
@@ -1774,6 +1796,8 @@ export interface components {
             calendar_sign: string | null;
             /** Star Balance */
             star_balance: number;
+            /** Privacy Accepted */
+            privacy_accepted: boolean;
         };
         /** QuestionBody */
         QuestionBody: {
@@ -2252,6 +2276,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: boolean;
                     };
+                };
+            };
+        };
+    };
+    accept_privacy_api_v1_profile_privacy_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrivacyBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProfileBody"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

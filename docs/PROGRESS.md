@@ -1205,6 +1205,40 @@ D-105. Акцентная обводка при наведении остала�
 
 Живой DeepSeek не вызывался. Браузер без Telegram WebApp по-прежнему показывает только заглушку Mini App, поэтому экран благоприятной даты в браузере не открывался.
 
+## Соглашение о конфиденциальности, 2026-11-05
+
+D-106. На регистрации появился чекбокс и экран соглашения. Без отметки черновик рождения не сохраняется. Завершённый профиль заново не спрашивается.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по затронутым файлам Python и миграции | 0 |
+| `uv run ruff format` по тем же файлам | 0, без правок |
+| `uv run mypy` по домену, сервису профиля, HTTP и репозиторию | 0, 4 файла |
+| `uv run pytest tests/unit/test_onboarding.py tests/unit/test_contract.py::test_openapi_document_matches_the_committed_contract -q` | 0, 9 тестов |
+| `uv run pytest tests/integration/test_database.py::test_onboarding_resumes_and_rows_stay_with_their_owner -q` | 0, 1 тест |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/App.test.tsx src/screens/screens.test.tsx src/pages/PremiumPage.test.tsx` | 0, 56 тестов |
+| `corepack pnpm --prefix frontend openapi:check` | 0, diff пустой |
+| `corepack pnpm --prefix frontend texts:check` | 0 |
+| `PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g "onboarding accepts an untouched birth time\|onboarding leads to today"` | 0, 2 теста |
+
+Живой Telegram не вызывался. Playwright шёл с подставленным мостом и проверил, что без чекбокса регистрация не продолжается, а с чекбоксом открывается дата рождения и сегодняшний экран.
+
+## Несколько уведомлений одним сообщением, 2026-11-05
+
+D-107. День, Луна, ретроград, аффирмация и разбор на завтра, которые созрели вместе, уходят одним сообщением с отдельной кнопкой на каждую часть. Напоминание о регистрации и админская рассылка остаются отдельными.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по outbox, боту, репозиторию и тестам | 0 |
+| `uv run ruff format` по тем же файлам | 0, без правок |
+| `uv run mypy` по outbox, боту и репозиторию | 0, 3 файла |
+| `uv run pytest tests/unit/test_outbox.py tests/unit/test_bot_reply.py tests/unit/test_ops.py -q` | 0, 14 тестов |
+| `uv run pytest tests/integration/test_ops.py -q` | 0, 8 тестов |
+| `node frontend/scripts/compile-texts.mjs --check` | 0 |
+
+Живой Telegram не вызывался.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
 import {
+  acceptPrivacy,
   confirmPlace,
   editProfile,
   saveDraft,
@@ -11,10 +12,11 @@ import {
   type PlaceHit,
   type ProfileResponse,
 } from "../api/client";
-import { maskBirthDate, maskBirthTime } from "../birthDate";
 import { queryKeys } from "../api/keys";
+import { maskBirthDate, maskBirthTime } from "../birthDate";
 import { deviceTimezone } from "../deviceZone";
 import { useDebouncedValue } from "../placeQuery";
+import { PRIVACY_CHECKED } from "../privacyPolicy";
 import { Button } from "../shared/ui/Button/Button";
 import { ErrorState } from "../shared/ui/ErrorState/ErrorState";
 import { Field } from "../shared/ui/Field/Field";
@@ -70,6 +72,8 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
   );
   const [selectedPlace, setSelectedPlace] = useState<ChosenPlace | null>(null);
   const [hits, setHits] = useState<PlaceHit[]>([]);
+  const needsConsent = profile.step !== "done" && !profile.privacy_accepted;
+  const [consent, setConsent] = useState(() => sessionStorage.getItem(PRIVACY_CHECKED) === "1");
   const stablePlace = useDebouncedValue(placeQuery);
 
   useEffect(() => {
@@ -97,6 +101,11 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
 
   const save = useMutation({
     mutationFn: async () => {
+      if (needsConsent) {
+        const accepted = await acceptPrivacy();
+        client.setQueryData(queryKeys.session, accepted);
+        sessionStorage.removeItem(PRIVACY_CHECKED);
+      }
       const clock = timeDraft(time);
       let placeToConfirm: PlaceHit | ChosenPlace | null | undefined = selectedPlace;
       if (
@@ -244,7 +253,39 @@ export function BirthScreen({ profile, displayName }: BirthScreenProps) {
         </div>
         {save.isError ? <ErrorState message="Не удалось сохранить данные рождения" /> : null}
         <div className={styles.dock}>
+          {needsConsent ? (
+            <label className={styles.consent}>
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(event) => {
+                  const next = event.target.checked;
+                  setConsent(next);
+                  if (next) {
+                    sessionStorage.setItem(PRIVACY_CHECKED, "1");
+                  } else {
+                    sessionStorage.removeItem(PRIVACY_CHECKED);
+                  }
+                }}
+              />
+              <span className={styles.consentText}>
+                Я принимаю{" "}
+                <button
+                  type="button"
+                  className={styles.consentLink}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void navigate("/privacy");
+                  }}
+                >
+                  соглашение о конфиденциальности
+                </button>
+              </span>
+            </label>
+          ) : null}
           <Button
+            disabled={needsConsent && !consent}
             loading={save.isPending}
             onClick={() => {
               save.mutate();

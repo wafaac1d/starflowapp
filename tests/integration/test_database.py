@@ -289,6 +289,17 @@ async def test_onboarding_resumes_and_rows_stay_with_their_owner(
         opened = await _exchange(owner, settings, 41, "Gift_1")
         assert opened.status_code == 200
         assert opened.json()["is_premium"] is False
+        assert opened.json()["privacy_accepted"] is False
+        blocked = await owner.post("/api/v1/profile/draft", headers=intent, json={})
+        assert blocked.status_code == 422
+        assert "privacy" in blocked.json()["fields"]
+        accepted = await owner.post(
+            "/api/v1/profile/privacy",
+            headers=intent,
+            json={"accepted": True},
+        )
+        assert accepted.status_code == 200
+        assert accepted.json()["privacy_accepted"] is True
         named = await owner.post("/api/v1/profile/draft", headers=intent, json={})
         assert named.status_code == 200
         assert named.json()["step"] == "name"

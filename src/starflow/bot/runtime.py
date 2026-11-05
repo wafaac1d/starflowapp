@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+from collections.abc import Sequence
 
 import structlog
 from aiogram import Bot, Dispatcher
@@ -52,16 +53,27 @@ class BotRuntime:
         page: str,
         button_text: str = "",
         previous_message_id: int | None = None,
+        buttons: Sequence[tuple[str, str]] = (),
     ) -> int | None:
         markup = None
-        if page and self._settings.mini_app_url:
-            url = screen_url(self._settings.mini_app_url, page)
-            button_label = button_text or self._catalog.text("bot.open")
-            button = InlineKeyboardButton(
-                text=button_label,
-                web_app=WebAppInfo(url=url),
-            )
-            markup = InlineKeyboardMarkup(inline_keyboard=[[button]])
+        rows: list[list[InlineKeyboardButton]] = []
+        if self._settings.mini_app_url:
+            chosen = tuple(buttons)
+            if not chosen and page:
+                chosen = ((button_text or self._catalog.text("bot.open"), page),)
+            for label, target in chosen:
+                if target == "":
+                    continue
+                rows.append(
+                    [
+                        InlineKeyboardButton(
+                            text=label,
+                            web_app=WebAppInfo(url=screen_url(self._settings.mini_app_url, target)),
+                        )
+                    ]
+                )
+        if rows:
+            markup = InlineKeyboardMarkup(inline_keyboard=rows)
 
         prev_id = previous_message_id or self._last_message_ids.get(telegram_id)
         if prev_id is not None:

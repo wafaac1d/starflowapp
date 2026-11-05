@@ -43,6 +43,7 @@ class Profile:
     onboarding_step: str
     streak_count: int = 0
     streak_last_date: date | None = None
+    privacy_policy_version: str | None = None
 
 
 @dataclass(frozen=True)
@@ -117,6 +118,7 @@ class OutboxJob:
     body: str = ""
     button_key: str = ""
     last_message_id: int | None = None
+    kind: str = ""
 
 
 @dataclass(frozen=True)

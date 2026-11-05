@@ -29,6 +29,7 @@ import { RetroScreen } from "./screens/RetroScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { SupportScreen } from "./screens/SupportScreen";
 import { TodayScreen } from "./screens/TodayScreen";
+import { PrivacyScreen } from "./screens/PrivacyScreen";
 import { WelcomeScreen } from "./screens/WelcomeScreen";
 import { readWebApp } from "./telegram";
 
@@ -74,12 +75,21 @@ function AuthedApp({ initData }: { initData: string }) {
   const displayName = profile.display_name ?? nameFromInitData(initData);
   return (
     <Routes>
-      <Route path="/welcome" element={<WelcomeScreen />} />
+      <Route path="/welcome" element={<WelcomeScreen privacyAccepted={profile.privacy_accepted} />} />
       <Route
         path="/onboarding/birth"
         element={<BirthScreen profile={profile} displayName={displayName} />}
       />
-      <Route path="/" element={ready ? <TodayScreen profile={profile} /> : <WelcomeScreen />} />
+      <Route
+        path="/"
+        element={
+          ready ? (
+            <TodayScreen profile={profile} />
+          ) : (
+            <WelcomeScreen privacyAccepted={profile.privacy_accepted} />
+          )
+        }
+      />
       <Route path="/forecast" element={<ForecastScreen premium={profile.is_premium} />} />
       <Route path="/calendar" element={<CalendarScreen />} />
       <Route path="/natal" element={<NatalScreen />} />
@@ -103,6 +113,7 @@ function AuthedApp({ initData }: { initData: string }) {
       <Route path="/favorable" element={<FavorableDateScreen />} />
       <Route path="/admin" element={<AdminPage isAdmin={profile.is_admin} />} />
       <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyScreen />} />
       <Route path="/help" element={<HelpPage />} />
       <Route path="/paysupport" element={<PaySupportPage />} />
       <Route path="/support" element={<SupportScreen />} />

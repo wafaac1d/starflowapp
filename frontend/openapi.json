@@ -151,6 +151,44 @@
         }
       }
     },
+    "/api/v1/profile/privacy": {
+      "post": {
+        "summary": "Accept Privacy",
+        "operationId": "accept_privacy_api_v1_profile_privacy_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrivacyBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/profile/draft": {
       "post": {
         "summary": "Save Draft",
@@ -4366,6 +4404,19 @@
         ],
         "title": "PremiumBuyBody"
       },
+      "PrivacyBody": {
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "title": "Accepted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accepted"
+        ],
+        "title": "PrivacyBody"
+      },
       "ProfileBody": {
         "properties": {
           "user_id": {
@@ -4480,6 +4531,10 @@
           "star_balance": {
             "type": "integer",
             "title": "Star Balance"
+          },
+          "privacy_accepted": {
+            "type": "boolean",
+            "title": "Privacy Accepted"
           }
         },
         "type": "object",
@@ -4497,7 +4552,8 @@
           "latitude",
           "longitude",
           "calendar_sign",
-          "star_balance"
+          "star_balance",
+          "privacy_accepted"
         ],
         "title": "ProfileBody"
       },

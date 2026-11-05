@@ -387,6 +387,18 @@ class ProfileRepository:
         await self._session.flush()
         return _profile(row)
 
+    async def accept_privacy(self, user_id: UUID, version: str, accepted_at: datetime) -> Profile:
+        await self.ensure(user_id)
+        result = await self._session.execute(
+            select(ProfileRow).where(ProfileRow.user_id == user_id)
+        )
+        row = result.scalar_one()
+        row.privacy_policy_version = version
+        row.privacy_accepted_at = accepted_at
+        row.updated_at = now_utc()
+        await self._session.flush()
+        return _profile(row)
+
     async def save_onboarding(
         self,
         user_id: UUID,
@@ -1489,15 +1501,8 @@ class SqlOutboxRepository:
         stale = now - timedelta(minutes=5)
         statement = text(
             """
-            UPDATE notification_outbox AS o
-            SET status = 'reserved',
-                leased_until = :lease,
-                attempts = o.attempts + 1,
-                updated_at = :now
-            FROM users AS u
-            WHERE u.id = o.user_id
-              AND o.id IN (
-                SELECT o2.id
+            WITH due AS (
+                SELECT o2.id, o2.user_id, o2.scheduled_for
                 FROM notification_outbox AS o2
                 JOIN users AS u2 ON u2.id = o2.user_id
                 WHERE u2.is_blocked = false
@@ -1515,11 +1520,29 @@ class SqlOutboxRepository:
                       AND o2.updated_at <= :stale
                     )
                   )
-                ORDER BY o2.scheduled_for
-                LIMIT :limit
+                ORDER BY o2.scheduled_for, o2.id
                 FOR UPDATE OF o2 SKIP LOCKED
+            ),
+            chosen AS (
+                SELECT due.user_id
+                FROM due
+                GROUP BY due.user_id
+                ORDER BY min(due.scheduled_for), due.user_id
+                LIMIT :limit
+            )
+            UPDATE notification_outbox AS o
+            SET status = 'reserved',
+                leased_until = :lease,
+                attempts = o.attempts + 1,
+                updated_at = :now
+            FROM users AS u
+            WHERE u.id = o.user_id
+              AND o.id IN (
+                SELECT due.id
+                FROM due
+                JOIN chosen ON chosen.user_id = due.user_id
               )
-            RETURNING o.id, u.telegram_id, o.payload, u.last_bot_message_id
+            RETURNING o.id, o.kind, u.telegram_id, o.payload, u.last_bot_message_id
             """
         )
         rows = await self._session.execute(
@@ -1538,6 +1561,7 @@ class SqlOutboxRepository:
             button_key = payload.get("button_key")
             if not isinstance(text_key, str) or text_key == "":
                 continue
+            kind = item["kind"]
             jobs.append(
                 OutboxJob(
                     id=item["id"],
@@ -1548,6 +1572,7 @@ class SqlOutboxRepository:
                     body=body if isinstance(body, str) else "",
                     button_key=button_key if isinstance(button_key, str) else "",
                     last_message_id=item.get("last_bot_message_id"),
+                    kind=kind if isinstance(kind, str) else "",
                 )
             )
         await self._session.flush()
@@ -2019,6 +2044,7 @@ def _profile(row: ProfileRow) -> Profile:
         onboarding_step=row.onboarding_step,
         streak_count=row.streak_count,
         streak_last_date=row.streak_last_date,
+        privacy_policy_version=row.privacy_policy_version,
     )
 
 

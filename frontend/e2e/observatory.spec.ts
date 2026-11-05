@@ -16,6 +16,7 @@ function profile(step: string) {
     longitude: null,
     calendar_sign: step === "done" ? "Лев" : null,
     star_balance: 0,
+    privacy_accepted: false,
   };
 }
 
@@ -56,6 +57,11 @@ async function installApp(page: Page, step = "done", premium = false) {
     const url = route.request().url();
     const method = route.request().method();
     if (url.includes("/session")) {
+      await route.fulfill({ json: current });
+      return;
+    }
+    if (url.includes("/profile/privacy") && method === "POST") {
+      current = { ...current, privacy_accepted: true };
       await route.fulfill({ json: current });
       return;
     }
@@ -503,6 +509,7 @@ test("a saved forecast stays saved and opens from favorites", async ({ page }) =
 test("onboarding accepts an untouched birth time", async ({ page }) => {
   await installApp(page, "welcome");
   await page.goto("/");
+  await page.getByRole("checkbox", { name: /Я принимаю/ }).check();
   await page.getByRole("button", { name: "Начать" }).click();
   await expect(page.getByText("Можно оставить пустым, если не знаете время рождения")).toBeVisible();
   await page.getByRole("textbox", { name: "Дата рождения" }).fill("12.08.1995");
@@ -513,6 +520,7 @@ test("onboarding accepts an untouched birth time", async ({ page }) => {
 test("onboarding leads to today and the forecast period changes", async ({ page }) => {
   await installApp(page, "welcome");
   await page.goto("/");
+  await page.getByRole("checkbox", { name: /Я принимаю/ }).check();
   await page.getByRole("button", { name: "Начать" }).click();
   await expect(page.getByRole("heading", { name: "Когда вы родились?" })).toBeVisible();
   await page.getByRole("textbox", { name: "Дата рождения" }).fill("12.08.1995");

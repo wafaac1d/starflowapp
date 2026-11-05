@@ -17,6 +17,7 @@ from starflow.domain.onboarding import (
     parse_timezone,
     previous_step,
 )
+from starflow.domain.privacy import PRIVACY_VERSION, privacy_is_current
 from starflow.domain.records import PlaceHit, Profile
 from starflow.domain.time import now_utc
 from starflow.repositories.sql import (
@@ -80,9 +81,19 @@ class ProfileService:
             await uow.commit()
         return profile, premium, _sign(profile)
 
+    async def accept_privacy(self, user_id: UUID, accepted: bool) -> Profile:
+        if not accepted:
+            raise FieldInvalid("privacy", "errors.privacy_required")
+        async with self._uow_factory() as uow:
+            updated = await uow.profiles.accept_privacy(user_id, PRIVACY_VERSION, now_utc())
+            await uow.commit()
+        return updated
+
     async def continue_draft(self, user_id: UUID, incoming: DraftInput) -> Profile:
         async with self._uow_factory() as uow:
             profile = await uow.profiles.ensure(user_id)
+            if not privacy_is_current(profile.privacy_policy_version):
+                raise FieldInvalid("privacy", "errors.privacy_required")
             premium = await uow.subscriptions.has_active(user_id, now_utc())
             updated = await self._advance(uow, profile, premium, incoming)
             await uow.commit()
@@ -153,7 +164,11 @@ class ProfileService:
             if zone is None:
                 zone = self._default_timezone
             parse_timezone(zone)
-            await uow.profiles.ensure(user_id)
+            profile = await uow.profiles.ensure(user_id)
+            if profile.onboarding_step != "done" and not privacy_is_current(
+                profile.privacy_policy_version
+            ):
+                raise FieldInvalid("privacy", "errors.privacy_required")
             updated = await uow.profiles.save_place(
                 user_id, chosen.label, chosen.latitude, chosen.longitude, zone
             )
