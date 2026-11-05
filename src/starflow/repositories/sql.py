@@ -531,6 +531,7 @@ class RelatedProfileRepository:
             id=row.id,
             display_name=row.display_name,
             birth_date=row.birth_date,
+            birth_time=row.birth_time,
             birth_time_unknown=row.birth_time_unknown,
             birth_place=row.birth_place,
             latitude=row.latitude,

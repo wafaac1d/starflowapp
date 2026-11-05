@@ -148,6 +148,7 @@ class RelatedProfile:
     id: UUID
     display_name: str
     birth_date: date | None
+    birth_time: time | None
     birth_time_unknown: bool
     birth_place: str | None
     latitude: Decimal | None

@@ -1,14 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useEffect, useId, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 
 import {
   ApiRequestError,
   getFavorites,
+  getRelated,
   getShare,
   readingKey,
   saveFavorite,
   spendStars,
+  type RelatedEntry,
 } from "../api/client";
 import { forecastTopics, getForecastTopics } from "../api/fixtures";
 import { queryKeys } from "../api/keys";
@@ -80,10 +82,17 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
   }, [periodParam]);
 
   const [topUp, setTopUp] = useState(false);
+  const [personId, setPersonId] = useState<string | null>(null);
   const client = useQueryClient();
   const topics = useQuery({ queryKey: queryKeys.forecastTopics, queryFn: getForecastTopics });
   const favorites = useQuery({ queryKey: queryKeys.favorites, queryFn: () => getFavorites() });
-  const reading = useReading(KIND[period]);
+  const related = useQuery({ queryKey: queryKeys.related, queryFn: () => getRelated() });
+  const people = Array.isArray(related.data) ? related.data : [];
+  const selected = people.find((person) => person.related_id === personId) ?? null;
+  const reading = useReading(
+    KIND[period],
+    selected === null ? {} : { relatedId: selected.related_id },
+  );
   const isUnlocked = premium || (period !== "day" && reading.face.phase === "ready");
   const detail = useTopicDetail(isUnlocked);
   const historyId = reading.face.phase === "ready" ? reading.face.historyId : null;
@@ -138,7 +147,17 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
 
   return (
     <Screen tab="today">
-      <TopBar title="Ваш прогноз" align="left" />
+      <TopBar
+        title="Ваш прогноз"
+        align="left"
+        trailing={
+          <PersonMenu
+            people={people}
+            selectedId={selected?.related_id ?? null}
+            onSelect={setPersonId}
+          />
+        }
+      />
       <SegmentedControl
         label="Период прогноза"
         value={period}
@@ -179,60 +198,174 @@ export function ForecastScreen({ premium }: { premium: boolean }) {
         </section>
       ) : reading.face.phase === "loading" ? (
         <StarLink />
+      ) : reading.face.phase === "blocked" ? (
+        <p className={styles.paragraph}>{reading.face.body}</p>
       ) : (
         <p className={styles.paragraph}>
           {reading.face.phase === "ready" ? reading.face.body : STAR_SILENCE}
         </p>
       )}
-      <div className={styles.stack}>
-        {rows.map((row) => {
-          const preview = shortenTopicText(topicPreviews[row.id] || row.subtitle);
-          return (
-            <ListRow
-              key={row.id}
-              icon={row.icon}
-              title={row.title}
-              subtitle={preview}
-              accentHover
-              chevron
+      {reading.face.phase === "blocked" ? null : (
+        <>
+          <div className={styles.stack}>
+            {rows.map((row) => {
+              const preview = shortenTopicText(topicPreviews[row.id] || row.subtitle);
+              return (
+                <ListRow
+                  key={row.id}
+                  icon={row.icon}
+                  title={row.title}
+                  subtitle={preview}
+                  accentHover
+                  chevron
+                  onClick={() => {
+                    if (period !== "day" && reading.face.phase === "stars") {
+                      buy.mutate();
+                    } else {
+                      detail.open(row.id, row.title, row.icon);
+                    }
+                  }}
+                />
+              );
+            })}
+          </div>
+          <div className={styles.actions}>
+            <Button
+              variant="secondary"
+              icon="save_bookmark"
+              fit
+              disabled={historyId === null || saved || keep.isPending || favorites.isPending}
               onClick={() => {
-                if (period !== "day" && reading.face.phase === "stars") {
-                  buy.mutate();
-                } else {
-                  detail.open(row.id, row.title, row.icon);
+                if (historyId === null) {
+                  return;
                 }
+                keep.mutate(historyId);
               }}
-            />
-          );
-        })}
-      </div>
-      <div className={styles.actions}>
-        <Button
-          variant="secondary"
-          icon="save_bookmark"
-          fit
-          disabled={historyId === null || saved || keep.isPending || favorites.isPending}
-          onClick={() => {
-            if (historyId === null) {
-              return;
-            }
-            keep.mutate(historyId);
-          }}
-        >
-          {saved ? "Сохранено" : "Сохранить"}
-        </Button>
-        <Button
-          icon="share"
-          fit
-          onClick={() => {
-            share.mutate();
-          }}
-        >
-          Поделиться
-        </Button>
-      </div>
+            >
+              {saved ? "Сохранено" : "Сохранить"}
+            </Button>
+            <Button
+              icon="share"
+              fit
+              onClick={() => {
+                share.mutate();
+              }}
+            >
+              Поделиться
+            </Button>
+          </div>
+        </>
+      )}
       {detail.dialog}
       {topUp ? <TopUpDialog balance={null} onClose={() => setTopUp(false)} /> : null}
     </Screen>
+  );
+}
+
+function PersonMenu({
+  people,
+  selectedId,
+  onSelect,
+}: {
+  people: RelatedEntry[];
+  selectedId: string | null;
+  onSelect: (personId: string | null) => void;
+}) {
+  const navigate = useNavigate();
+  const listId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const selected = people.find((person) => person.related_id === selectedId) ?? null;
+  const label = selected?.display_name ?? "Я";
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const close = (event: PointerEvent) => {
+      if (rootRef.current?.contains(event.target as Node) === true) {
+        return;
+      }
+      setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className={styles.who} ref={rootRef}>
+      <button
+        type="button"
+        className={styles.whoButton}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => {
+          setOpen((current) => !current);
+        }}
+      >
+        <span className={styles.whoLabel}>Для кого: {label}</span>
+        <span className={styles.whoCaret} aria-hidden="true" />
+      </button>
+      <div className={open ? styles.whoMenuOpen : styles.whoMenu} inert={!open}>
+        <div className={styles.whoPanel}>
+          <ul id={listId} role="listbox" aria-label="Для кого" aria-hidden={!open}>
+            <li>
+              <button
+                type="button"
+                role="option"
+                className={selectedId === null ? styles.whoOptionOn : styles.whoOption}
+                aria-selected={selectedId === null}
+                onClick={() => {
+                  onSelect(null);
+                  setOpen(false);
+                }}
+              >
+                Я
+              </button>
+            </li>
+            {people.map((person) => (
+              <li key={person.related_id}>
+                <button
+                  type="button"
+                  role="option"
+                  className={
+                    person.related_id === selectedId ? styles.whoOptionOn : styles.whoOption
+                  }
+                  aria-selected={person.related_id === selectedId}
+                  onClick={() => {
+                    onSelect(person.related_id);
+                    setOpen(false);
+                  }}
+                >
+                  {person.display_name}
+                </button>
+              </li>
+            ))}
+            <li>
+              <button
+                type="button"
+                className={styles.whoAdd}
+                onClick={() => {
+                  setOpen(false);
+                  void navigate("/people", { state: { add: true } });
+                }}
+              >
+                Добавить близкого
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
   );
 }

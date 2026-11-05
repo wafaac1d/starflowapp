@@ -38,6 +38,7 @@ FEATURE_CODES = (
     "calendar",
     "synastry",
     "retrospective",
+    "related_forecast",
     "assistant",
 )
 

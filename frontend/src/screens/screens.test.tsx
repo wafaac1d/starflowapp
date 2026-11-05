@@ -494,6 +494,93 @@ describe("screens", () => {
     expect(spent).toBe(true);
   });
 
+  it("opens a close person's forecast and offers to add one", async () => {
+    const requested: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input) => {
+        const url = String(input);
+        requested.push(url);
+        if (url.includes("/related")) {
+          return Response.json([
+            { related_id: "mama", display_name: "Мама", birth_date: "14.03.1968" },
+            { related_id: "daniil", display_name: "Даниил", birth_date: "22.11.1988" },
+          ]);
+        }
+        if (url.includes("related_id=daniil")) {
+          return Response.json({
+            status: "limit",
+            title: null,
+            body: "Прогноз для близкого уже открыт сегодня. Завтра можно выбрать снова",
+            greeting: null,
+            user_sign: null,
+            shared_facts: null,
+            history_id: null,
+            streak: null,
+            replayed: false,
+            reset_at: null,
+          });
+        }
+        if (url.includes("related_id=mama")) {
+          return Response.json({
+            status: "ready",
+            title: "День мамы",
+            body: "Текст прогноза для мамы.",
+            greeting: null,
+            user_sign: null,
+            shared_facts: null,
+            history_id: "33333333-3333-3333-3333-333333333333",
+            streak: null,
+            replayed: false,
+            reset_at: null,
+          });
+        }
+        if (url.includes("/readings/")) {
+          return Response.json({
+            status: "ready",
+            title: "День",
+            body: "Текст для себя.",
+            greeting: null,
+            user_sign: null,
+            shared_facts: null,
+            history_id: null,
+            streak: null,
+            replayed: false,
+            reset_at: null,
+          });
+        }
+        return Response.json([]);
+      }),
+    );
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={["/forecast"]}>
+          <Routes>
+            <Route path="/forecast" element={<ForecastScreen premium={false} />} />
+            <Route path="/people" element={<PeopleScreen />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("Текст для себя.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Для кого: Я" }));
+    expect(screen.getByRole("option", { name: "Мама" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Даниил" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Добавить близкого" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("option", { name: "Мама" }));
+    expect(await screen.findByText("Текст прогноза для мамы.")).toBeInTheDocument();
+    expect(requested.some((url) => url.includes("related_id=mama"))).toBe(true);
+    await userEvent.click(screen.getByRole("button", { name: "Для кого: Мама" }));
+    await userEvent.click(screen.getByRole("option", { name: "Даниил" }));
+    expect(
+      await screen.findByText("Прогноз для близкого уже открыт сегодня. Завтра можно выбрать снова"),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Для кого: Даниил" }));
+    await userEvent.click(screen.getByRole("button", { name: "Добавить близкого" }));
+    expect(await screen.findByRole("textbox", { name: "Имя" })).toBeInTheDocument();
+  });
+
   it("shows the lunar day card", async () => {
     renderAt(<CalendarScreen />, "/calendar?day=2025-08-12");
     expect(await screen.findByText("Растущая Луна, 1 фаза")).toBeInTheDocument();

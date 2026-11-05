@@ -536,6 +536,68 @@ test("onboarding leads to today and the forecast period changes", async ({ page 
   await expect(page.getByRole("tab", { name: "Месяц" })).toHaveAttribute("aria-selected", "true");
 });
 
+test("a forecast opens for a close person and can add one", async ({ page }) => {
+  await installApp(page, "done");
+  const readings: string[] = [];
+  await page.route("**/api/v1/readings/**", async (route) => {
+    const url = route.request().url();
+    readings.push(url);
+    if (url.includes("related_id=daniil")) {
+      await route.fulfill({
+        json: {
+          status: "limit",
+          title: null,
+          body: "Прогноз для близкого уже открыт сегодня. Завтра можно выбрать снова",
+          greeting: null,
+          user_sign: null,
+          shared_facts: null,
+          history_id: null,
+          streak: null,
+          replayed: false,
+          reset_at: null,
+        },
+      });
+      return;
+    }
+    if (url.includes("related_id=mama")) {
+      await route.fulfill({
+        json: {
+          status: "ready",
+          title: "День мамы",
+          body: "Текст прогноза для мамы на сегодня.",
+          greeting: null,
+          user_sign: null,
+          shared_facts: null,
+          history_id: "hist-mama",
+          streak: null,
+          replayed: false,
+          reset_at: null,
+        },
+      });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto("/forecast");
+  await expect(page.getByRole("heading", { name: "Ваш прогноз" })).toBeVisible();
+  await page.getByRole("button", { name: "Для кого: Я" }).click();
+  const list = page.getByRole("listbox", { name: "Для кого" });
+  await expect(list.getByRole("option", { name: "Мама" })).toBeVisible();
+  await expect(list.getByRole("button", { name: "Добавить близкого" })).toBeVisible();
+  await list.getByRole("option", { name: "Мама" }).click();
+  await expect(page.getByText("Текст прогноза для мамы на сегодня.")).toBeVisible();
+  expect(readings.some((url) => url.includes("related_id=mama"))).toBe(true);
+  await page.getByRole("button", { name: "Для кого: Мама" }).click();
+  await list.getByRole("option", { name: "Даниил" }).click();
+  await expect(
+    page.getByText("Прогноз для близкого уже открыт сегодня. Завтра можно выбрать снова"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Для кого: Даниил" }).click();
+  await page.getByRole("button", { name: "Добавить близкого" }).click();
+  await expect(page.getByRole("heading", { name: "Близкие" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Имя" })).toBeVisible();
+});
+
 test("a free topic opens the premium alert", async ({ page }) => {
   await openReady(page, "/");
   await page.getByRole("button", { name: "Любовь" }).click();

@@ -33,4 +33,5 @@ features:
   calendar: {gate: premium}
   synastry: {gate: premium}
   retrospective: {gate: premium}
+  related_forecast: {gate: premium}
   assistant: {gate: metered, limit: 20, window: paid_period, requires_entitlement: true}

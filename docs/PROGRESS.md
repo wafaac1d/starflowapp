@@ -1239,6 +1239,24 @@ D-107. День, Луна, ретроград, аффирмация и разб�
 
 Живой Telegram не вызывался.
 
+## Прогноз для близкого, 2026-11-05
+
+D-108. В «Ваш прогноз» справа список «Для кого»: «Я», близкие и «Добавить близкого». Текст близкого строится по его рождению и хранится отдельно. Без Premium один такой прогноз в сутки, с Premium без этого предела.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по прогнозу, записям, фичам, репозиторию и тесту | 0 |
+| `uv run ruff format` по тем же файлам | 0, без правок |
+| `uv run mypy` по прогнозу, записям и репозиторию | 0, 3 файла |
+| `uv run pytest tests/unit/test_related_forecast.py -q` | 0, 3 теста |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx` | 0, 54 теста |
+| `node frontend/scripts/compile-texts.mjs --check` | 0 |
+| `PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g "a forecast opens for a close person"` | 0, 1 тест |
+| `PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g "screenshot forecast"` | 0, 1 тест |
+
+Живой DeepSeek не вызывался. Браузер без Telegram WebApp по-прежнему показывает только заглушку Mini App. Playwright с подставленным мостом открыл список, прочитал прогноз мамы, показал суточный отказ для второго близкого и перешёл к форме «Добавить близкого».
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

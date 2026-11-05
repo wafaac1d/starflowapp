@@ -97,6 +97,7 @@ export const texts = {
   "errors.place_required": "Выберите место из списка",
   "errors.place_not_offered": "Выберите место из списка",
   "errors.limit_reached": "Лимит уже исчерпан",
+  "errors.related_forecast_limit": "Прогноз для близкого уже открыт сегодня. Завтра можно выбрать снова",
   "errors.idempotency_key": "Нужен ключ повтора длиной от 8 до 80 знаков",
   "errors.related_required": "Сначала добавьте человека с датой рождения",
   "errors.consent_required": "Нужно согласие на данные близкого",

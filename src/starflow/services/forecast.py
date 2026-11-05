@@ -6,7 +6,7 @@ import re
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
-from types import TracebackType
+from types import SimpleNamespace, TracebackType
 from typing import Protocol, cast
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -84,6 +84,8 @@ PAIR_FOCUS = {
     "emotions": "эмоции двоих: как они переживают близость",
     "values": "общие ориентиры двоих: что им важно вместе",
 }
+_RELATED_KINDS = frozenset({"day", "tomorrow", "week", "personal_month"})
+_RELATED_MARKER = "related_forecast"
 _KINDS = _OPEN | _PREMIUM
 _LOG = get_logger("forecast")
 _REPAIR = (
@@ -256,11 +258,16 @@ class ForecastService:
         if saved is not None:
             self._answers[(user_id, idempotency_key)] = saved
             return saved
-        blocked = await self._blocked(user_id, kind)
-        if blocked is not None:
-            self._answers[(user_id, idempotency_key)] = blocked
-            return blocked
+        if scope.related_id is None:
+            blocked = await self._blocked(user_id, kind)
+            if blocked is not None:
+                self._answers[(user_id, idempotency_key)] = blocked
+                return blocked
         await self.accept_referral(user_id)
+        if scope.related_id is not None and kind in _RELATED_KINDS:
+            limited = await self._related_cap(user_id, kind, scope.related_id, moment)
+            if limited is not None:
+                return limited
         job = _Job()
         self._jobs[identity] = job
         self._spawn(self._fill(job, user_id, kind, idempotency_key, moment, scope))
@@ -302,6 +309,8 @@ class ForecastService:
                 view = await self._premium(user_id, kind, moment, scope)
             elif kind == "compatibility":
                 view = await self._compatibility(user_id, idempotency_key, moment)
+            elif scope.related_id is not None and kind in _RELATED_KINDS:
+                view = await self._for_related(user_id, kind, moment, scope)
             else:
                 view = await self._open(user_id, kind, moment)
         except Exception:
@@ -689,6 +698,8 @@ class ForecastService:
             rows = await uow.forecast_history.list_for_user(user_id)
         listed: list[tuple[UUID, str, date, str]] = []
         for row in rows:
+            if row.kind == _RELATED_MARKER:
+                continue
             title = row.payload.get("title")
             label = title if isinstance(title, str) else row.kind
             listed.append((row.id, row.kind, row.period_date, label))
@@ -791,6 +802,130 @@ class ForecastService:
                 await uow.users.bind_referrer(user_id, param)
             await uow.commit()
 
+    async def _for_related(
+        self,
+        user_id: UUID,
+        kind: str,
+        moment: datetime,
+        scope: ReadingScope,
+    ) -> ReadingView:
+        prepared = await self._related_prepared(user_id, kind, moment, scope)
+        if isinstance(prepared, ReadingView):
+            return prepared
+        _segment, facts, profile, limitations, storage, day, when = prepared
+        limited = await self._related_cap(user_id, kind, scope.related_id, moment)
+        if limited is not None:
+            return limited
+        payload = await self._model_payload(user_id, kind, facts)
+        shared = facts_text(facts)
+        if payload.get("source") != "model":
+            return self._view(profile, payload, shared, None, None, limitations=limitations)
+        history_id, streak = await self._remember(user_id, storage, when, payload, profile, day=day)
+        if scope.related_id is not None:
+            await self._mark_related(user_id, kind, scope.related_id, moment)
+        return self._view(
+            profile,
+            payload,
+            shared,
+            history_id,
+            streak,
+            limitations=limitations,
+        )
+
+    async def _related_prepared(
+        self,
+        user_id: UUID,
+        kind: str,
+        moment: datetime,
+        scope: ReadingScope,
+    ) -> ReadingView | tuple[str, dict[str, object], object, tuple[str, ...], str, date, datetime]:
+        storage, day, _identity = self._slot(kind, moment, scope)
+        when = _scoped_moment(kind, moment, self._zone_name, scope)
+        async with self._uow_factory() as uow:
+            profile = await uow.profiles.ensure(user_id)
+            related = None
+            if scope.related_id is not None:
+                related = await uow.related_profiles.get_owned(user_id, scope.related_id)
+        if related is None or related.birth_date is None:
+            return ReadingView(status="blocked", body=self._catalog.text("errors.related_required"))
+        if not related.consent:
+            return ReadingView(status="blocked", body=self._catalog.text("errors.consent_required"))
+        owner = _chart_owner(profile, related)
+        birth_date, birth_time, birth_place = _person_birth(owner)
+        sign = calendar_sign(related.birth_date)
+        if kind == "tomorrow":
+            sky_day = when.astimezone(ZoneInfo(self._zone_name)).date()
+            sky = await self._sky.for_date(sky_day)
+            segment, sky_facts = _sky_facts(kind, sky, sky_day)
+            facts = {
+                **sky_facts,
+                "birth_date": birth_date,
+                "birth_time": birth_time,
+                "birth_place": birth_place,
+            }
+            return segment, facts, owner, (), storage, day, when
+        if kind == "personal_month":
+            segment = personal_segment(sign, None, None)
+        else:
+            segment = sun_segment(sign)
+        facts = {
+            "date": day.isoformat(),
+            **representative_facts(kind, segment),
+            "birth_date": birth_date,
+            "birth_time": birth_time,
+            "birth_place": birth_place,
+        }
+        return segment, facts, owner, (), storage, day, when
+
+    async def _related_cap(
+        self,
+        user_id: UUID,
+        kind: str,
+        related_id: UUID | None,
+        moment: datetime,
+    ) -> ReadingView | None:
+        if related_id is None:
+            return None
+        decision = await self._quota.preview(user_id, _RELATED_MARKER)
+        if isinstance(decision, Allowed):
+            return None
+        today = local_date(moment, self._zone_name)
+        subject = f"{kind}:{related_id}"
+        async with self._uow_factory() as uow:
+            found = await uow.forecast_history.find(user_id, _RELATED_MARKER, today)
+        if found is None or found[1].get("subject") == subject:
+            return None
+        return ReadingView(
+            status="limit",
+            body=self._catalog.text("errors.related_forecast_limit"),
+        )
+
+    async def _mark_related(
+        self,
+        user_id: UUID,
+        kind: str,
+        related_id: UUID,
+        moment: datetime,
+    ) -> None:
+        decision = await self._quota.preview(user_id, _RELATED_MARKER)
+        if isinstance(decision, Allowed):
+            return
+        today = local_date(moment, self._zone_name)
+        subject = f"{kind}:{related_id}"
+        try:
+            async with self._uow_factory() as uow:
+                found = await uow.forecast_history.find(user_id, _RELATED_MARKER, today)
+                if found is None:
+                    await uow.forecast_history.add(
+                        user_id,
+                        _RELATED_MARKER,
+                        today,
+                        {"subject": subject},
+                    )
+                    await uow.commit()
+        except Conflict:
+            return
+
     async def _premium(
         self,
         user_id: UUID,
@@ -826,6 +961,8 @@ class ForecastService:
         if not isinstance(decision, Allowed):
             reset = decision.reset_at if isinstance(decision, LimitReached) else None
             return ReadingView(status="limit", reset_at=reset)
+        if scope.related_id is not None and kind in _RELATED_KINDS:
+            return await self._for_related(user_id, kind, moment, scope)
         prepared = await self._prepare_premium(user_id, kind, moment, scope)
         if isinstance(prepared, ReadingView):
             return prepared
@@ -1154,7 +1291,10 @@ class ForecastService:
             storage = f"synastry:{scope.related_id}"
             if scope.topic != "":
                 storage = f"{storage}:{scope.topic}"
-        return storage, day, f"{day.isoformat()}|{scope.topic}|{scope.month}"
+        elif kind in _RELATED_KINDS and scope.related_id is not None:
+            storage = f"{kind}:related:{scope.related_id}"
+        subject = "" if scope.related_id is None else str(scope.related_id)
+        return storage, day, f"{day.isoformat()}|{scope.topic}|{scope.month}|{subject}"
 
     def _check_scope(self, kind: str, scope: ReadingScope) -> None:
         if kind == "topics" and scope.topic not in TOPICS:
@@ -1164,6 +1304,8 @@ class ForecastService:
                 parse_month(scope.month)
             except ValueError as error:
                 raise FieldInvalid("month", "errors.validation") from error
+        if scope.related_id is not None and kind not in _RELATED_KINDS and kind != "synastry":
+            raise FieldInvalid("related_id", "errors.validation")
         if kind == "synastry":
             if scope.topic != "" and scope.topic not in PAIR_FOCUS:
                 raise FieldInvalid("topic", "errors.validation")
@@ -1462,6 +1604,18 @@ def _texts(value: object) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
     return tuple(item for item in value if isinstance(item, str))
+
+
+def _chart_owner(profile: object, related: object) -> SimpleNamespace:
+    return SimpleNamespace(
+        timezone=getattr(profile, "timezone", None),
+        birth_date=getattr(related, "birth_date", None),
+        birth_time=getattr(related, "birth_time", None),
+        birth_time_unknown=getattr(related, "birth_time_unknown", True),
+        birth_place=getattr(related, "birth_place", None),
+        display_name=getattr(related, "display_name", None),
+        streak_count=getattr(profile, "streak_count", None),
+    )
 
 
 def _person_birth(profile: object) -> tuple[str, str, str]:

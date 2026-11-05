@@ -16,6 +16,7 @@ onboarding_incomplete: Сначала завершите знакомство
 place_required: Выберите место из списка
 place_not_offered: Выберите место из списка
 limit_reached: Лимит уже исчерпан
+related_forecast_limit: Прогноз для близкого уже открыт сегодня. Завтра можно выбрать снова
 idempotency_key: Нужен ключ повтора длиной от 8 до 80 знаков
 related_required: Сначала добавьте человека с датой рождения
 consent_required: Нужно согласие на данные близкого

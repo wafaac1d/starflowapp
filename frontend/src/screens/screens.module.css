@@ -1026,3 +1026,158 @@ button.favorableCard {
   color: var(--color-text-secondary);
   font: var(--font-body);
 }
+
+.who {
+  position: relative;
+  flex: none;
+}
+
+.whoButton {
+  min-height: var(--size-touch);
+  max-width: 210px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: var(--font-caption);
+  cursor: pointer;
+}
+
+.whoButton:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.whoLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.whoCaret {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 220ms ease;
+}
+
+.whoButton[aria-expanded="true"] .whoCaret {
+  transform: translateY(2px) rotate(225deg);
+}
+
+.whoMenu,
+.whoMenuOpen {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: 4;
+  width: max-content;
+  min-width: 196px;
+  max-width: min(280px, 70vw);
+  display: grid;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-glow);
+  transform-origin: top right;
+}
+
+.whoMenu {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.98);
+  pointer-events: none;
+  transition:
+    grid-template-rows 240ms ease,
+    opacity 180ms ease,
+    transform 240ms ease;
+}
+
+.whoMenuOpen {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+  transition:
+    grid-template-rows 240ms ease,
+    opacity 180ms ease,
+    transform 240ms ease;
+}
+
+.whoPanel {
+  min-height: 0;
+  overflow: hidden;
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.whoPanel ul {
+  margin: 0;
+  padding: var(--space-1) 0;
+  list-style: none;
+}
+
+.whoOption,
+.whoOptionOn,
+.whoAdd {
+  width: 100%;
+  min-height: var(--size-touch);
+  display: block;
+  padding: 0 var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font: var(--font-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.whoOptionOn {
+  color: var(--color-accent);
+}
+
+.whoAdd {
+  color: var(--color-text-secondary);
+  border-top: 1px solid var(--color-border);
+}
+
+.whoMenuOpen .whoOption,
+.whoMenuOpen .whoOptionOn,
+.whoMenuOpen .whoAdd {
+  animation: who-in 220ms ease both;
+}
+
+.whoMenuOpen li:nth-child(2) > button {
+  animation-delay: 30ms;
+}
+
+.whoMenuOpen li:nth-child(3) > button {
+  animation-delay: 60ms;
+}
+
+.whoMenuOpen li:nth-child(4) > button {
+  animation-delay: 90ms;
+}
+
+.whoMenuOpen li:nth-child(5) > button {
+  animation-delay: 120ms;
+}
+
+@keyframes who-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
