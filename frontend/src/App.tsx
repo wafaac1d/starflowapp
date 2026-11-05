@@ -99,7 +99,7 @@ function AuthedApp({ initData }: { initData: string }) {
         path="/chat"
         element={<ChatScreen premium={profile.is_premium} balance={profile.star_balance ?? 0} />}
       />
-      <Route path="/people" element={<PeopleScreen />} />
+      <Route path="/people" element={<PeopleScreen premium={profile.is_premium} />} />
       <Route path="/profile" element={<ProfileScreen profile={profile} />} />
       <Route path="/settings" element={<SettingsScreen />} />
       <Route path="/premium" element={<PremiumScreen subscribed={profile.is_premium} />} />

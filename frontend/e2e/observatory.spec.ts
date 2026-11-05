@@ -461,7 +461,9 @@ test("adding a person keeps equal gaps and the list waits with row silhouettes",
       return;
     }
     await gate;
-    await route.fallback();
+    await route.fulfill({
+      json: [{ related_id: "mama", display_name: "Мама", birth_date: "14.03.1968" }],
+    });
   });
   await page.goto("/people");
   const silhouettes = page.locator("div[aria-hidden='true'] > span");
@@ -485,6 +487,38 @@ test("adding a person keeps equal gaps and the list waits with row silhouettes",
     return [Math.round(next.y - (box.y + box.height))];
   });
   expect(gaps).toEqual([24, 24, 24]);
+});
+
+test("a close person opens for editing or removal", async ({ page }) => {
+  await installApp(page, "done");
+  let removed = false;
+  await page.route("**/api/v1/related/**", async (route) => {
+    const method = route.request().method();
+    if (method === "DELETE") {
+      removed = true;
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    if (method === "PATCH") {
+      await route.fulfill({
+        json: {
+          related_id: "mama",
+          display_name: "Марина",
+          birth_date: "1968-03-15",
+          consent: true,
+        },
+      });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto("/people");
+  await page.getByRole("button", { name: /Мама/ }).click();
+  await expect(page.getByRole("textbox", { name: "Имя" })).toHaveValue("Мама");
+  await expect(page.getByRole("textbox", { name: "Дата рождения" })).toHaveValue("14.03.1968");
+  await expect(page).not.toHaveURL(/compatibility/);
+  await page.getByRole("button", { name: "Удалить" }).click();
+  expect(removed).toBe(true);
 });
 
 test("a saved forecast stays saved and opens from favorites", async ({ page }) => {
@@ -595,7 +629,7 @@ test("a forecast opens for a close person and can add one", async ({ page }) => 
   await page.getByRole("button", { name: "Для кого: Даниил" }).click();
   await page.getByRole("button", { name: "Добавить близкого" }).click();
   await expect(page.getByRole("heading", { name: "Близкие" })).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "Имя" })).toBeVisible();
+  await expect(page.getByText("Можно хранить двух близких. С Premium — до десяти.")).toBeVisible();
 });
 
 test("a free topic opens the premium alert", async ({ page }) => {
@@ -785,6 +819,15 @@ test("tab bar, calendar, chat, settings and paywall", async ({ page }) => {
 
 test("add relative fields keep an even gap", async ({ page }) => {
   await openReady(page, "/profile");
+  await page.route("**/api/v1/related**", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        json: [{ related_id: "mama", display_name: "Мама", birth_date: "14.03.1968" }],
+      });
+      return;
+    }
+    await route.fallback();
+  });
   await page.getByRole("button", { name: "Добавить близкого" }).click();
   await expect(page.getByRole("textbox", { name: "Имя" })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Дата рождения" })).toBeVisible();
@@ -828,6 +871,9 @@ for (const shot of SHOTS) {
     }
     if (shot.name === "natal") {
       await expect(page.getByText("Лев")).toBeVisible();
+    }
+    if (shot.name === "people") {
+      await expect(page.getByRole("button", { name: "Мама" })).toBeVisible();
     }
     await expect(page).toHaveScreenshot(`${shot.name}.png`, { animations: "disabled" });
   });

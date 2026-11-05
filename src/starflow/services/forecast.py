@@ -30,7 +30,7 @@ from starflow.domain.quota import (
     QuotaDecision,
     idempotency_key_ok,
 )
-from starflow.domain.records import RelatedBirth
+from starflow.domain.records import ProfileDraft, RelatedBirth
 from starflow.domain.segments import (
     calendar_segment,
     detail_segment,
@@ -777,6 +777,13 @@ class ForecastService:
             if allowed:
                 await uow.commit()
             return allowed
+
+    async def update_related(self, user_id: UUID, related_id: UUID, draft: ProfileDraft) -> bool:
+        async with self._uow_factory() as uow:
+            updated = await uow.related_profiles.update_owned(user_id, related_id, draft)
+            if updated:
+                await uow.commit()
+            return updated
 
     async def delete_related(self, user_id: UUID, related_id: UUID) -> bool:
         async with self._uow_factory() as uow:

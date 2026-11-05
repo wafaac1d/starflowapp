@@ -102,8 +102,8 @@ class QuotaService:
             if rule.gate in {"open", "premium"}:
                 return Allowed()
             if rule.gate == "capacity":
-                occupied = await _occupied(uow, user_id, rule)
-                if occupied:
+                cap = await self._cap(uow, user_id, rule)
+                if await _occupied(uow, user_id, rule, cap):
                     return LimitReached(None)
                 return Allowed()
             window = await _window(uow, user_id, rule, self._clock())
@@ -164,6 +164,13 @@ class QuotaService:
             used = 0 if counter is None else counter.used + counter.reserved
             return max(0, limit - used)
 
+    async def _cap(self, uow: QuotaStore, user_id: UUID, rule: FeatureRule) -> int | None:
+        if rule.code != "related_profile" or rule.limit is None:
+            return rule.limit
+        if await uow.subscriptions.has_active(user_id, self._clock()):
+            return self._plans.premium.related_profiles_limit
+        return rule.limit
+
     async def _reserve(
         self,
         user_id: UUID,
@@ -208,7 +215,9 @@ class QuotaService:
                     return metered
                 await uow.usage.change(metered.id, used_delta=0, reserved_delta=1)
                 marker = {"counter_id": str(metered.id)}
-            elif rule.gate == "capacity" and await _occupied(uow, user_id, rule):
+            elif rule.gate == "capacity" and await _occupied(
+                uow, user_id, rule, await self._cap(uow, user_id, rule)
+            ):
                 return LimitReached(None)
             await uow.idempotency.hold(user_id, key, feature, marker, existing)
             await uow.commit()
@@ -328,8 +337,14 @@ async def _meter(
     return counter
 
 
-async def _occupied(uow: QuotaStore, user_id: UUID, rule: FeatureRule) -> bool:
-    if rule.limit is None:
+async def _occupied(
+    uow: QuotaStore,
+    user_id: UUID,
+    rule: FeatureRule,
+    limit: int | None = None,
+) -> bool:
+    cap = rule.limit if limit is None else limit
+    if cap is None:
         return True
     if rule.code == "favorite":
         count = await uow.favorites.count_for_user(user_id)
@@ -338,4 +353,4 @@ async def _occupied(uow: QuotaStore, user_id: UUID, rule: FeatureRule) -> bool:
     else:
         raise Conflict("capacity feature is unknown")
     holds = await uow.idempotency.count_reserved(user_id, rule.code)
-    return count + holds >= rule.limit
+    return count + holds >= cap

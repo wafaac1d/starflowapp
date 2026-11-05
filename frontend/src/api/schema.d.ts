@@ -502,23 +502,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/related/{related_id}/consent": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Allow Related */
-        post: operations["allow_related_api_v1_related__related_id__consent_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/related/{related_id}": {
         parameters: {
             query?: never;
@@ -531,6 +514,24 @@ export interface paths {
         post?: never;
         /** Remove Related */
         delete: operations["remove_related_api_v1_related__related_id__delete"];
+        options?: never;
+        head?: never;
+        /** Edit Related */
+        patch: operations["edit_related_api_v1_related__related_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/related/{related_id}/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Allow Related */
+        post: operations["allow_related_api_v1_related__related_id__consent_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3031,7 +3032,7 @@ export interface operations {
             };
         };
     };
-    allow_related_api_v1_related__related_id__consent_post: {
+    remove_related_api_v1_related__related_id__delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -3060,7 +3061,42 @@ export interface operations {
             };
         };
     };
-    remove_related_api_v1_related__related_id__delete: {
+    edit_related_api_v1_related__related_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                related_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RelatedBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RelatedItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    allow_related_api_v1_related__related_id__consent_post: {
         parameters: {
             query?: never;
             header?: never;

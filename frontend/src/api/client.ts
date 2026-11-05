@@ -356,6 +356,36 @@ export async function addRelated(
   );
 }
 
+export async function updateRelated(
+  relatedId: string,
+  displayName: string,
+  birthDate: string,
+  fetchImpl: typeof fetch = fetch,
+  birthTime?: string,
+): Promise<RelatedEntry> {
+  const clock = birthTime?.trim() ?? "";
+  const body: {
+    display_name: string;
+    birth_date: string;
+    consent: boolean;
+    birth_time_unknown: boolean;
+    birth_time?: string;
+  } = {
+    display_name: displayName,
+    birth_date: birthDate,
+    consent: true,
+    birth_time_unknown: clock === "",
+  };
+  if (clock !== "") {
+    body.birth_time = clock;
+  }
+  return requestJson<RelatedEntry>(
+    `/api/v1/related/${relatedId}`,
+    { method: "PATCH", body: JSON.stringify(body) },
+    fetchImpl,
+  );
+}
+
 export async function allowRelated(
   relatedId: string,
   fetchImpl: typeof fetch = fetch,

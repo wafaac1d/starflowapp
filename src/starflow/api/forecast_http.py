@@ -267,7 +267,11 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
         except Conflict as error:
             raise ApiError(409, "conflict", container.catalog.text("errors.conflict")) from error
         if isinstance(result, LimitReached):
-            raise ApiError(429, "limit_reached", container.catalog.text("errors.limit_reached"))
+            raise ApiError(
+                429,
+                "limit_reached",
+                container.catalog.text("errors.related_profiles_limit"),
+            )
         if isinstance(result, PremiumRequired):
             raise ApiError(
                 402, "premium_required", container.catalog.text("errors.premium_required")
@@ -282,6 +286,40 @@ def register_forecast_routes(router: APIRouter, container: Container) -> None:
             birth_time=None if raw_time is None else str(raw_time),
             birth_time_unknown=bool(result.body.get("birth_time_unknown", True)),
             consent=bool(result.body.get("consent")),
+        )
+
+    @router.patch("/related/{related_id}", response_model=RelatedItem)
+    async def edit_related(related_id: UUID, body: RelatedBody, request: Request) -> RelatedItem:
+        require_intent(request, unauthorized)
+        actor = await actor_from_cookie(request, container, unauthorized)
+        try:
+            name = parse_display_name(body.display_name)
+            born = parse_birth_date(body.birth_date, today=now_utc().date())
+            clock, unknown = optional_birth_time(body.birth_time, body.birth_time_unknown)
+        except FieldInvalid as error:
+            raise _field_error(container, error) from error
+        draft = ProfileDraft(
+            display_name=name,
+            birth_date=born,
+            birth_time=clock,
+            birth_time_unknown=unknown,
+            birth_place=None,
+            latitude=None,
+            longitude=None,
+            timezone=container.settings.default_timezone,
+        )
+        updated = await container.forecast_service.update_related(
+            actor.view.user_id, related_id, draft
+        )
+        if not updated:
+            raise ApiError(404, "not_found", container.catalog.text("errors.not_found"))
+        return RelatedItem(
+            related_id=related_id,
+            display_name=name,
+            birth_date=born.isoformat(),
+            birth_time=_clock(clock),
+            birth_time_unknown=unknown,
+            consent=body.consent,
         )
 
     @router.post("/related/{related_id}/consent", status_code=204)

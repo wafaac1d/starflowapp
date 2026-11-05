@@ -1151,10 +1151,58 @@
         }
       }
     },
-    "/api/v1/related/{related_id}/consent": {
-      "post": {
-        "summary": "Allow Related",
-        "operationId": "allow_related_api_v1_related__related_id__consent_post",
+    "/api/v1/related/{related_id}": {
+      "patch": {
+        "summary": "Edit Related",
+        "operationId": "edit_related_api_v1_related__related_id__patch",
+        "parameters": [
+          {
+            "name": "related_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Related Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelatedBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelatedItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove Related",
+        "operationId": "remove_related_api_v1_related__related_id__delete",
         "parameters": [
           {
             "name": "related_id",
@@ -1184,10 +1232,10 @@
         }
       }
     },
-    "/api/v1/related/{related_id}": {
-      "delete": {
-        "summary": "Remove Related",
-        "operationId": "remove_related_api_v1_related__related_id__delete",
+    "/api/v1/related/{related_id}/consent": {
+      "post": {
+        "summary": "Allow Related",
+        "operationId": "allow_related_api_v1_related__related_id__consent_post",
         "parameters": [
           {
             "name": "related_id",

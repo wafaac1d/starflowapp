@@ -4,6 +4,7 @@ premium:
   assistant_questions: 20
   grace_hours: 1
   reminder_days: 3
+  related_profiles_limit: 10
 trial:
   days: 7
   once: true
@@ -14,7 +15,7 @@ referral:
 free:
   compatibility_per_week: 1
   favorites_limit: 3
-  related_profiles_limit: 3
+  related_profiles_limit: 2
 features:
   day: {gate: open}
   week: {gate: premium}
@@ -22,7 +23,7 @@ features:
   moon: {gate: open}
   compatibility: {gate: metered, limit: 1, window: user_week}
   favorite: {gate: capacity, limit: 3}
-  related_profile: {gate: capacity, limit: 3}
+  related_profile: {gate: capacity, limit: 2}
   today_detail: {gate: premium}
   tomorrow: {gate: premium}
   personal_day: {gate: premium}

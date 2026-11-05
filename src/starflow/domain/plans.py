@@ -27,6 +27,7 @@ class PremiumPlan:
     assistant_questions: int
     grace_hours: int
     reminder_days: int
+    related_profiles_limit: int
 
 
 @dataclass(frozen=True)
@@ -96,6 +97,7 @@ def load_plans(path: Path, *, price_stars: int) -> Plans:
             assistant_questions=_positive(premium, "assistant_questions"),
             grace_hours=_positive(premium, "grace_hours"),
             reminder_days=_positive(premium, "reminder_days"),
+            related_profiles_limit=_positive(premium, "related_profiles_limit"),
         ),
         trial=TrialPlan(days=_positive(trial, "days"), once=True),
         gift=GiftPlan(days=_positive(gift, "days")),
@@ -110,6 +112,8 @@ def load_plans(path: Path, *, price_stars: int) -> Plans:
     _agree(parsed, "compatibility", parsed.free.compatibility_per_week)
     _agree(parsed, "favorite", parsed.free.favorites_limit)
     _agree(parsed, "related_profile", parsed.free.related_profiles_limit)
+    if parsed.premium.related_profiles_limit < parsed.free.related_profiles_limit:
+        raise ValueError("plans.yaml premium related_profiles_limit is below the free limit")
     _agree(parsed, "assistant", parsed.premium.assistant_questions)
     return parsed
 

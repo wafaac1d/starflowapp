@@ -100,6 +100,7 @@ export const texts = {
   "errors.related_forecast_limit": "Прогноз для близкого уже открыт сегодня. Завтра можно выбрать снова",
   "errors.idempotency_key": "Нужен ключ повтора длиной от 8 до 80 знаков",
   "errors.related_required": "Сначала добавьте человека с датой рождения",
+  "errors.related_profiles_limit": "Можно хранить двух близких. С Premium — до десяти.",
   "errors.consent_required": "Нужно согласие на данные близкого",
   "errors.privacy_required": "Примите соглашение о конфиденциальности",
   "errors.question_length": "Вопрос длиннее 500 символов",

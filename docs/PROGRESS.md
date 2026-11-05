@@ -1257,6 +1257,23 @@ D-108. В «Ваш прогноз» справа список «Для кого�
 
 Живой DeepSeek не вызывался. Браузер без Telegram WebApp по-прежнему показывает только заглушку Mini App. Playwright с подставленным мостом открыл список, прочитал прогноз мамы, показал суточный отказ для второго близкого и перешёл к форме «Добавить близкого».
 
+## Правка близкого и размер списка, 2026-11-05
+
+D-109. На `/people` нажатие на близкого открывает имя и дату рождения, сохранение и удаление. Совместимость с этой строки больше не открывается. Без Premium одновременно двое близких, с Premium — десять. Уже сохранённые строки сверх предела остаются. Новую сверх предела не записывает сценарий квоты. Место рождения при правке не меняется.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по квоте, прогнозу, HTTP, планам, репозиторию и тесту ёмкости | 0 |
+| `uv run ruff format --check` по тем же файлам | 0 |
+| `uv run mypy` по квоте, HTTP, планам и репозиторию | 0, 4 файла |
+| `uv run pytest tests/unit/test_contract.py::test_openapi_document_matches_the_committed_contract tests/unit/test_related_capacity.py -q` | 0, 3 теста |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx` | 0, 55 тестов |
+| `node frontend/scripts/compile-texts.mjs --check` | 0 |
+| `PLAYWRIGHT_BROWSERS_PATH=$HOME/Library/Caches/ms-playwright corepack pnpm exec playwright test e2e/observatory.spec.ts -g "adding a person keeps equal gaps\|a close person opens for editing\|a forecast opens for a close person\|add relative fields keep an even gap\|screenshot people"` | 0, 5 тестов |
+
+Живой Telegram не вызывался. Браузер без моста показывает заглушку Mini App. Playwright открыл правку «Мамы» с датой 14.03.1968 и кнопкой «Удалить», не уходя на совместимость, и при трёх сохранённых близких на бесплатном тарифе закрыл «Добавить человека» текстом «Можно хранить двух близких. С Premium — до десяти.»
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

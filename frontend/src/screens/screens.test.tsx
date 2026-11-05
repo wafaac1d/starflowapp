@@ -578,7 +578,9 @@ describe("screens", () => {
     ).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Для кого: Даниил" }));
     await userEvent.click(screen.getByRole("button", { name: "Добавить близкого" }));
-    expect(await screen.findByRole("textbox", { name: "Имя" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("Можно хранить двух близких. С Premium — до десяти."),
+    ).toBeInTheDocument();
   });
 
   it("shows the lunar day card", async () => {
@@ -1087,18 +1089,61 @@ describe("screens", () => {
           JSON.stringify([
             { related_id: "mama", display_name: "Мама", birth_date: "14.03.1968" },
             { related_id: "daniil", display_name: "Даниил", birth_date: "22.11.1988" },
-            { related_id: "sergey", display_name: "Сергей", birth_date: "17.06.1992" },
           ]),
           { status: 200, headers: { "Content-Type": "application/json" } },
         ),
       ),
     );
-    renderAt(<PeopleScreen />);
+    const view = renderAt(<PeopleScreen />);
     expect(await screen.findByRole("button", { name: /Мама/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Добавить человека" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Добавить человека" }));
-    expect(screen.getByRole("textbox", { name: "Имя" })).toBeInTheDocument();
-    expect(screen.getByRole("textbox", { name: "Дата рождения" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Добавить человека" })).toBeDisabled();
+    expect(screen.getByText("Можно хранить двух близких. С Premium — до десяти.")).toBeInTheDocument();
+    view.unmount();
+    renderAt(<PeopleScreen premium />);
+    expect(await screen.findByRole("button", { name: "Добавить человека" })).toBeEnabled();
+  });
+
+  it("edits or removes a close person instead of opening compatibility", async () => {
+    const calls: { method: string; url: string; body: string }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async (input, init) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+        calls.push({ method, url, body: typeof init?.body === "string" ? init.body : "" });
+        if (method === "DELETE") {
+          return new Response(null, { status: 204 });
+        }
+        if (method === "PATCH") {
+          return Response.json({
+            related_id: "mama",
+            display_name: "Марина",
+            birth_date: "1968-03-15",
+            consent: true,
+          });
+        }
+        return Response.json([
+          { related_id: "mama", display_name: "Мама", birth_date: "1968-03-14", consent: true },
+        ]);
+      }),
+    );
+    renderAt(<PeopleScreen />);
+    await userEvent.click(await screen.findByRole("button", { name: /Мама/ }));
+    const name = screen.getByRole("textbox", { name: "Имя" });
+    expect(name).toHaveValue("Мама");
+    expect(screen.getByRole("textbox", { name: "Дата рождения" })).toHaveValue("14.03.1968");
+    await userEvent.clear(name);
+    await userEvent.type(name, "Марина");
+    await userEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    expect(calls.some((call) => call.method === "PATCH" && call.url.includes("/related/mama"))).toBe(
+      true,
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /Мама/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Удалить" }));
+    expect(calls.some((call) => call.method === "DELETE" && call.url.includes("/related/mama"))).toBe(
+      true,
+    );
+    expect(screen.queryByRole("link", { name: /Мама/ })).not.toBeInTheDocument();
   });
 
   it("shows shimmering row silhouettes while people load", () => {

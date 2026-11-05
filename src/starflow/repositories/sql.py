@@ -539,6 +539,20 @@ class RelatedProfileRepository:
             consent=row.consent,
         )
 
+    async def update_owned(
+        self, owner_user_id: UUID, related_id: UUID, draft: ProfileDraft
+    ) -> bool:
+        row = await self._session.get(RelatedProfileRow, related_id)
+        if row is None or row.owner_user_id != owner_user_id:
+            return False
+        ensure_birth_time(draft.birth_time, draft.birth_time_unknown)
+        row.display_name = draft.display_name
+        row.birth_date = draft.birth_date
+        row.birth_time = draft.birth_time
+        row.birth_time_unknown = draft.birth_time_unknown
+        await self._session.flush()
+        return True
+
     async def set_consent(self, owner_user_id: UUID, related_id: UUID, consent: bool) -> bool:
         row = await self._session.get(RelatedProfileRow, related_id)
         if row is None or row.owner_user_id != owner_user_id:
