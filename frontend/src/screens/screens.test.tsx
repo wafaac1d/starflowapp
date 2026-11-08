@@ -1800,7 +1800,7 @@ describe("screens", () => {
       vi.fn<typeof fetch>().mockResolvedValue(
         Response.json({
           code: "testcode123",
-          link: "https://t.me/starflow_bot/app?startapp=ref_testcode123",
+          link: "https://t.me/starflow_bot?start=ref_testcode123",
           count: 3,
           stars_earned: 60,
         }),
@@ -1808,12 +1808,38 @@ describe("screens", () => {
     );
     renderAt(<ReferralScreen />);
     expect(screen.getByRole("heading", { name: "Реферальная программа" })).toBeInTheDocument();
-    expect(await screen.findByText("https://t.me/starflow_bot/app?startapp=ref_testcode123")).toBeInTheDocument();
+    expect(await screen.findByText("https://t.me/starflow_bot?start=ref_testcode123")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("Приглашено друзей")).toBeInTheDocument();
     expect(screen.getByText("60")).toBeInTheDocument();
     expect(screen.getByText("Заработано звёзд")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Скопировать ссылку" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Поделиться" })).toBeInTheDocument();
+  });
+
+  it("shares the telegram invite from inside the mini app", async () => {
+    const openTelegramLink = vi.fn();
+    const share = vi.fn();
+    window.Telegram = { WebApp: { openTelegramLink } };
+    Object.defineProperty(navigator, "share", { configurable: true, value: share });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        Response.json({
+          code: "testcode123",
+          link: "https://t.me/starflow_bot?start=ref_testcode123",
+          count: 0,
+          stars_earned: 0,
+        }),
+      ),
+    );
+    renderAt(<ReferralScreen />);
+    await screen.findByText("https://t.me/starflow_bot?start=ref_testcode123");
+    await userEvent.click(screen.getByRole("button", { name: "Поделиться" }));
+    expect(openTelegramLink).toHaveBeenCalledWith(
+      `https://t.me/share/url?url=${encodeURIComponent("https://t.me/starflow_bot?start=ref_testcode123")}&text=${encodeURIComponent("Присоединяйтесь к StarFlow по моей ссылке и получите 20 звёзд на баланс!")}`,
+    );
+    expect(share).not.toHaveBeenCalled();
+    delete window.Telegram;
   });
 });

@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     webhook_url: str = ""
     webhook_secret: str = ""
+    bot_username: str = ""
     mini_app_url: str = Field(
         default="",
         validation_alias=AliasChoices(
@@ -87,6 +88,18 @@ class Settings(BaseSettings):
     resources_dir: Path = Field(default_factory=lambda: repository_root() / "resources")
     frontend_dist: Path = Field(default_factory=lambda: repository_root() / "frontend" / "dist")
     logo_path: Path = Field(default_factory=lambda: repository_root() / "static" / "logo.png")
+
+    @field_validator("bot_username")
+    @classmethod
+    def _bot_username(cls, value: str) -> str:
+        name = value.strip().lstrip("@")
+        if name == "":
+            return ""
+        if not all(char.isascii() and (char.isalnum() or char == "_") for char in name):
+            raise ValueError("BOT_USERNAME must be a Telegram username")
+        if not 5 <= len(name) <= 32:
+            raise ValueError("BOT_USERNAME must be a Telegram username")
+        return name
 
     @field_validator("log_level")
     @classmethod

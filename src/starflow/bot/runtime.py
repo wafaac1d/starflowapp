@@ -13,6 +13,7 @@ from aiogram.types import (
     WebAppInfo,
 )
 
+from starflow.bot.identity import BotIdentity
 from starflow.bot.screens import screen_url
 from starflow.config import Settings
 from starflow.domain.errors import DeliveryBlocked, DeliveryRetry
@@ -28,6 +29,7 @@ class BotRuntime:
         commands: tuple[BotCommand, ...],
         menu_text: str,
         catalog: Catalog,
+        identity: BotIdentity | None = None,
     ) -> None:
         self._settings = settings
         self._bot = bot
@@ -35,6 +37,7 @@ class BotRuntime:
         self._commands = commands
         self._menu_text = menu_text
         self._catalog = catalog
+        self._identity = identity
         self._stopped = asyncio.Event()
         self._task: asyncio.Task[None] | None = None
         self._log = structlog.get_logger("bot")
@@ -117,6 +120,8 @@ class BotRuntime:
         await self._bot.session.close()
 
     async def _configure(self) -> None:
+        if self._identity is not None:
+            await self._identity.username()
         await self._bot.set_my_commands(list(self._commands))
         if not self._settings.mini_app_url:
             return

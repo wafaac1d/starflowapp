@@ -778,7 +778,8 @@ async def test_referral_rewards_both_users_and_endpoint_returns_stats(
     settings = make_settings(
         database_url=database_url,
         singleton_lock=False,
-        mini_app_url="https://t.me/starflow_bot/app",
+        mini_app_url="https://starflow.example",
+        bot_username="starflow_bot",
     )
     container = build_container(settings)
     app = build_fastapi(container)
@@ -802,7 +803,10 @@ async def test_referral_rewards_both_users_and_endpoint_returns_stats(
         assert ref_data["stars_earned"] == 0
         code_a = ref_data["code"]
         assert code_a != ""
-        assert f"ref_{code_a}" in ref_data["link"]
+        assert ref_data["link"] == f"https://t.me/starflow_bot?start=ref_{code_a}"
+        stale = await client.get("/?startapp=ref_oldcode")
+        assert stale.status_code == 302
+        assert stale.headers["location"] == "https://t.me/starflow_bot?start=ref_oldcode"
 
     async with AsyncClient(transport=transport, base_url="http://test") as client_b:
         raw_b = _init_data(

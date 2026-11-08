@@ -1274,6 +1274,22 @@ D-109. На `/people` нажатие на близкого открывает и
 
 Живой Telegram не вызывался. Браузер без моста показывает заглушку Mini App. Playwright открыл правку «Мамы» с датой 14.03.1968 и кнопкой «Удалить», не уходя на совместимость, и при трёх сохранённых близких на бесплатном тарифе закрыл «Добавить человека» текстом «Можно хранить двух близких. С Premium — до десяти.»
 
+## Реферальная ссылка открывает бота, 2026-11-08
+
+D-110. Ссылка приглашения больше не указывает на адрес сайта. Копирование и «Поделиться» отдают `https://t.me/<бот>?start=ref_<код>`. Старый адрес сайта с `startapp=ref_…` перенаправляется туда же. Имя бота берётся из `BOT_USERNAME` или из `getMe`.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по ссылке, боту, прогнозу, конфигу, сборке, HTTP и тестам | 0 |
+| `uv run ruff format` по тем же файлам | 0, без правок |
+| `uv run mypy` по ссылке, боту, прогнозу, конфигу, сборке и HTTP | 0, 7 файлов |
+| `uv run pytest tests/unit/test_referral_link.py tests/unit/test_bot_reply.py -q` | 0, 11 тестов |
+| `uv run pytest tests/integration/test_access.py::test_referral_rewards_both_users_and_endpoint_returns_stats -q` | 0, 1 тест |
+| `corepack pnpm exec tsc --noEmit --pretty false` | 0 |
+| `corepack pnpm exec vitest run src/screens/screens.test.tsx` | 0, 56 тестов |
+
+Живой Telegram не вызывался. Ссылка проверялась на собранном приложении: ответ `/api/v1/referral` содержит `https://t.me/starflow_bot?start=ref_…`, а `/?startapp=ref_oldcode` отвечает 302 на ту же форму.
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

@@ -39,6 +39,12 @@ export function ReferralScreen({ fetchImpl = fetch }: { fetchImpl?: typeof fetch
       return;
     }
     const shareText = "Присоединяйтесь к StarFlow по моей ссылке и получите 20 звёзд на баланс!";
+    const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(data.link)}&text=${encodeURIComponent(shareText)}`;
+    const webApp = window.Telegram?.WebApp;
+    if (webApp?.openTelegramLink) {
+      webApp.openTelegramLink(tgUrl);
+      return;
+    }
     if (navigator.share) {
       try {
         await navigator.share({
@@ -48,15 +54,10 @@ export function ReferralScreen({ fetchImpl = fetch }: { fetchImpl?: typeof fetch
         });
         return;
       } catch {
-        // Fallback to Telegram share
+        // The sheet was closed or the browser refused the share.
       }
     }
-    const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(data.link)}&text=${encodeURIComponent(shareText)}`;
-    if (window.Telegram?.WebApp?.openTelegramLink) {
-      window.Telegram.WebApp.openTelegramLink(tgUrl);
-    } else {
-      window.open(tgUrl, "_blank");
-    }
+    window.open(tgUrl, "_blank");
   };
 
   return (

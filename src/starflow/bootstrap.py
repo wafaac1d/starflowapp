@@ -12,6 +12,7 @@ from starflow.ai.client import DeepSeekClient
 from starflow.ai.prompts import PromptLibrary
 from starflow.astro.swiss import SwissEphemeris
 from starflow.bot.handlers import UpdateContextMiddleware, register_handlers
+from starflow.bot.identity import BotIdentity
 from starflow.bot.runtime import BotRuntime
 from starflow.bot.session import InactiveTelegramSession
 from starflow.bot.stars import AiogramStarGateway
@@ -241,6 +242,7 @@ class Container:
     forecast_cache: TwoLevelCache
     verifier: TelegramInitDataVerifier
     bot: Bot
+    bot_identity: BotIdentity
     dispatcher: Dispatcher
     bot_runtime: BotRuntime
     scheduler_runtime: SchedulerRuntime
@@ -298,6 +300,9 @@ def build_container(settings: Settings) -> Container:
     forecast_cache = TwoLevelCache(
         TtlCache(settings.memory_cache_size), PostgresLevelTwo(uow_factory)
     )
+    session = InactiveTelegramSession() if settings.app_env == "test" else AiohttpSession()
+    bot = Bot(token=settings.bot_token, session=session, default=DefaultBotProperties())
+    bot_identity = BotIdentity(bot, settings.bot_username)
     forecast_service = ForecastService(
         uow_factory,
         forecast_cache,
@@ -311,6 +316,7 @@ def build_container(settings: Settings) -> Container:
         zone_name=settings.default_timezone,
         locale=settings.default_locale,
         mini_app_url=settings.mini_app_url,
+        bot_name=bot_identity.username,
         chart=chart_service,
         stars=stars_service,
     )
@@ -368,8 +374,6 @@ def build_container(settings: Settings) -> Container:
     verifier = TelegramInitDataVerifier(
         settings.bot_token, settings.auth_max_age_sec, settings.auth_future_skew_sec
     )
-    session = InactiveTelegramSession() if settings.app_env == "test" else AiohttpSession()
-    bot = Bot(token=settings.bot_token, session=session, default=DefaultBotProperties())
     billing_service = BillingService(
         uow_factory,
         AiogramStarGateway(bot),
@@ -404,6 +408,7 @@ def build_container(settings: Settings) -> Container:
         commands,
         catalog.text("bot.menu"),
         catalog,
+        bot_identity,
     )
     register_handlers(
         router,
@@ -450,6 +455,7 @@ def build_container(settings: Settings) -> Container:
         forecast_cache=forecast_cache,
         verifier=verifier,
         bot=bot,
+        bot_identity=bot_identity,
         dispatcher=dispatcher,
         bot_runtime=bot_runtime,
         scheduler_runtime=scheduler_runtime,

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from aiogram.types import Update
 from fastapi import APIRouter, FastAPI, Request
-from fastapi.responses import Response
+from fastapi.responses import RedirectResponse, Response
 from starlette.middleware.gzip import GZipMiddleware
 
 from starflow.api.actor import (
@@ -36,6 +36,7 @@ from starflow.api.stars_http import register_star_routes
 from starflow.api.support_http import register_support_routes
 from starflow.bootstrap import Container
 from starflow.domain.errors import AuthFailure
+from starflow.domain.invite import referral_payload, referral_redirect_url
 
 
 def build_fastapi(container: Container) -> FastAPI:
@@ -226,11 +227,26 @@ def structlog_user(telegram_id: int, user_id: str) -> None:
     )
 
 
+async def _referral_redirect(request: Request, container: Container) -> RedirectResponse | None:
+    name = request.url.path.rsplit("/", 1)[-1]
+    if "." in name or request.url.path.startswith("/assets/"):
+        return None
+    if referral_payload(request.url.query) is None:
+        return None
+    target = referral_redirect_url(request.url.query, await container.bot_identity.username())
+    if target is None:
+        return None
+    return RedirectResponse(target, status_code=302)
+
+
 def _register_spa(app: FastAPI, container: Container) -> None:
     not_found = container.catalog.text("errors.not_found")
 
     @app.get("/", include_in_schema=False)
-    async def root() -> Response:
+    async def root(request: Request) -> Response:
+        redirect = await _referral_redirect(request, container)
+        if redirect is not None:
+            return redirect
         return spa_response(
             container.settings.frontend_dist,
             container.settings.logo_path,
@@ -239,7 +255,10 @@ def _register_spa(app: FastAPI, container: Container) -> None:
         )
 
     @app.get("/{full_path:path}", include_in_schema=False)
-    async def spa(full_path: str) -> Response:
+    async def spa(full_path: str, request: Request) -> Response:
+        redirect = await _referral_redirect(request, container)
+        if redirect is not None:
+            return redirect
         return spa_response(
             container.settings.frontend_dist,
             container.settings.logo_path,

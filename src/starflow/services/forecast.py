@@ -3,7 +3,7 @@
 import asyncio
 import json
 import re
-from collections.abc import Callable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from types import SimpleNamespace, TracebackType
@@ -23,6 +23,7 @@ from starflow.domain.calendar_reading import DayMark, accept_calendar, parse_mon
 from starflow.domain.calendar_sign import calendar_sign
 from starflow.domain.errors import Conflict, FieldInvalid
 from starflow.domain.features import TOPICS
+from starflow.domain.invite import referral_link
 from starflow.domain.quota import (
     Allowed,
     LimitReached,
@@ -205,6 +206,7 @@ class ForecastService:
         zone_name: str,
         locale: str,
         mini_app_url: str,
+        bot_name: Callable[[], Awaitable[str]] | None = None,
         clock: Callable[[], datetime] | None = None,
         background: bool = True,
         chart: NatalFacts | None = None,
@@ -221,6 +223,7 @@ class ForecastService:
         self._zone_name = zone_name
         self._locale = locale
         self._mini_app_url = mini_app_url
+        self._bot_name = bot_name
         self._clock = clock or now_utc
         self._background = background
         self._chart = chart
@@ -799,7 +802,8 @@ class ForecastService:
             count = await uow.users.referral_count(user_id)
             earned = await uow.users.referral_stars_earned(user_id)
             await uow.commit()
-        return code, referral_link(self._mini_app_url, code), count, earned
+        username = "" if self._bot_name is None else await self._bot_name()
+        return code, referral_link(self._mini_app_url, code, username), count, earned
 
     async def accept_referral(self, user_id: UUID) -> None:
         async with self._uow_factory() as uow:
@@ -1350,13 +1354,6 @@ def _affirmation_title(text: str) -> str:
     if len(flat) > 80:
         return f"{flat[:79].rstrip()}…"
     return flat or "Аффирмация"
-
-
-def referral_link(base: str, code: str) -> str:
-    if base.strip() == "":
-        return code
-    join = "&" if "?" in base else "?"
-    return f"{base}{join}startapp=ref_{code}"
 
 
 def _pending() -> ReadingView:
