@@ -424,7 +424,7 @@ describe("screens", () => {
       vi.fn<typeof fetch>(async () =>
         Response.json({
           status: "ready",
-          title: "Любовь",
+          title: "Прогноз по финансам на ноябрь",
           body: "Спокойный разговор важнее спешки.",
           greeting: null,
           user_sign: null,
@@ -438,9 +438,10 @@ describe("screens", () => {
     );
     renderAt(<TodayScreen profile={{ ...profile(), is_premium: true }} />);
     await userEvent.click(screen.getByRole("button", { name: "Любовь" }));
-    expect(await screen.findByRole("alertdialog")).toHaveTextContent(
-      "Спокойный разговор важнее спешки.",
-    );
+    const dialog = await screen.findByRole("alertdialog");
+    expect(dialog).toHaveTextContent("Спокойный разговор важнее спешки.");
+    expect(within(dialog).getByRole("heading", { name: "Любовь" })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("heading", { name: "Прогноз по финансам на ноябрь" })).not.toBeInTheDocument();
   });
 
   it("switches the forecast period and supports tomorrow", async () => {

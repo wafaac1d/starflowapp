@@ -90,11 +90,7 @@ export function useTopicDetail(premium: boolean, pair?: PairSigns) {
     />
   ) : title !== "" ? (
     <AlertDialog
-      title={
-        reading.face.phase === "ready" && reading.face.title !== ""
-          ? reading.face.title
-          : title
-      }
+      title={title}
       body={
         reading.face.phase === "ready"
           ? reading.face.body
