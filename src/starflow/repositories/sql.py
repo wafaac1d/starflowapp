@@ -1593,6 +1593,27 @@ class SqlOutboxRepository:
         await self._session.flush()
         return jobs
 
+    async def release_unregistered(self, now: datetime) -> None:
+        await self._session.execute(
+            text(
+                """
+                UPDATE notification_outbox AS o
+                SET status = 'cancelled', updated_at = :now
+                WHERE o.status = 'pending'
+                  AND o.kind IN ('day', 'moon', 'tomorrow', 'retro', 'affirmation')
+                  AND NOT EXISTS (
+                    SELECT 1
+                    FROM profiles AS p
+                    WHERE p.user_id = o.user_id
+                      AND p.onboarding_step = 'done'
+                      AND p.birth_date IS NOT NULL
+                  )
+                """
+            ),
+            {"now": now},
+        )
+        await self._session.flush()
+
     async def mark_sent(self, outbox_id: UUID, sent_at: datetime) -> None:
         row = await self._session.get(NotificationOutboxRow, outbox_id)
         if row is None:

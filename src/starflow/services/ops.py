@@ -168,7 +168,10 @@ class OpsService:
         async with self._uow_factory() as uow:
             premium = await uow.subscriptions.premium_user_ids(now)
             created = 0
+            await uow.outbox.release_unregistered(now)
             for row in await uow.notification_settings.enabled():
+                if not await _registration_done(uow, row.user_id):
+                    continue
                 day = local_date(now, row.timezone).date()
                 if is_due(now, row.timezone, row.digest_local_time):
                     birth = await _birth(uow, row.user_id)
@@ -625,6 +628,13 @@ async def _birth(uow: OpsStore, user_id: UUID) -> date | None:
     if profile is None:
         return None
     return profile.birth_date
+
+
+async def _registration_done(uow: OpsStore, user_id: UUID) -> bool:
+    profile = await uow.profiles.get_by_user_id(user_id)
+    if profile is None or profile.birth_date is None:
+        return False
+    return profile.onboarding_step == "done"
 
 
 def _payload(content: str) -> dict[str, object] | None:

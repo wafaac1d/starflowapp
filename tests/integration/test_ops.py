@@ -358,6 +358,20 @@ async def test_unfinished_registration_is_nudged_once_a_day(database_url: str) -
     assert rows[0].payload["text_key"] == "bot.onboarding_ready_1"
     assert rows[0].payload["page"] == "welcome"
     assert rows[0].payload["button_key"] == "bot.onboarding_button"
+    async with factory() as session:
+        forecast = list(
+            (
+                await session.execute(
+                    select(NotificationOutboxRow).where(
+                        NotificationOutboxRow.user_id.in_((stale_id, fresh_id)),
+                        NotificationOutboxRow.kind.in_(
+                            ("day", "moon", "tomorrow", "retro", "affirmation")
+                        ),
+                    )
+                )
+            ).scalars()
+        )
+    assert forecast == []
     await _ops(factory).plan()
     async with SqlUnitOfWork(factory) as uow:
         await uow.profiles.upsert(stale_id, _draft())
