@@ -1373,6 +1373,11 @@ export interface components {
             body: string;
             /** Audience */
             audience: string;
+            /**
+             * Open App
+             * @default false
+             */
+            open_app: boolean;
         };
         /** BroadcastCreated */
         BroadcastCreated: {

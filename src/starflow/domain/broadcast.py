@@ -15,12 +15,17 @@ class BroadcastJob:
     id: UUID
     body: str
     audience: str
+    open_app: bool = False
 
 
 def audience_ok(value: str) -> bool:
     return value in AUDIENCES
 
 
+def clean_broadcast_text(value: str) -> str:
+    return value.replace("\r\n", "\n").replace("\r", "\n").strip()
+
+
 def broadcast_text_ok(value: str) -> bool:
-    cleaned = value.strip()
+    cleaned = clean_broadcast_text(value)
     return 1 <= len(cleaned) <= BROADCAST_TEXT_MAX

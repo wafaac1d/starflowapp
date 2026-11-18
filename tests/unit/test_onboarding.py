@@ -234,3 +234,4 @@ def test_screen_url_keeps_the_screen_name() -> None:
     assert screen_url("https://app.example/starflow/", "paysupport") == (
         "https://app.example/starflow/paysupport"
     )
+    assert screen_url("https://app.example/starflow/", "home") == "https://app.example/starflow"

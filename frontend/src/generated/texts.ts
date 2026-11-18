@@ -249,6 +249,7 @@ export const texts = {
   "ui.admin.broadcast_title": "Рассылка",
   "ui.admin.broadcast_lead": "Сообщение уходит пачками через уже существующую очередь, не всем сразу.",
   "ui.admin.broadcast_body": "Сообщение",
+  "ui.admin.broadcast_open": "Кнопка открытия приложения",
   "ui.admin.broadcast_audience": "Кому",
   "ui.admin.broadcast_all": "Всем",
   "ui.admin.broadcast_inactive": "Давно не заходили",

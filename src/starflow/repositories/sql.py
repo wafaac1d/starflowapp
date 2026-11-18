@@ -1809,10 +1809,17 @@ class OpsRepository:
             for user_id, telegram_id, username, display_name in result.all()
         )
 
-    async def insert_broadcast(self, body: str, audience: str, now: datetime) -> UUID:
+    async def insert_broadcast(
+        self,
+        body: str,
+        audience: str,
+        now: datetime,
+        open_app: bool = False,
+    ) -> UUID:
         row = BroadcastRow(
             body=body,
             audience=audience,
+            open_app=open_app,
             status="queued",
             created_at=now,
             updated_at=now,
@@ -1830,7 +1837,12 @@ class OpsRepository:
         row = result.scalar_one_or_none()
         if row is None:
             return None
-        return BroadcastJob(id=row.id, body=row.body, audience=row.audience)
+        return BroadcastJob(
+            id=row.id,
+            body=row.body,
+            audience=row.audience,
+            open_app=row.open_app,
+        )
 
     async def finish_broadcast(self, broadcast_id: UUID, now: datetime) -> None:
         await self._session.execute(

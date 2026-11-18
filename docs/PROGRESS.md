@@ -1313,6 +1313,19 @@ D-112. Пока регистрация не закончена, утренние
 | `uv run pytest tests/unit/test_outbox.py tests/unit/test_ops.py` | 0, 8 тестов |
 | `uv run pytest tests/integration/test_ops.py` | 0, 8 тестов |
 
+## Переносы строк и кнопка рассылки, 2026-11-18
+
+D-113. Поле рассылки многострочное, переносы сохраняются. Тумблер добавляет кнопку «Открыть StarFlow» на корень приложения.
+
+| Команда | Код |
+| --- | --- |
+| `node frontend/scripts/compile-texts.mjs` и `--check` | 0 |
+| `uv run ruff check` по затронутым файлам | 0 |
+| `uv run ruff format` по тем же файлам | 0, без правок |
+| `uv run mypy` по шести модулям | 0 |
+| `uv run pytest tests/unit/test_balance_shop.py tests/unit/test_onboarding.py tests/unit/test_contract.py` | 0, 15 тестов |
+| `corepack pnpm exec vitest run src/pages/OpsPages.test.tsx` | 0, 8 тестов |
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

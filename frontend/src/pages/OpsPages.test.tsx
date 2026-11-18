@@ -236,8 +236,9 @@ describe("notice settings, deletion and admin", () => {
     expect(await screen.findByText("Код создан: Лето-1")).toBeInTheDocument();
     await userEvent.type(
       screen.getByRole("textbox", { name: text("ui.admin.broadcast_body") }),
-      "Тихий вечер",
+      "Тихий вечер{Enter}{Enter}Вторая строка",
     );
+    await userEvent.click(screen.getByRole("switch", { name: text("ui.admin.broadcast_open") }));
     await userEvent.selectOptions(
       screen.getByRole("combobox", { name: text("ui.admin.broadcast_audience") }),
       "inactive",
@@ -245,7 +246,11 @@ describe("notice settings, deletion and admin", () => {
     await userEvent.click(screen.getByRole("button", { name: text("ui.admin.broadcast_send") }));
     expect(await screen.findByText(text("ui.admin.broadcast_done"))).toBeInTheDocument();
     expect(sent[0]?.body).toMatchObject({ code: "Лето-1", stars: 50, uses: 1, days: 30 });
-    expect(sent[1]?.body).toEqual({ body: "Тихий вечер", audience: "inactive" });
+    expect(sent[1]?.body).toEqual({
+      body: "Тихий вечер\n\nВторая строка",
+      audience: "inactive",
+      open_app: true,
+    });
   });
 
   it("lists support tickets in admin panel and closes an open ticket", async () => {

@@ -14,7 +14,7 @@ from starflow.ai.catalog import PromptCatalog
 from starflow.ai.client import ModelReply
 from starflow.ai.guard import guarded_copy
 from starflow.cache.two_level import TwoLevelCache
-from starflow.domain.broadcast import audience_ok, broadcast_text_ok
+from starflow.domain.broadcast import audience_ok, broadcast_text_ok, clean_broadcast_text
 from starflow.domain.calendar_sign import calendar_sign
 from starflow.domain.errors import Conflict, FieldInvalid
 from starflow.domain.notify_clock import (
@@ -123,15 +123,22 @@ class OpsService:
         self._pro_model = pro_model
         self._clock = clock or now_utc
 
-    async def queue_broadcast(self, *, actor_is_admin: bool, body: str, audience: str) -> UUID:
+    async def queue_broadcast(
+        self,
+        *,
+        actor_is_admin: bool,
+        body: str,
+        audience: str,
+        open_app: bool = False,
+    ) -> UUID:
         if not actor_is_admin:
             raise FieldInvalid("admin", "errors.unauthorized")
-        cleaned = body.strip()
+        cleaned = clean_broadcast_text(body)
         if not broadcast_text_ok(cleaned) or not audience_ok(audience):
             raise FieldInvalid("body", "errors.validation")
         now = self._clock()
         async with self._uow_factory() as uow:
-            broadcast_id = await uow.ops.insert_broadcast(cleaned, audience, now)
+            broadcast_id = await uow.ops.insert_broadcast(cleaned, audience, now, open_app=open_app)
             await uow.commit()
         return broadcast_id
 
@@ -156,7 +163,9 @@ class OpsService:
                         day,
                         now,
                         event_key=str(job.id),
+                        page="home" if job.open_app else "",
                         body=job.body,
+                        button_key="bot.open" if job.open_app else "",
                     )
                 await uow.ops.remember_broadcast_target(job.id, user_id)
             await uow.commit()

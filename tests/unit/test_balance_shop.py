@@ -1,7 +1,12 @@
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from starflow.domain.broadcast import BroadcastJob, audience_ok, broadcast_text_ok
+from starflow.domain.broadcast import (
+    BroadcastJob,
+    audience_ok,
+    broadcast_text_ok,
+    clean_broadcast_text,
+)
 from starflow.domain.codes import BalanceCode, code_name_ok
 from starflow.domain.entitlement import Grant
 from starflow.domain.errors import Conflict, FieldInvalid
@@ -85,6 +90,7 @@ def test_code_and_audience_rules() -> None:
     assert broadcast_text_ok("  ") is False
     assert broadcast_text_ok("x" * 500) is True
     assert broadcast_text_ok("x" * 501) is False
+    assert clean_broadcast_text("Первая\r\n\r\nВторая") == "Первая\n\nВторая"
 
 
 async def test_premium_from_balance_extends_and_does_not_repeat() -> None:
@@ -179,7 +185,7 @@ async def test_balance_code_credits_once() -> None:
 
 async def test_broadcast_fills_a_batch_and_then_finishes() -> None:
     person = UUID(int=7)
-    sent: list[str] = []
+    sent: list[tuple[str, str, str]] = []
 
     class _Ops:
         def __init__(self) -> None:
@@ -189,7 +195,12 @@ async def test_broadcast_fills_a_batch_and_then_finishes() -> None:
         async def next_queued_broadcast(self) -> BroadcastJob | None:
             if self.finished:
                 return None
-            return BroadcastJob(id=UUID(int=4), body="Тихий вечер", audience="all")
+            return BroadcastJob(
+                id=UUID(int=4),
+                body="Тихий вечер\n\nВторая строка",
+                audience="all",
+                open_app=True,
+            )
 
         async def broadcast_user_ids(
             self,
@@ -220,8 +231,9 @@ async def test_broadcast_fills_a_batch_and_then_finishes() -> None:
             page: str = "",
             planet: str = "",
             body: str = "",
+            button_key: str = "",
         ) -> UUID:
-            sent.append(body)
+            sent.append((body, page, button_key))
             return user_id
 
     class _Box:
@@ -252,6 +264,6 @@ async def test_broadcast_fills_a_batch_and_then_finishes() -> None:
         pro_model="deepseek-v4-pro",
     )
     assert await service.fill_broadcasts() == 1
-    assert sent == ["Тихий вечер"]
+    assert sent == [("Тихий вечер\n\nВторая строка", "home", "bot.open")]
     assert await service.fill_broadcasts() == 0
     assert ops.finished is True

@@ -14,6 +14,7 @@ import {
 import { queryKeys } from "../api/keys";
 import { BackHome, Button } from "../components/ui/controls";
 import { formatText, text } from "../resources";
+import { Toggle } from "../shared/ui/Toggle/Toggle";
 import styles from "./AdminPage.module.css";
 
 type AdminPageProps = {
@@ -42,6 +43,7 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
   const [codeDays, setCodeDays] = useState("30");
   const [codeNotice, setCodeNotice] = useState("");
   const [message, setMessage] = useState("");
+  const [openApp, setOpenApp] = useState(false);
   const [audience, setAudience] = useState<(typeof AUDIENCES)[number]["id"]>("all");
   const [broadcastNotice, setBroadcastNotice] = useState("");
   const client = useQueryClient();
@@ -72,9 +74,10 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
     },
   });
   const broadcast = useMutation({
-    mutationFn: () => queueBroadcast(message.trim(), audience, fetchImpl),
+    mutationFn: () => queueBroadcast(message.trim(), audience, openApp, fetchImpl),
     onSuccess: () => {
       setMessage("");
+      setOpenApp(false);
       setAudience("all");
       setBroadcastNotice(text("ui.admin.broadcast_done"));
     },
@@ -221,13 +224,19 @@ export function AdminPage({ isAdmin, fetchImpl = fetch }: AdminPageProps) {
       <div className={styles.form}>
         <label className="field">
           <span>{text("ui.admin.broadcast_body")}</span>
-          <input
+          <textarea
+            className={styles.message}
             value={message}
             onChange={(event) => {
               setMessage(event.target.value);
             }}
           />
         </label>
+        <Toggle
+          label={text("ui.admin.broadcast_open")}
+          checked={openApp}
+          onChange={setOpenApp}
+        />
         <label className="field">
           <span>{text("ui.admin.broadcast_audience")}</span>
           <select

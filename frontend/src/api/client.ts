@@ -885,11 +885,12 @@ export async function createBalanceCode(
 export async function queueBroadcast(
   body: string,
   audience: string,
+  openApp: boolean,
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ id: string; status: string }> {
   return requestJson<{ id: string; status: string }>(
     "/api/v1/admin/broadcasts",
-    { method: "POST", body: JSON.stringify({ body, audience }) },
+    { method: "POST", body: JSON.stringify({ body, audience, open_app: openApp }) },
     fetchImpl,
   );
 }

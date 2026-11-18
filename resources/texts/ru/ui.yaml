@@ -145,6 +145,7 @@ admin:
   broadcast_title: Рассылка
   broadcast_lead: Сообщение уходит пачками через уже существующую очередь, не всем сразу.
   broadcast_body: Сообщение
+  broadcast_open: Кнопка открытия приложения
   broadcast_audience: Кому
   broadcast_all: Всем
   broadcast_inactive: Давно не заходили

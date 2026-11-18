@@ -3377,6 +3377,11 @@
             "maxLength": 16,
             "minLength": 1,
             "title": "Audience"
+          },
+          "open_app": {
+            "type": "boolean",
+            "title": "Open App",
+            "default": false
           }
         },
         "type": "object",

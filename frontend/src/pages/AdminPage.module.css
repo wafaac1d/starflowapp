@@ -35,10 +35,23 @@
   gap: var(--space-6);
 }
 
-.form label {
+.form > label.field {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+.message {
+  width: 100%;
+  min-height: 140px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font: var(--font-body);
+  resize: vertical;
+  box-sizing: border-box;
 }
 
 .form label:has(input[type="checkbox"]) {

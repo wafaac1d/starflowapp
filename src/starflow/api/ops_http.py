@@ -107,6 +107,7 @@ class BalanceCodeCreated(BaseModel):
 class BroadcastCreate(BaseModel):
     body: str = Field(min_length=1, max_length=500)
     audience: str = Field(min_length=1, max_length=16)
+    open_app: bool = False
 
 
 class BroadcastCreated(BaseModel):
@@ -319,6 +320,7 @@ def register_ops_routes(router: APIRouter, container: Container) -> None:
                 actor_is_admin=True,
                 body=body.body,
                 audience=body.audience,
+                open_app=body.open_app,
             )
         except FieldInvalid as error:
             raise _field(container, error) from error
