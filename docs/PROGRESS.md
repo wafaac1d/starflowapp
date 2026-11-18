@@ -1326,6 +1326,19 @@ D-113. Поле рассылки многострочное, переносы с
 | `uv run pytest tests/unit/test_balance_shop.py tests/unit/test_onboarding.py tests/unit/test_contract.py` | 0, 15 тестов |
 | `corepack pnpm exec vitest run src/pages/OpsPages.test.tsx` | 0, 8 тестов |
 
+## Текстовый стол бота, 2026-11-18
+
+D-114. В чате бота доступны те же функции, что в приложении. У ответа остаётся кнопка «Открыть StarFlow». Платное списание происходит после «да». Добавление близкого, тема и избранное остаются в приложении. Экран Mini App не менялся, браузер не открывался.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по `bot_desk.py`, `profile.py`, `handlers.py`, `bootstrap.py` и трём тестам | 0 |
+| `uv run ruff format` по тем же файлам | 0, переформатированы 3 файла |
+| `node frontend/scripts/compile-texts.mjs` и `--check` | 0 |
+| `uv run mypy` по `bot_desk.py`, `handlers.py`, `bootstrap.py`, `profile.py` | 0 |
+| `uv run pytest tests/unit/test_bot_desk.py tests/unit/test_bot_reply.py tests/unit/test_onboarding.py` | 0, 27 тестов |
+| `uv run pytest tests/unit/test_skeleton.py tests/unit/test_contract.py` | 0, 17 тестов |
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.

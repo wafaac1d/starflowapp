@@ -32,6 +32,7 @@ from starflow.services.access import AccessService
 from starflow.services.affirmations import AffirmationsService
 from starflow.services.assistant import AssistantService
 from starflow.services.billing import BillingService
+from starflow.services.bot_desk import BotDesk
 from starflow.services.chart import ChartService
 from starflow.services.favorable import FavorableService
 from starflow.services.forecast import ForecastService
@@ -62,6 +63,41 @@ REQUIRED_TEXTS = (
     "bot.start_missing_user",
     "bot.digest",
     "bot.help",
+    "bot.chat_menu",
+    "bot.ask_privacy",
+    "bot.ask_name",
+    "bot.ask_date",
+    "bot.ask_time",
+    "bot.ask_place",
+    "bot.ask_zone",
+    "bot.price_ask",
+    "bot.price_short",
+    "bot.balance_line",
+    "bot.code_ok",
+    "bot.people_empty",
+    "bot.people_head",
+    "bot.person_missing",
+    "bot.profile_card",
+    "bot.premium_on",
+    "bot.premium_off",
+    "bot.premium_ask",
+    "bot.premium_bought",
+    "bot.reading_wait",
+    "bot.reading_error",
+    "bot.reading_partial",
+    "bot.limit_hit",
+    "bot.premium_only",
+    "bot.compat_hint",
+    "bot.compat_need",
+    "bot.compat_more",
+    "bot.retro_list",
+    "bot.retro_none",
+    "bot.retro_hint",
+    "bot.referral_line",
+    "bot.chart_partial",
+    "bot.favorable_locked",
+    "bot.favorable_need",
+    "bot.step_pending",
     "bot.profile",
     "bot.settings",
     "bot.premium",
@@ -410,6 +446,21 @@ def build_container(settings: Settings) -> Container:
         catalog,
         bot_identity,
     )
+    desk = BotDesk(
+        profile_service,
+        forecast_service,
+        assistant_service,
+        stars_service,
+        chart_service,
+        affirmations_service,
+        favorable_service,
+        retro_service,
+        ops_service,
+        catalog,
+        zone_name=settings.default_timezone,
+        premium_price=plans.premium.price_stars,
+        premium_days=plans.premium.period_days,
+    )
     register_handlers(
         router,
         session_service,
@@ -418,6 +469,7 @@ def build_container(settings: Settings) -> Container:
         billing_service,
         ops_service,
         frozenset(settings.admin_ids),
+        desk,
     )
     dispatcher.include_router(router)
     scheduler_runtime = SchedulerRuntime(

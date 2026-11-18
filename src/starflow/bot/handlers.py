@@ -2,7 +2,7 @@ import asyncio
 import contextlib
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, time, timedelta
-from typing import Any
+from typing import Any, Protocol
 
 import structlog
 from aiogram import F, Router
@@ -27,23 +27,28 @@ from starflow.domain.time import now_utc
 from starflow.i18n.catalog import Catalog
 from starflow.i18n.guard import redact
 from starflow.services.billing import BillingService
+from starflow.services.bot_desk import BotDesk
 from starflow.services.ops import OpsService
-from starflow.services.session import SessionService
+from starflow.services.session import SessionService, SessionView
 
 _LOG = structlog.get_logger("bot")
 _bg_tasks: set[asyncio.Task[None]] = set()
 
 WELCOME_MESSAGE = (
     "Добро пожаловать в обсерваторию StarFlow! 🔭\n\n"
-    "Открой приложение, чтобы продолжить — нажми на кнопку под сообщением 👇 "
-)
-
-FOLLOWUP_MESSAGE = (
-    "Я не отвечаю команды, а всё самое интересное — в обсерватории StarFlow 🔭\n\n"
-    "Нажми на кнопку ниже, чтобы открыть приложение 👇"
+    "Открой приложение кнопкой ниже или напиши в чат, что нужно 👇"
 )
 
 BUTTON_TEXT = "Открыть StarFlow"
+
+_SCREEN_PHRASE = {
+    "help": "меню",
+    "profile": "профиль",
+    "settings": "настройки",
+    "premium": "премиум",
+    "terms": "условия",
+    "paysupport": "поддержка",
+}
 
 
 class UpdateContextMiddleware(BaseMiddleware):
@@ -126,6 +131,7 @@ def register_handlers(
     billing: BillingService,
     ops: OpsService,
     admins: frozenset[int],
+    desk: BotDesk,
 ) -> None:
     pending_refund: dict[int, tuple[str, str]] = {}
 
@@ -169,20 +175,18 @@ def register_handlers(
         structlog.contextvars.bind_contextvars(
             telegram_id=user.id, telegramId=user.id, user_id=user.id
         )
-        await session_service.accept_telegram_user(
-            user.id,
-            user.username,
-            user.language_code,
+        await _chat(
+            message,
+            session_service,
+            desk,
+            catalog,
+            mini_app_url,
+            "меню",
             command.args,
         )
-        is_first = await session_service.mark_bot_welcomed(user.id)
-        if is_first:
-            await _reply_welcome(message, catalog, mini_app_url)
-        else:
-            await _reply_followup(message, catalog, mini_app_url)
 
     for screen in SCREENS:
-        _register_screen(router, session_service, catalog, mini_app_url, screen)
+        _register_screen(router, session_service, desk, catalog, mini_app_url, screen)
 
     @router.message(Command("delete_me"))
     async def on_delete(message: Message) -> None:
@@ -264,17 +268,7 @@ def register_handlers(
         structlog.contextvars.bind_contextvars(
             telegram_id=user.id, telegramId=user.id, user_id=user.id
         )
-        await session_service.accept_telegram_user(
-            user.id,
-            user.username,
-            user.language_code,
-            None,
-        )
-        is_first = await session_service.mark_bot_welcomed(user.id)
-        if is_first:
-            await _reply_welcome(message, catalog, mini_app_url)
-        else:
-            await _reply_followup(message, catalog, mini_app_url)
+        await _chat(message, session_service, desk, catalog, mini_app_url, message.text or "")
 
     @router.callback_query(F.data == "delete_me")
     async def on_delete_confirmed(query: CallbackQuery) -> None:
@@ -292,22 +286,21 @@ def register_handlers(
 def _register_screen(
     router: Router,
     session_service: SessionService,
+    desk: BotDesk,
     catalog: Catalog,
     mini_app_url: str,
     screen: str,
 ) -> None:
+    phrase = _SCREEN_PHRASE[screen]
+
     @router.message(Command(screen))
-    async def on_screen(message: Message) -> None:
+    async def on_screen(message: Message, phrase: str = phrase) -> None:
         user = message.from_user
         if user is not None:
             structlog.contextvars.bind_contextvars(
                 telegram_id=user.id, telegramId=user.id, user_id=user.id
             )
-            is_first = await session_service.mark_bot_welcomed(user.id)
-            if is_first:
-                await _reply_welcome(message, catalog, mini_app_url)
-                return
-        await _reply_followup(message, catalog, mini_app_url)
+        await _chat(message, session_service, desk, catalog, mini_app_url, phrase)
 
 
 def _make_keyboards(
@@ -342,22 +335,84 @@ async def _reply_welcome(
         text,
         reply_markup=inline_kb,
     )
+    _remember_menu(message, mini_app_url)
+
+
+class ChatSession(Protocol):
+    async def accept_telegram_user(
+        self,
+        telegram_id: int,
+        username: str | None,
+        language_code: str | None,
+        start_param: str | None = None,
+    ) -> SessionView: ...
+
+    async def mark_bot_welcomed(self, telegram_id: int) -> bool: ...
+
+
+async def _chat(
+    message: Message,
+    session_service: ChatSession,
+    desk: BotDesk,
+    catalog: Catalog,
+    mini_app_url: str,
+    text: str,
+    start_param: str | None = None,
+) -> None:
+    user = message.from_user
+    if user is None:
+        await message.answer(catalog.text("bot.start_missing_user"))
+        return
+    structlog.contextvars.bind_contextvars(telegram_id=user.id, telegramId=user.id, user_id=user.id)
+    accepted = await session_service.accept_telegram_user(
+        user.id,
+        user.username,
+        user.language_code,
+        start_param,
+    )
+    is_first = await session_service.mark_bot_welcomed(user.id)
+    try:
+        body = await desk.answer(accepted.user_id, text)
+    except Exception:
+        _LOG.exception("bot_desk_failed")
+        body = catalog.text("bot.reading_error")
+    if is_first:
+        body = f"{WELCOME_MESSAGE}\n\n{body}"
+        _remember_menu(message, mini_app_url)
+    await _send_app(message, catalog, mini_app_url, body)
+
+
+def _remember_menu(message: Message, mini_app_url: str) -> None:
     bot = message.bot
-    if bot is not None:
+    if bot is None or not mini_app_url:
+        return
 
-        async def _set_menu() -> None:
-            with contextlib.suppress(Exception):
-                await bot.set_chat_menu_button(
-                    chat_id=message.chat.id,
-                    menu_button=MenuButtonWebApp(
-                        text=button_text,
-                        web_app=WebAppInfo(url=mini_app_url),
-                    ),
-                )
+    async def _set_menu() -> None:
+        with contextlib.suppress(Exception):
+            await bot.set_chat_menu_button(
+                chat_id=message.chat.id,
+                menu_button=MenuButtonWebApp(
+                    text=BUTTON_TEXT,
+                    web_app=WebAppInfo(url=mini_app_url),
+                ),
+            )
 
-        task = asyncio.create_task(_set_menu())
-        _bg_tasks.add(task)
-        task.add_done_callback(_bg_tasks.discard)
+    task = asyncio.create_task(_set_menu())
+    _bg_tasks.add(task)
+    task.add_done_callback(_bg_tasks.discard)
+
+
+async def _send_app(
+    message: Message,
+    catalog: Catalog,
+    mini_app_url: str,
+    text: str,
+) -> None:
+    if not mini_app_url:
+        await message.answer(f"{text}\n\n{catalog.text('bot.start_without_app')}")
+        return
+    inline_kb, _ = _make_keyboards(mini_app_url, BUTTON_TEXT)
+    await message.answer(text, reply_markup=inline_kb)
 
 
 async def _reply_followup(
@@ -368,13 +423,8 @@ async def _reply_followup(
     if not mini_app_url:
         await message.answer(catalog.text("bot.start_without_app"))
         return
-    text = FOLLOWUP_MESSAGE
-    button_text = BUTTON_TEXT
-    inline_kb, _ = _make_keyboards(mini_app_url, button_text)
-    await message.answer(
-        text,
-        reply_markup=inline_kb,
-    )
+    inline_kb, _ = _make_keyboards(mini_app_url, BUTTON_TEXT)
+    await message.answer(catalog.text("bot.chat_menu"), reply_markup=inline_kb)
 
 
 async def _open(

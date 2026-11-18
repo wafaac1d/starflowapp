@@ -2,7 +2,6 @@ import pytest
 
 from starflow.bot.handlers import (
     BUTTON_TEXT,
-    FOLLOWUP_MESSAGE,
     WELCOME_MESSAGE,
     _open,
     _reply_followup,
@@ -26,6 +25,7 @@ def _catalog() -> Catalog:
             "bot.start": "откройте приложение",
             "bot.open": "открыть starflow",
             "bot.start_without_app": "кнопки нет",
+            "bot.chat_menu": "Меню: день и карта.",
         },
     )
 
@@ -79,9 +79,8 @@ async def test_subsequent_messages_send_followup_with_app_button() -> None:
     message = _Message()
     await _reply_followup(message, _catalog(), "https://t.me/starflowapp/bot")
     text, markup = message.sent[0]
-    assert text == FOLLOWUP_MESSAGE
-    assert "Я не отвечаю команды" in text
-    assert "StarFlow" in text
+    assert text == "Меню: день и карта."
+    assert "день" in text
     assert markup is not None
     button = markup.inline_keyboard[0][0]
     assert button.text == BUTTON_TEXT

@@ -89,6 +89,15 @@ class ProfileService:
             await uow.commit()
         return updated
 
+    async def skip_place(self, user_id: UUID) -> Profile:
+        async with self._uow_factory() as uow:
+            profile = await uow.profiles.ensure(user_id)
+            if profile.onboarding_step != "place":
+                raise FieldInvalid("step", "errors.validation")
+            updated = await uow.profiles.save_onboarding(user_id, step="done")
+            await uow.commit()
+        return updated
+
     async def continue_draft(self, user_id: UUID, incoming: DraftInput) -> Profile:
         async with self._uow_factory() as uow:
             profile = await uow.profiles.ensure(user_id)

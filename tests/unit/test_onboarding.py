@@ -230,6 +230,31 @@ async def test_registration_waits_for_the_privacy_agreement() -> None:
         await service.accept_privacy(user_id, False)
 
 
+async def test_place_step_can_be_finished_without_a_place() -> None:
+    user_id = UUID("00000000-0000-0000-0000-000000000043")
+    profiles = _Profiles(
+        Profile(
+            id=user_id,
+            user_id=user_id,
+            display_name="Анна",
+            birth_date=date(1995, 8, 12),
+            birth_time=time(14, 30),
+            birth_time_unknown=False,
+            birth_place=None,
+            latitude=None,
+            longitude=None,
+            timezone="Europe/Moscow",
+            onboarding_step="place",
+            privacy_policy_version=PRIVACY_VERSION,
+        )
+    )
+    service = ProfileService(lambda: _Work(profiles), _Zones())
+    finished = await service.skip_place(user_id)
+    assert finished.onboarding_step == "done"
+    with pytest.raises(FieldInvalid):
+        await service.skip_place(user_id)
+
+
 def test_screen_url_keeps_the_screen_name() -> None:
     assert screen_url("https://app.example/starflow/", "paysupport") == (
         "https://app.example/starflow/paysupport"
