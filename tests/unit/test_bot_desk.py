@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from starflow.bot.handlers import BUTTON_TEXT, WELCOME_MESSAGE, _chat
+from starflow.bot.handlers import BUTTON_TEXT, _chat, _step_messages
 from starflow.cache.memory import MemoryCache
 from starflow.domain.affirmations import AffirmationCard
 from starflow.domain.errors import FieldInvalid
@@ -311,8 +311,8 @@ def _desk(state: _State) -> BotDesk:
 async def test_menu_lists_text_commands_and_the_app() -> None:
     state = _State(_profile())
     text = await _desk(state).answer(USER, "меню")
+    assert "Прогноз" in text
     assert "день" in text
-    assert "Кнопка ниже открывает приложение" in text
     assert "не обещает точных событий" in text
     assert state.bought == []
 
@@ -405,7 +405,9 @@ async def test_registration_accepts_a_date_and_blocks_commands() -> None:
     assert "14:30" in await desk.answer(USER, "02051990")
     assert state.drafts[-1].birth_date == "02.05.1990"
     finished = await desk.answer(USER, "не знаю")
-    assert "день" in finished
+    assert finished.advance
+    assert "аккаунт" in finished
+    assert "Мария" in finished
     assert state.profile.onboarding_step == "done"
 
 
@@ -476,8 +478,9 @@ class _Person:
     language_code = "ru"
 
 
-async def test_chat_reply_keeps_the_open_app_button() -> None:
-    state = _State(_profile())
+async def test_chat_button_is_only_on_the_opening_message() -> None:
+    state = _State(_profile(name="Мария"))
+    state.profile = replace(state.profile, birth_place="Минск")
     message = _Incoming()
     await _chat(
         message,  # type: ignore[arg-type]
@@ -489,12 +492,71 @@ async def test_chat_reply_keeps_the_open_app_button() -> None:
     )
     text, markup = message.sent[0]
     assert "Спокойный фон." in text
-    assert markup is not None
-    button = markup.inline_keyboard[0][0]
+    assert markup is None
+
+    opened = _Incoming()
+    await _chat(
+        opened,  # type: ignore[arg-type]
+        _Sessions(True),
+        _desk(state),
+        _catalog(),
+        "https://t.me/starflowapp/bot",
+        "меню",
+        opening=True,
+        with_button=True,
+    )
+    card, button_markup = opened.sent[0]
+    assert "Мария" in card
+    assert "15.01.1990" in card
+    assert "Минск" in card
+    assert "аккаунт" in card
+    assert button_markup is not None
+    button = button_markup.inline_keyboard[0][0]
     assert button.text == BUTTON_TEXT
     assert button.web_app.url == "https://t.me/starflowapp/bot"
 
-    first = _Incoming()
+
+class _Sent:
+    def __init__(self, message_id: int) -> None:
+        self.message_id = message_id
+
+
+class _Room:
+    id = 7
+
+
+class _DeleteBot:
+    def __init__(self) -> None:
+        self.deleted: list[tuple[int, int]] = []
+
+    async def delete_message(self, chat_id: int, message_id: int) -> None:
+        self.deleted.append((chat_id, message_id))
+
+
+class _StepMessage:
+    def __init__(self, bot: _DeleteBot, message_id: int) -> None:
+        self.from_user = _Person()
+        self.bot = bot
+        self.chat = _Room()
+        self.message_id = message_id
+        self.sent: list[_Sent] = []
+        self.removed = False
+
+    async def answer(self, text: str, reply_markup: Any = None) -> _Sent:
+        del text, reply_markup
+        sent = _Sent(50 + self.message_id)
+        self.sent.append(sent)
+        return sent
+
+    async def delete(self) -> None:
+        self.removed = True
+
+
+async def test_registration_step_removes_the_previous_question() -> None:
+    _step_messages.clear()
+    state = _State(_profile(step="welcome", privacy=None, name=None))
+    bot = _DeleteBot()
+    first = _StepMessage(bot, 1)
     await _chat(
         first,  # type: ignore[arg-type]
         _Sessions(True),
@@ -502,7 +564,19 @@ async def test_chat_reply_keeps_the_open_app_button() -> None:
         _catalog(),
         "https://t.me/starflowapp/bot",
         "меню",
+        opening=True,
+        with_button=True,
     )
-    welcome, _markup = first.sent[0]
-    assert welcome.startswith(WELCOME_MESSAGE)
-    assert "день" in welcome
+    question_id = first.sent[0].message_id
+    second = _StepMessage(bot, 2)
+    await _chat(
+        second,  # type: ignore[arg-type]
+        _Sessions(False),
+        _desk(state),
+        _catalog(),
+        "https://t.me/starflowapp/bot",
+        "принимаю",
+    )
+    assert (7, question_id) in bot.deleted
+    assert second.removed
+    assert not first.removed

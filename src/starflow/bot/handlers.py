@@ -27,7 +27,7 @@ from starflow.domain.time import now_utc
 from starflow.i18n.catalog import Catalog
 from starflow.i18n.guard import redact
 from starflow.services.billing import BillingService
-from starflow.services.bot_desk import BotDesk
+from starflow.services.bot_desk import BotDesk, DeskReply
 from starflow.services.ops import OpsService
 from starflow.services.session import SessionService, SessionView
 
@@ -40,6 +40,7 @@ WELCOME_MESSAGE = (
 )
 
 BUTTON_TEXT = "Открыть StarFlow"
+_step_messages: dict[int, int] = {}
 
 _SCREEN_PHRASE = {
     "help": "меню",
@@ -183,6 +184,8 @@ def register_handlers(
             mini_app_url,
             "меню",
             command.args,
+            opening=True,
+            with_button=True,
         )
 
     for screen in SCREENS:
@@ -358,6 +361,9 @@ async def _chat(
     mini_app_url: str,
     text: str,
     start_param: str | None = None,
+    *,
+    opening: bool = False,
+    with_button: bool = False,
 ) -> None:
     user = message.from_user
     if user is None:
@@ -370,16 +376,19 @@ async def _chat(
         user.language_code,
         start_param,
     )
-    is_first = await session_service.mark_bot_welcomed(user.id)
+    await session_service.mark_bot_welcomed(user.id)
     try:
-        body = await desk.answer(accepted.user_id, text)
+        reply = await desk.answer(accepted.user_id, text, opening=opening)
     except Exception:
         _LOG.exception("bot_desk_failed")
-        body = catalog.text("bot.reading_error")
-    if is_first:
-        body = f"{WELCOME_MESSAGE}\n\n{body}"
-        _remember_menu(message, mini_app_url)
-    await _send_app(message, catalog, mini_app_url, body)
+        reply = DeskReply(catalog.text("bot.reading_error"))
+    if reply.advance:
+        await _clear_step(message, user.id)
+    sent = await _send(message, catalog, mini_app_url, reply, with_button=with_button)
+    if reply.track:
+        message_id = getattr(sent, "message_id", None)
+        if isinstance(message_id, int):
+            _step_messages[user.id] = message_id
 
 
 def _remember_menu(message: Message, mini_app_url: str) -> None:
@@ -402,17 +411,34 @@ def _remember_menu(message: Message, mini_app_url: str) -> None:
     task.add_done_callback(_bg_tasks.discard)
 
 
-async def _send_app(
+async def _send(
     message: Message,
     catalog: Catalog,
     mini_app_url: str,
     text: str,
-) -> None:
-    if not mini_app_url:
-        await message.answer(f"{text}\n\n{catalog.text('bot.start_without_app')}")
-        return
-    inline_kb, _ = _make_keyboards(mini_app_url, BUTTON_TEXT)
-    await message.answer(text, reply_markup=inline_kb)
+    *,
+    with_button: bool,
+) -> object:
+    if with_button and not mini_app_url:
+        return await message.answer(f"{text}\n\n{catalog.text('bot.start_without_app')}")
+    markup = None
+    if with_button:
+        markup, _ = _make_keyboards(mini_app_url, BUTTON_TEXT)
+    return await message.answer(text, reply_markup=markup)
+
+
+async def _clear_step(message: Message, telegram_id: int) -> None:
+    previous = _step_messages.pop(telegram_id, None)
+    bot = message.bot
+    chat = getattr(message, "chat", None)
+    chat_id = getattr(chat, "id", None)
+    if bot is not None and isinstance(previous, int) and isinstance(chat_id, int):
+        with contextlib.suppress(Exception):
+            await bot.delete_message(chat_id=chat_id, message_id=previous)
+    delete = getattr(message, "delete", None)
+    if delete is not None:
+        with contextlib.suppress(Exception):
+            await delete()
 
 
 async def _reply_followup(
@@ -420,11 +446,8 @@ async def _reply_followup(
     catalog: Catalog,
     mini_app_url: str,
 ) -> None:
-    if not mini_app_url:
-        await message.answer(catalog.text("bot.start_without_app"))
-        return
-    inline_kb, _ = _make_keyboards(mini_app_url, BUTTON_TEXT)
-    await message.answer(catalog.text("bot.chat_menu"), reply_markup=inline_kb)
+    del mini_app_url
+    await message.answer(catalog.text("bot.chat_menu"))
 
 
 async def _open(

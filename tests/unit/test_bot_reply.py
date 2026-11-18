@@ -81,10 +81,7 @@ async def test_subsequent_messages_send_followup_with_app_button() -> None:
     text, markup = message.sent[0]
     assert text == "Меню: день и карта."
     assert "день" in text
-    assert markup is not None
-    button = markup.inline_keyboard[0][0]
-    assert button.text == BUTTON_TEXT
-    assert button.web_app.url == "https://t.me/starflowapp/bot"
+    assert markup is None
 
 
 class _FakeUser:

@@ -112,6 +112,24 @@ _PROMPTS = {
 }
 
 
+class DeskReply(str):
+    """Текст ответа. advance удаляет прошлый шаг, track запоминает новый вопрос."""
+
+    advance: bool
+    track: bool
+
+    def __new__(
+        cls,
+        text: str,
+        advance: bool = False,
+        track: bool = False,
+    ) -> "DeskReply":
+        reply = str.__new__(cls, text)
+        reply.advance = advance
+        reply.track = track
+        return reply
+
+
 @dataclass(frozen=True)
 class _Intent:
     name: str
@@ -262,35 +280,60 @@ class BotDesk:
         self._pairs: dict[UUID, tuple[str, str]] = {}
         self._events: dict[UUID, tuple[str, str, str]] = {}
 
-    async def answer(self, user_id: UUID, text: str) -> str:
+    async def answer(self, user_id: UUID, text: str, *, opening: bool = False) -> DeskReply:
         try:
-            body = await self._answer(user_id, text)
+            reply = await self._answer(user_id, text, opening=opening)
         except FieldInvalid as error:
-            body = self._known(error.message_key, "bot.reading_error")
-        return _clip(body)
+            reply = DeskReply(self._known(error.message_key, "bot.reading_error"))
+        return DeskReply(_clip(reply), reply.advance, reply.track)
 
-    async def _answer(self, user_id: UUID, text: str) -> str:
+    async def _answer(self, user_id: UUID, text: str, *, opening: bool) -> DeskReply:
         raw = text.strip()
         if raw.startswith("/"):
             raw = raw[1:].strip()
-        if raw == "":
-            return self._text("bot.chat_menu")
         profile, premium, _sign = await self._profile.read(user_id)
+        if opening and _registered(profile):
+            return DeskReply(await self._home(user_id))
         if not _registered(profile):
-            if _intent(raw) is not None:
-                return f"{self._text('bot.step_pending')}\n\n{self._prompt(profile)}"
-            return await self._draft(user_id, profile, raw)
+            return await self._registration(user_id, profile, raw, opening=opening)
+        if raw == "":
+            return DeskReply(self._text("bot.chat_menu"))
         folded = _fold(raw)
         if folded in _YES:
             hold = self._pending.pop(user_id, None)
             if hold is None:
-                return self._text("bot.chat_menu")
-            return await self._confirm(user_id, hold)
+                return DeskReply(self._text("bot.chat_menu"))
+            return DeskReply(await self._confirm(user_id, hold))
         intent = _intent(raw)
         if intent is None:
-            return await self._assistant_offer(user_id, raw, premium)
+            return DeskReply(await self._assistant_offer(user_id, raw, premium))
         self._pending.pop(user_id, None)
-        return await self._dispatch(user_id, intent, premium)
+        return DeskReply(await self._dispatch(user_id, intent, premium))
+
+    async def _registration(
+        self,
+        user_id: UUID,
+        profile: Profile,
+        raw: str,
+        *,
+        opening: bool,
+    ) -> DeskReply:
+        if opening or raw == "":
+            return DeskReply(self._prompt(profile), track=True)
+        if _intent(raw) is not None:
+            pending = f"{self._text('bot.step_pending')}\n\n{self._prompt(profile)}"
+            return DeskReply(pending)
+        before_step = profile.onboarding_step
+        before_privacy = profile.privacy_policy_version
+        body = await self._draft(user_id, profile, raw)
+        current, _premium, _sign = await self._profile.read(user_id)
+        moved = (
+            current.onboarding_step != before_step
+            or current.privacy_policy_version != before_privacy
+        )
+        if moved and _registered(current):
+            body = await self._home(user_id)
+        return DeskReply(body, advance=moved, track=moved and not _registered(current))
 
     async def _draft(self, user_id: UUID, profile: Profile, raw: str) -> str:
         folded = _fold(raw)
@@ -695,7 +738,7 @@ class BotDesk:
     async def _premium_status(self, user_id: UUID) -> str:
         _profile, premium, _sign = await self._profile.read(user_id)
         state = "bot.premium_on" if premium else "bot.premium_off"
-        return f"{self._text(state)}\n\n{self._text('bot.premium')}"
+        return f"Premium\n\n{self._text(state)}\n\n{self._text('bot.premium')}"
 
     async def _premium_offer(self, user_id: UUID) -> str:
         _profile, premium, _sign = await self._profile.read(user_id)
@@ -709,12 +752,13 @@ class BotDesk:
         rows = await self._forecast.related(user_id)
         if not rows:
             return self._text("bot.people_empty")
-        lines = [self._text("bot.people_head")]
+        lines = [self._text("bot.people_head"), ""]
         for person in rows:
             born = (
                 "без даты" if person.birth_date is None else person.birth_date.strftime("%d.%m.%Y")
             )
-            lines.append(f"{person.display_name}, {born}")
+            lines.append(f"{person.display_name}\n{born}\n")
+        lines.append(self._text("bot.people_hint"))
         return "\n".join(lines)
 
     async def _person(self, user_id: UUID, name: str) -> str:
@@ -744,6 +788,13 @@ class BotDesk:
             return self._known(error.message_key, "errors.gift_invalid")
         return self._format("bot.code_ok", balance=amount)
 
+    async def _home(self, user_id: UUID) -> str:
+        profile, _premium, _sign = await self._profile.read(user_id)
+        name = profile.display_name or "Здравствуйте"
+        card = await self._profile_text(user_id)
+        lead = self._format("bot.home_ready", name=name)
+        return f"{lead}\n\n{card}\n\n{self._text('bot.home_hint')}"
+
     async def _profile_text(self, user_id: UUID) -> str:
         profile, premium, sign = await self._profile.read(user_id)
         if not _registered(profile):
@@ -755,17 +806,20 @@ class BotDesk:
             else profile.birth_date.strftime("%d.%m.%Y")
         )
         if profile.birth_time_unknown or profile.birth_time is None:
-            clock = "время не указано"
+            clock = "не указано"
         else:
             clock = profile.birth_time.strftime("%H:%M")
         state = self._text("bot.premium_on" if premium else "bot.premium_off")
+        balance = await self._wallet.balance(user_id)
         return self._format(
             "bot.profile_card",
             name=name,
             date=born,
             time=clock,
+            place=profile.birth_place or "не указано",
             sign=sign or "—",
             premium=state,
+            balance=balance,
         )
 
     async def _referral(self, user_id: UUID) -> str:
@@ -796,7 +850,7 @@ class BotDesk:
         return _clip("\n\n".join(parts))
 
     def _format_chart(self, view: ChartView) -> str:
-        parts = ["Натальная карта"]
+        parts = ["Натальная карта", ""]
         if view.sun_sign:
             parts.append(f"Солнце: {_cap(view.sun_sign)}")
         if view.moon_sign:
@@ -811,6 +865,7 @@ class BotDesk:
             mark = ", ретроград" if planet.retrograde else ""
             parts.append(f"{_cap(planet.name)}: {_cap(planet.sign)}{mark}")
         if _PARTIAL.intersection(view.limitations):
+            parts.append("")
             parts.append(self._text("bot.chart_partial"))
         return _clip("\n".join(parts))
 

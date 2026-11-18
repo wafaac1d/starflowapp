@@ -1339,6 +1339,18 @@ D-114. В чате бота доступны те же функции, что в
 | `uv run pytest tests/unit/test_bot_desk.py tests/unit/test_bot_reply.py tests/unit/test_onboarding.py` | 0, 27 тестов |
 | `uv run pytest tests/unit/test_skeleton.py tests/unit/test_contract.py` | 0, 17 тестов |
 
+## Чат без кнопки на каждом шаге, 2026-11-18
+
+D-115. Кнопка «Открыть StarFlow» остаётся только на `/start`. Профиль в чате показывает те же данные, что Mini App. Принятый шаг регистрации удаляет предыдущий вопрос и ответ. Экран Mini App не менялся, браузер не открывался.
+
+| Команда | Код |
+| --- | --- |
+| `uv run ruff check` по `bot_desk.py`, `handlers.py`, `bootstrap.py` и двум тестам | 0 |
+| `uv run ruff format` по `bot_desk.py`, `handlers.py` и двум тестам | 0, без правок |
+| `node frontend/scripts/compile-texts.mjs` и `--check` | 0 |
+| `uv run mypy` по `bot_desk.py`, `handlers.py`, `bootstrap.py` | 0 |
+| `uv run pytest tests/unit/test_bot_desk.py tests/unit/test_bot_reply.py tests/unit/test_skeleton.py tests/unit/test_contract.py` | 0, 36 тестов |
+
 ## Следующий этап
 
 Ретроспектива периода подписки. Перед публичным запуском расчёта всё ещё нужно решение о лицензии Swiss Ephemeris. Живой чек-лист Stars из `docs/PAYMENTS.md` ещё не пройден.
